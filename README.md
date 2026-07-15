@@ -70,6 +70,10 @@ The supplied reference image matches TapTools' [Market Overview / Protocols](htt
 | Market Cap, MCap/TVL | `Data unavailable`. A token market cap is not assumed to equal protocol market cap, and values from the screenshot are not copied. MCap/TVL is calculated only when both verified inputs exist. |
 | Pools | Number of Minswap rows in the top-100 24h response by version; SundaeSwap aggregate `stats.poolCount`. The column is labelled as observed coverage and is not assumed complete across providers. |
 
+The main table shows one canonical row per independently tracked DEX version. `Minswap` means the original V1 contract, while `Minswap V2` is the current V2 contract. The same naming convention is used for `WingRiders` / `WingRiders V2` and `SundaeSwap V1` / `SundaeSwap V3`. Minswap Stable and duplicate family-total rows are not shown. Family totals remain available in each row's expandable source details and continue to power aggregate cards and charts without being counted twice.
+
+The table defaults to descending 24-hour DEX volume and recalculates visible rank from those canonical rows. When a version-level public value is unavailable, the row remains unranked. Native and DefiLlama protocol totals are shown side by side in the disclosure panel; the app does not average them because differing pool coverage and rolling/calendar windows would make the midpoint a new, unsupported metric.
+
 ## Comparison snapshot
 
 The 2026-07-15 research run found these approximate 24-hour comparisons after converting ADA at the same CoinGecko timestamp:
@@ -103,7 +107,7 @@ Minswap's native 7-day aggregate was approximately $10.8m versus DefiLlama's $2.
 
 - `price`: ADA/USD value, provider, endpoint, and timestamp.
 - `aggregates`: observed totals, benchmark totals, comparable changes, and coverage counts.
-- `dexes[]`: normalized protocol and version rows with current/period volumes, fees, operational fields, TVL, market-cap fields, pool count, rank, share, native and DefiLlama comparison fields, quality flag, source, period note, and timestamp. `rowKind`, `parentId`, and `protocolVersion` prevent version rows from entering protocol aggregates.
+- `dexes[]`: normalized protocol and version rows with current/period volumes, fees, operational fields, TVL, market-cap fields, pool count, rank, share, native and DefiLlama comparison fields, quality flag, source, period note, and timestamp. `rowKind`, `tableRole`, `parentId`, and `protocolVersion` separate primary table rows from expandable family totals and hidden adapter-only versions while preventing double counting.
 - `benchmarkSeries[]`: daily DefiLlama total plus normalized per-DEX breakdown for historical charts.
 - `sources[]`: endpoint health, fetch timestamp, data timestamp, expected update interval, and status message.
 - `warnings[]`: material variances, failed sources, and coverage cautions rendered in the UI.

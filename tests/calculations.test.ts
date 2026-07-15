@@ -9,6 +9,7 @@ import {
 } from "../lib/calculations";
 import { formatMoney } from "../lib/format";
 import { summarizeMinswapVersion } from "../lib/protocol-versions";
+import { DEX_VERSION_REGISTRY } from "../config/dexes";
 
 describe("safePercentChange", () => {
   it("uses the required current-versus-previous formula", () => {
@@ -94,5 +95,23 @@ describe("Minswap protocol-version transformation", () => {
       poolCount: 2,
     });
     expect(summarizeMinswapVersion(dayRows, weekRows, "Unknown")).toBeNull();
+  });
+});
+
+describe("version-aware table configuration", () => {
+  it("publishes only the requested canonical DEX version names", () => {
+    const visibleNames = DEX_VERSION_REGISTRY
+      .filter((version) => version.showInTable)
+      .map((version) => version.name);
+
+    expect(visibleNames).toEqual([
+      "Minswap V2",
+      "Minswap",
+      "WingRiders V2",
+      "WingRiders",
+      "SundaeSwap V3",
+      "SundaeSwap V1",
+    ]);
+    expect(visibleNames).not.toContain("Minswap (Stable)");
   });
 });

@@ -17,6 +17,7 @@ export function buildMockDashboardData(): DashboardData {
     id: row[0],
     name: row[1],
     rowKind: "protocol",
+    tableRole: "primary",
     parentId: null,
     protocolVersion: null,
     color: row[2],

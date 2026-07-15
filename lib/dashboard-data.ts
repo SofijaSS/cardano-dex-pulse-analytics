@@ -444,6 +444,11 @@ function buildDexRows({
       id: config.id,
       name: config.name,
       rowKind: "protocol",
+      tableRole: DEX_VERSION_REGISTRY.some(
+        (version) => version.parentId === config.id && version.showInTable,
+      )
+        ? "detail"
+        : "primary",
       parentId: null,
       protocolVersion: null,
       logo: getLogo(protocols, config.tvlAliases),
@@ -510,6 +515,7 @@ function buildDexRows({
       id: version.id,
       name: version.name,
       rowKind: "version",
+      tableRole: version.showInTable ? "primary" : "hidden",
       parentId: version.parentId,
       protocolVersion: version.version,
       logo: parent.logo,

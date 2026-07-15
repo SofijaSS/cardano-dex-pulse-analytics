@@ -13,6 +13,7 @@ export interface DexVersionConfig {
   name: string;
   version: string;
   nativeType?: string;
+  showInTable: boolean;
   unavailableNote: string;
 }
 
@@ -96,17 +97,19 @@ export const DEX_VERSION_REGISTRY: DexVersionConfig[] = [
   {
     id: "minswap-v2",
     parentId: "minswap",
-    name: "Minswap (V2)",
+    name: "Minswap V2",
     version: "V2",
     nativeType: "MinswapV2",
+    showInTable: true,
     unavailableNote: "Minswap V2 is configured, but its current version-level feed is unavailable.",
   },
   {
     id: "minswap-v1",
     parentId: "minswap",
-    name: "Minswap (V1)",
+    name: "Minswap",
     version: "V1",
     nativeType: "Minswap",
+    showInTable: true,
     unavailableNote: "Minswap V1 is configured, but its current version-level feed is unavailable.",
   },
   {
@@ -115,34 +118,39 @@ export const DEX_VERSION_REGISTRY: DexVersionConfig[] = [
     name: "Minswap (Stable)",
     version: "Stable",
     nativeType: "MinswapStable",
+    showInTable: false,
     unavailableNote: "Minswap Stable is configured, but its current version-level feed is unavailable.",
   },
   {
     id: "wingriders-v2",
     parentId: "wingriders",
-    name: "WingRiders (V2)",
+    name: "WingRiders V2",
     version: "V2",
+    showInTable: true,
     unavailableNote: "The public WingRiders endpoint reports protocol totals and does not split metrics by V2.",
   },
   {
     id: "wingriders-v1",
     parentId: "wingriders",
-    name: "WingRiders (V1)",
+    name: "WingRiders",
     version: "V1",
+    showInTable: true,
     unavailableNote: "The public WingRiders endpoint reports protocol totals and does not split metrics by V1.",
   },
   {
     id: "sundaeswap-v3",
     parentId: "sundaeswap",
-    name: "SundaeSwap (V3)",
+    name: "SundaeSwap V3",
     version: "V3",
+    showInTable: true,
     unavailableNote: "SundaeSwap GraphQL confirms V3, but public stats are aggregate and not split by version.",
   },
   {
     id: "sundaeswap-v1",
     parentId: "sundaeswap",
-    name: "SundaeSwap (V1)",
+    name: "SundaeSwap V1",
     version: "V1",
+    showInTable: true,
     unavailableNote: "SundaeSwap GraphQL confirms V1, but public stats are aggregate and not split by version.",
   },
 ];

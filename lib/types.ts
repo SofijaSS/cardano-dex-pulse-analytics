@@ -31,6 +31,7 @@ export interface DexMetric {
   id: string;
   name: string;
   rowKind: "protocol" | "version";
+  tableRole: "primary" | "detail" | "hidden";
   parentId: string | null;
   protocolVersion: string | null;
   logo: string | null;
