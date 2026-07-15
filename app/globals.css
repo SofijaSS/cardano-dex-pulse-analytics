@@ -2022,6 +2022,17 @@ footer a { color: var(--blue); font-weight: 700; }
   display: flex;
 }
 
+.token-footer-source {
+  color: var(--muted);
+  font-family: var(--font-plex-mono), monospace;
+  font-size: 8px;
+}
+
+.token-footer-source strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+
 @keyframes reveal {
   from { opacity: 0; transform: translateY(12px); }
   to { opacity: 1; transform: translateY(0); }

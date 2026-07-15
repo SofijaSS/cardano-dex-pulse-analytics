@@ -350,6 +350,7 @@ export function TokenAnalytics({ authEnabled = false }: { authEnabled?: boolean 
 
       <footer className="token-footer">
         <div className="footer-brand"><BarChart3 size={18} aria-hidden="true" /><strong>Cardano DEX Pulse</strong></div>
+        <p className="token-footer-source">Token chart source: <strong>Minswap public API</strong> · ADA/USD source shown with each quote.</p>
         <p>Token analytics are decision support, not financial advice.</p>
         <Link href="/">Return to DEX volume</Link>
       </footer>
