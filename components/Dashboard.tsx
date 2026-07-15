@@ -47,8 +47,26 @@ function benchmarkRows(dexes: DexMetric[], benchmarkTotal24: number | null) {
       benchmarkTotal24 && dex.defillamaVolume24hUsd != null
         ? (dex.defillamaVolume24hUsd / benchmarkTotal24) * 100
         : null,
+    trades24h: null,
+    users24h: null,
+    dau24h: null,
+    fees24hUsd: null,
+    fees7dUsd: null,
+    marketCapUsd: null,
+    marketCapToTvl: null,
+    poolCount: null,
+    variance24hPct: null,
+    quality:
+      dex.rowKind === "version"
+        ? "unavailable" as const
+        : dex.defillamaVolume24hUsd != null
+          ? "benchmark-only" as const
+          : "unavailable" as const,
     sourceLabel: "DefiLlama benchmark",
-    periodNote: "Benchmark view: values are displayed exactly as returned by DefiLlama.",
+    periodNote:
+      dex.rowKind === "version"
+        ? "DefiLlama does not provide a version-level row for this configured protocol version."
+        : "Benchmark view: values are displayed exactly as returned by DefiLlama.",
   }));
   const ranked = rows
     .filter((dex) => dex.volume7dUsd != null)
@@ -127,7 +145,7 @@ export function Dashboard() {
         setSelectedDexes((current) => {
           if (current.size) return current;
           const historical = payload.dexes.filter(
-            (dex) => dex.defillamaVolume7dUsd != null,
+            (dex) => dex.rowKind === "protocol" && dex.defillamaVolume7dUsd != null,
           );
           const defaults = historical.slice(0, 5).map((dex) => dex.id);
           if (historical.some((dex) => dex.id === "wingriders")) {
@@ -172,7 +190,12 @@ export function Dashboard() {
   if (!data) return null;
 
   const adaPrice = data.price.usd;
+  const protocolDexes = data.dexes.filter((dex) => dex.rowKind === "protocol");
   const displayedDexes =
+    sourceMode === "defillama"
+      ? benchmarkRows(protocolDexes, data.aggregates.benchmark24hUsd)
+      : protocolDexes;
+  const tableDexes =
     sourceMode === "defillama"
       ? benchmarkRows(data.dexes, data.aggregates.benchmark24hUsd)
       : data.dexes;
@@ -229,14 +252,24 @@ export function Dashboard() {
     downloadCsv(`cardano-dex-table-${sourceMode}-${new Date().toISOString().slice(0, 10)}.csv`, [
       [
         "DEX",
+        "Row type",
+        "Protocol version",
         "Rank (7d)",
         `24h volume (${currency})`,
         `7d volume (${currency})`,
         `30d volume (${currency})`,
         `Previous 7d (${currency})`,
         "WoW %",
+        "Trades (24h)",
+        "Users (24h)",
+        "DAU (24h)",
+        `Fees (24h, ${currency})`,
+        `Fees (7d, ${currency})`,
         `TVL (${currency})`,
         "24h volume / TVL",
+        `Market cap (${currency})`,
+        "Market cap / TVL",
+        "Pools observed",
         "Observed 24h share %",
         "Native vs DefiLlama %",
         "Quality",
@@ -245,14 +278,24 @@ export function Dashboard() {
       ],
       ...rows.map((dex) => [
         dex.name,
+        dex.rowKind,
+        dex.protocolVersion,
         dex.rank7d,
         convertUsd(dex.volume24hUsd, currency, adaPrice),
         convertUsd(dex.volume7dUsd, currency, adaPrice),
         convertUsd(dex.volume30dUsd, currency, adaPrice),
         convertUsd(dex.previous7dUsd, currency, adaPrice),
         dex.weekChangePct,
+        dex.trades24h,
+        dex.users24h,
+        dex.dau24h,
+        convertUsd(dex.fees24hUsd, currency, adaPrice),
+        convertUsd(dex.fees7dUsd, currency, adaPrice),
         convertUsd(dex.tvlUsd, currency, adaPrice),
         dex.volumeToTvl,
+        convertUsd(dex.marketCapUsd, currency, adaPrice),
+        dex.marketCapToTvl,
+        dex.poolCount,
         dex.marketShare24hPct,
         dex.variance24hPct,
         dex.quality,
@@ -376,8 +419,8 @@ export function Dashboard() {
         <DashboardCharts series={chartSeries} dexes={displayedDexes} selected={selectedDexes} currency={currency} adaPriceUsd={adaPrice} />
       </section>
 
-      <WeeklySummary dexes={data.dexes} currency={currency} adaPriceUsd={adaPrice} generatedAt={data.generatedAt} />
-      <DexTable dexes={displayedDexes} currency={currency} adaPriceUsd={adaPrice} onExport={exportTable} />
+      <WeeklySummary dexes={protocolDexes} currency={currency} adaPriceUsd={adaPrice} generatedAt={data.generatedAt} />
+      <DexTable dexes={tableDexes} currency={currency} adaPriceUsd={adaPrice} onExport={exportTable} />
 
       <footer>
         <div className="footer-brand"><BarChart3 size={18} aria-hidden="true" /><strong>Cardano DEX Pulse</strong></div>

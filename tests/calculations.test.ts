@@ -8,6 +8,7 @@ import {
   variancePct,
 } from "../lib/calculations";
 import { formatMoney } from "../lib/format";
+import { summarizeMinswapVersion } from "../lib/protocol-versions";
 
 describe("safePercentChange", () => {
   it("uses the required current-versus-previous formula", () => {
@@ -69,5 +70,29 @@ describe("sumAvailable", () => {
 describe("report formatting", () => {
   it("places a negative sign before the USD symbol", () => {
     expect(formatMoney(-1_250, "USD", null, false)).toBe("-$1,250");
+  });
+});
+
+describe("Minswap protocol-version transformation", () => {
+  it("keeps V1 and V2 metrics separate across independently ranked periods", () => {
+    const dayRows = [
+      { type: "MinswapV2", volume_24h: 80, trading_fee_24h: 0.8, liquidity_currency: 400 },
+      { type: "MinswapV2", volume_24h: 20, trading_fee_24h: 0.2, liquidity_currency: 100 },
+      { type: "Minswap", volume_24h: 10, trading_fee_24h: 0.1, liquidity_currency: 50 },
+    ];
+    const weekRows = [
+      { type: "MinswapV2", volume_7d: 700, trading_fee_7d: 7 },
+      { type: "Minswap", volume_7d: 70, trading_fee_7d: 0.7 },
+    ];
+
+    expect(summarizeMinswapVersion(dayRows, weekRows, "MinswapV2")).toEqual({
+      volume24hUsd: 100,
+      volume7dUsd: 700,
+      fees24hUsd: 1,
+      fees7dUsd: 7,
+      tvlUsd: 500,
+      poolCount: 2,
+    });
+    expect(summarizeMinswapVersion(dayRows, weekRows, "Unknown")).toBeNull();
   });
 });

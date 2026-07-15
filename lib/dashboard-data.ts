@@ -1,5 +1,11 @@
 import { z } from "zod";
-import { DEX_REGISTRY, normalizeName, slugify, type DexConfig } from "@/config/dexes";
+import {
+  DEX_REGISTRY,
+  DEX_VERSION_REGISTRY,
+  normalizeName,
+  slugify,
+  type DexConfig,
+} from "@/config/dexes";
 import {
   classifySourceQuality,
   safeDivide,
@@ -9,6 +15,7 @@ import {
   variancePct,
 } from "@/lib/calculations";
 import { SOURCE_ENDPOINTS } from "@/lib/source-config";
+import { summarizeMinswapVersion } from "@/lib/protocol-versions";
 import type {
   DashboardData,
   DexMetric,
@@ -63,8 +70,12 @@ const minswapSchema = z.object({
   pool_metrics: z.array(
     z
       .object({
+        type: z.string(),
         volume_24h: nullableNumber,
         volume_7d: nullableNumber,
+        trading_fee_24h: nullableNumber,
+        trading_fee_7d: nullableNumber,
+        liquidity_currency: nullableNumber,
       })
       .passthrough(),
   ),
@@ -85,11 +96,16 @@ const coinbaseSchema = z.object({
   }),
 });
 
-const wingridersSchema = z.object({ dailyVolume: z.string() });
+const wingridersSchema = z.object({
+  dailyVolume: z.string(),
+  dailyFees: z.string(),
+});
 
 const sundaeswapSchema = z.object({
   data: z.object({
+    protocols: z.array(z.object({ version: z.string() })),
     stats: z.object({
+      poolCount: z.number().int().nonnegative(),
       volume: z.object({
         asset: z.object({ id: z.string() }),
         quantity: z.string(),
@@ -247,6 +263,20 @@ function sumField(
   }, 0);
 }
 
+type MinswapMetric = z.infer<typeof minswapSchema>["pool_metrics"][number];
+
+function sumMinswapField(
+  rows: MinswapMetric[],
+  key:
+    | "volume_24h"
+    | "volume_7d"
+    | "trading_fee_24h"
+    | "trading_fee_7d"
+    | "liquidity_currency",
+) {
+  return sumAvailable(rows.map((row) => row[key] ?? null));
+}
+
 function adaToUsd(valueAda: number | null, price: number | null) {
   if (valueAda == null || price == null) return null;
   const result = valueAda * price;
@@ -358,10 +388,12 @@ function buildDexRows({
   overview,
   protocols,
   nativeSnapshots,
+  versionSnapshots,
 }: {
   overview: DefillamaOverview | null;
   protocols: DefillamaProtocol[];
   nativeSnapshots: Map<string, NativeDexSnapshot>;
+  versionSnapshots: Map<string, NativeDexSnapshot>;
 }) {
   const configs = [...DEX_REGISTRY, ...addDynamicDexes(protocols)];
   const latestBenchmarkAt = overview?.totalDataChart.at(-1)?.[0]
@@ -411,6 +443,9 @@ function buildDexRows({
     return {
       id: config.id,
       name: config.name,
+      rowKind: "protocol",
+      parentId: null,
+      protocolVersion: null,
       logo: getLogo(protocols, config.tvlAliases),
       color: config.color,
       volume24hUsd: native24,
@@ -422,6 +457,14 @@ function buildDexRows({
       volumeToTvl: safeDivide(native24, tvl),
       marketShare24hPct: null,
       rank7d: null,
+      trades24h: native?.trades24h ?? null,
+      users24h: native?.users24h ?? null,
+      dau24h: native?.dau24h ?? null,
+      fees24hUsd: native?.fees24hUsd ?? null,
+      fees7dUsd: native?.fees7dUsd ?? null,
+      marketCapUsd: native?.marketCapUsd ?? null,
+      marketCapToTvl: safeDivide(native?.marketCapUsd ?? null, tvl),
+      poolCount: native?.poolCount ?? null,
       nativeVolume24hUsd: native24,
       defillamaVolume24hUsd: benchmark24,
       defillamaVolume7dUsd: benchmark7,
@@ -456,6 +499,56 @@ function buildDexRows({
     row.rank7d = rank >= 0 ? rank + 1 : null;
   }
 
+  const versionRows = DEX_VERSION_REGISTRY.flatMap<DexMetric>((version) => {
+    const parent = rows.find((row) => row.id === version.parentId);
+    if (!parent) return [];
+    const native = versionSnapshots.get(version.id) || null;
+    const volume24 = native?.volume24hUsd ?? null;
+    const tvl = native?.tvlUsd ?? null;
+
+    return [{
+      id: version.id,
+      name: version.name,
+      rowKind: "version",
+      parentId: version.parentId,
+      protocolVersion: version.version,
+      logo: parent.logo,
+      color: parent.color,
+      volume24hUsd: volume24,
+      volume7dUsd: native?.volume7dUsd ?? null,
+      volume30dUsd: native?.volume30dUsd ?? null,
+      previous7dUsd: native?.previous7dUsd ?? null,
+      weekChangePct: safePercentChange(
+        native?.volume7dUsd ?? null,
+        native?.previous7dUsd ?? null,
+      ),
+      tvlUsd: tvl,
+      volumeToTvl: safeDivide(volume24, tvl),
+      marketShare24hPct:
+        observed24 && volume24 != null ? (volume24 / observed24) * 100 : null,
+      rank7d: null,
+      trades24h: native?.trades24h ?? null,
+      users24h: native?.users24h ?? null,
+      dau24h: native?.dau24h ?? null,
+      fees24hUsd: native?.fees24hUsd ?? null,
+      fees7dUsd: native?.fees7dUsd ?? null,
+      marketCapUsd: native?.marketCapUsd ?? null,
+      marketCapToTvl: safeDivide(native?.marketCapUsd ?? null, tvl),
+      poolCount: native?.poolCount ?? null,
+      nativeVolume24hUsd: volume24,
+      defillamaVolume24hUsd: null,
+      defillamaVolume7dUsd: null,
+      defillamaVolume30dUsd: null,
+      defillamaPrevious7dUsd: null,
+      variance24hPct: null,
+      quality: native ? "native-only" : "unavailable",
+      sourceLabel: native?.sourceLabel || "Version metrics unavailable",
+      sourceUrl: native?.sourceUrl || parent.sourceUrl,
+      periodNote: native?.periodNote || version.unavailableNote,
+      lastDataAt: native?.dataAt || null,
+    }];
+  });
+
   rows.sort((a, b) => {
     if (a.volume7dUsd == null && b.volume7dUsd == null) {
       return (b.tvlUsd || 0) - (a.tvlUsd || 0);
@@ -465,7 +558,7 @@ function buildDexRows({
     return b.volume7dUsd - a.volume7dUsd;
   });
 
-  return { rows, configs };
+  return { rows: [...rows, ...versionRows], protocolRows: rows, configs };
 }
 
 export async function loadLiveDashboardData(): Promise<DashboardData> {
@@ -588,7 +681,7 @@ export async function loadLiveDashboardData(): Promise<DashboardData> {
             headers: { "content-type": "application/json" },
             body: JSON.stringify({
               query:
-                "query StatsVolume { stats { volume { asset { id } quantity } } }",
+                "query StatsVolume { protocols { version } stats { poolCount volume { asset { id } quantity } } }",
             }),
           }),
         ),
@@ -692,6 +785,7 @@ export async function loadLiveDashboardData(): Promise<DashboardData> {
         : SOURCE_ENDPOINTS.coinGeckoPrice;
   const todaySeconds = Math.floor(Date.now() / 86_400_000) * 86_400;
   const nativeSnapshots = new Map<string, NativeDexSnapshot>();
+  const versionSnapshots = new Map<string, NativeDexSnapshot>();
 
   if (minswap.data) {
     const dayUsd = sumField(
@@ -723,11 +817,47 @@ export async function loadLiveDashboardData(): Promise<DashboardData> {
         volume30dUsd: null,
         previous7dUsd: null,
         tvlUsd: null,
+        fees24hUsd: sumMinswapField(
+          minswap.data.dayUsd.pool_metrics,
+          "trading_fee_24h",
+        ),
+        fees7dUsd: sumMinswapField(
+          minswap.data.weekUsd.pool_metrics,
+          "trading_fee_7d",
+        ),
+        poolCount: minswap.data.dayUsd.pool_metrics.length,
         sourceLabel: "Minswap native API (USD unit-checked)",
         sourceUrl: SOURCE_ENDPOINTS.minswapPools,
         periodNote: `${unitNote} Rolling windows; sum of the top 100 pools ranked by each metric. This is a documented lower bound.`,
         dataAt: minswap.status.fetchedAt,
       });
+
+      for (const version of DEX_VERSION_REGISTRY.filter(
+        (entry) => entry.parentId === "minswap" && entry.nativeType,
+      )) {
+        const summary = summarizeMinswapVersion(
+          minswap.data.dayUsd.pool_metrics,
+          minswap.data.weekUsd.pool_metrics,
+          version.nativeType || "",
+        );
+        if (!summary) continue;
+
+        versionSnapshots.set(version.id, {
+          id: version.id,
+          volume24hUsd: summary.volume24hUsd,
+          volume7dUsd: summary.volume7dUsd,
+          volume30dUsd: null,
+          previous7dUsd: null,
+          tvlUsd: summary.tvlUsd,
+          fees24hUsd: summary.fees24hUsd,
+          fees7dUsd: summary.fees7dUsd,
+          poolCount: summary.poolCount,
+          sourceLabel: "Minswap version-level native API",
+          sourceUrl: SOURCE_ENDPOINTS.minswapPools,
+          periodNote: `${unitNote} Version is mapped from pool_metrics[].type. Volume, fees, liquidity and pool count are lower bounds from the top 100 pools ranked separately for 24h and 7d.`,
+          dataAt: minswap.status.fetchedAt,
+        });
+      }
     }
   }
 
@@ -739,9 +869,10 @@ export async function loadLiveDashboardData(): Promise<DashboardData> {
       volume30dUsd: null,
       previous7dUsd: null,
       tvlUsd: null,
+      fees24hUsd: adaToUsd(Number(wingriders.data.dailyFees), adaUsd),
       sourceLabel: "WingRiders official API",
       sourceUrl: SOURCE_ENDPOINTS.wingriders,
-      periodNote: "Current daily/24h metric supplied by WingRiders in ADA.",
+      periodNote: "Current daily volume and daily fees supplied by WingRiders in ADA. The endpoint does not split V1 and V2.",
       dataAt: wingriders.status.fetchedAt,
     });
   }
@@ -756,9 +887,10 @@ export async function loadLiveDashboardData(): Promise<DashboardData> {
       volume30dUsd: null,
       previous7dUsd: null,
       tvlUsd: null,
+      poolCount: sundaeswap.data.data.stats.poolCount,
       sourceLabel: "SundaeSwap official GraphQL",
       sourceUrl: SOURCE_ENDPOINTS.sundaeswap,
-      periodNote: "Current protocol volume supplied in lovelace.",
+      periodNote: "Current protocol volume supplied in lovelace. Pool count is aggregate; the schema confirms V1 and V3 but does not split stats by version.",
       dataAt: sundaeswap.status.fetchedAt,
     });
   }
@@ -874,12 +1006,13 @@ export async function loadLiveDashboardData(): Promise<DashboardData> {
   }
 
   const protocols = defillamaProtocols.data || [];
-  const { rows, configs } = buildDexRows({
+  const { rows, protocolRows, configs } = buildDexRows({
     overview: defillamaOverview.data,
     protocols,
     nativeSnapshots,
+    versionSnapshots,
   });
-  const comparableWeek = rows.filter(
+  const comparableWeek = protocolRows.filter(
     (row) => row.volume7dUsd != null && row.previous7dUsd != null,
   );
   const comparableCurrent = sumAvailable(
@@ -896,7 +1029,7 @@ export async function loadLiveDashboardData(): Promise<DashboardData> {
     "Reconciled totals are observed coverage across DEXes with usable public native metrics; they are not represented as complete Cardano market totals.",
   ];
 
-  for (const row of rows) {
+  for (const row of protocolRows) {
     if (row.quality === "material-variance") {
       warnings.push(
         `${row.name}: native and DefiLlama 24h volume differ by ${Math.abs(row.variance24hPct || 0).toFixed(1)}%. Native data is primary and DefiLlama history is excluded.`,
@@ -937,20 +1070,20 @@ export async function loadLiveDashboardData(): Promise<DashboardData> {
       endpoint: priceEndpoint,
     },
     aggregates: {
-      observed24hUsd: sumAvailable(rows.map((row) => row.volume24hUsd)),
-      observed7dUsd: sumAvailable(rows.map((row) => row.volume7dUsd)),
-      observed30dUsd: sumAvailable(rows.map((row) => row.volume30dUsd)),
-      observedTvlUsd: sumAvailable(rows.map((row) => row.tvlUsd)),
+      observed24hUsd: sumAvailable(protocolRows.map((row) => row.volume24hUsd)),
+      observed7dUsd: sumAvailable(protocolRows.map((row) => row.volume7dUsd)),
+      observed30dUsd: sumAvailable(protocolRows.map((row) => row.volume30dUsd)),
+      observedTvlUsd: sumAvailable(protocolRows.map((row) => row.tvlUsd)),
       comparableWeekChangePct: safePercentChange(
         comparableCurrent,
         comparablePrevious,
       ),
       comparableMonthChangePct: null,
-      activeDexes: rows.filter((row) => (row.volume24hUsd || 0) > 0).length,
-      coverage24h: rows.filter((row) => row.volume24hUsd != null).length,
-      coverage7d: rows.filter((row) => row.volume7dUsd != null).length,
-      coverage30d: rows.filter((row) => row.volume30dUsd != null).length,
-      trackedDexes: rows.length,
+      activeDexes: protocolRows.filter((row) => (row.volume24hUsd || 0) > 0).length,
+      coverage24h: protocolRows.filter((row) => row.volume24hUsd != null).length,
+      coverage7d: protocolRows.filter((row) => row.volume7dUsd != null).length,
+      coverage30d: protocolRows.filter((row) => row.volume30dUsd != null).length,
+      trackedDexes: protocolRows.length,
       benchmark24hUsd: overview?.total24h ?? null,
       benchmark7dUsd: overview?.total7d ?? null,
       benchmark30dUsd: overview?.total30d ?? null,

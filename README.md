@@ -46,9 +46,9 @@ Research and comparison were last reviewed on **2026-07-15**. Values below are a
 | DefiLlama TVL | `GET https://api.llama.fi/protocols`; filter `category="Dexs"` and Cardano, map `chainTvls.Cardano`, fallback `tvl` | DefiLlama documents hourly TVL updates. App stale threshold: 2h. | Used as TVL fallback when a compatible native metric is unavailable. A protocol can expose multiple versions. |
 | CoinGecko | `GET /api/v3/simple/price?ids=cardano&vs_currencies=usd&include_last_updated_at=true`; `cardano.usd`, `last_updated_at` | Near-real-time. App rejects price older than 4h. | Primary ADA/USD display price. No implicit conversion occurs without a fresh primary or fallback price. |
 | Coinbase | `GET https://api.coinbase.com/v2/prices/ADA-USD/spot`; `data.amount` | Requested with each cached refresh; app stale threshold: 1h. | Used only when CoinGecko fails or is stale. The public response has no provider timestamp, so the server fetch time is displayed. |
-| Minswap | `POST https://api-mainnet-prod.minswap.org/v1/pools/metrics`; sum `pool_metrics[].volume_24h` or `volume_7d` with `currency="usd"`. A parallel no-currency 24h request returns ADA and validates the implied ADA/USD rate. | Rolling/current; app stale threshold: 2h. | Minswap documents that omitted `currency` means ADA and `currency="usd"` means USD. The result uses `limit=100`, so it is a lower bound across pools ranked separately for each period. Native 30d and previous 7d are unavailable. |
-| WingRiders | `GET https://api.mainnet.wingriders.com/v1/defillama`; `dailyVolume` in ADA, converted with timestamped CoinGecko price | Current daily metric; app stale threshold: 2h. | Native endpoint exposes only the current daily value. Historical periods use DefiLlama only after live agreement passes. |
-| SundaeSwap | `POST https://api.sundae.fi/graphql`; `stats.volume.quantity` for lovelace | Current protocol metric; app stale threshold: 2h. | Public schema does not label the window as clearly as desired. The live value is checked against DefiLlama before benchmark history is accepted. Native `stats.tvl` is intentionally excluded because its semantics did not reconcile with protocol TVL. |
+| Minswap | `POST https://api-mainnet-prod.minswap.org/v1/pools/metrics`; sum `pool_metrics[].volume_24h`, `volume_7d`, `trading_fee_24h`, `trading_fee_7d`, and `liquidity_currency` with `currency="usd"`. `pool_metrics[].type` maps `Minswap` to V1, `MinswapV2` to V2, and `MinswapStable` to Stable. A parallel no-currency 24h request returns ADA and validates the implied ADA/USD rate. | Rolling/current; app stale threshold: 2h. | Minswap documents that omitted `currency` means ADA and `currency="usd"` means USD. Each request uses `limit=100`, so version volume, fees, TVL/liquidity and pool count are lower bounds from independently ranked pool cohorts. Native 30d and previous 7d are unavailable. |
+| WingRiders | `GET https://api.mainnet.wingriders.com/v1/defillama`; `dailyVolume` and `dailyFees` in ADA, converted with the timestamped ADA/USD price | Current daily metric; app stale threshold: 2h. | Native endpoint exposes only aggregate current daily values. V1 and V2 are listed in the configurable version registry, but their separate metrics are `Data unavailable`. Historical aggregate periods use DefiLlama only after live agreement passes. |
+| SundaeSwap | `POST https://api.sundae.fi/graphql`; `stats.volume.quantity` for lovelace, `stats.poolCount`, and `protocols[].version` | Current protocol metric; app stale threshold: 2h. | GraphQL confirms V1, V3 and Stableswaps, but public `stats` are aggregate rather than version-scoped. V1/V3 rows therefore remain `Data unavailable`. The volume window is not labelled as clearly as desired; live aggregate volume is checked against DefiLlama before benchmark history is accepted. Native `stats.tvl` is intentionally excluded because its semantics did not reconcile with protocol TVL. |
 | Splash | `GET https://analytics.splash.trade/platform-api/v1/platform/stats`; `volumeUsd / 1e6`, `tvlUsd / 1e6` | Rolling/current; app stale threshold: 2h. | DefiLlama volume history is excluded when the live variance exceeds 20%. |
 | MuesliSwap | `GET .../muesli-protocol-volume?interval=day&days=60`; timestamp-to-ADA daily map. `GET .../muesli-tvl?days=2`; latest `tvl / 1e6` ADA | Daily; app stale threshold: 26h. | Missing days in the returned interval are treated as zero. DefiLlama has no current volume; TVL definitions materially differ. |
 | VyFinance | `GET https://api-v3.vyfi.io/fetchmaster?data=allPoolsAnalytics`; `tvl`, `volume24H`, `volume7D`, `volume14D` in ADA | Rolling/current; app stale threshold: 2h. | Previous 7d is `max(0, volume14D - volume7D)`. Public 30d volume is unavailable. DefiLlama has no volume benchmark. |
@@ -57,6 +57,18 @@ Research and comparison were last reviewed on **2026-07-15**. Values below are a
 | Saturn Swap | `GET .../v1/defillama/volume?timestamp=...`; `volume.volume` USD | Latest complete UTC day; app stale threshold: 50h from the period-start timestamp. | A real zero remains zero; it is not converted to unavailable. Historical fallback still requires live agreement. |
 
 All network requests use Zod response validation, a 12-second timeout, and three attempts with exponential backoff (250ms then 500ms). Each source reports `healthy`, `stale`, or `error`. The API route caches successful responses using `DATA_CACHE_SECONDS` (default 15 minutes).
+
+### Reference-table field audit
+
+The supplied reference image matches TapTools' [Market Overview / Protocols](https://www.taptools.io/market-overview) table. TapTools publishes [OpenAPI documentation](https://openapi.taptools.io/) using `ApiAuthKey` authentication, but no documented protocol-table endpoint was found for its DEX-level `Trades`, `Users`, `DAU`, or protocol `Market Cap` fields. Screenshot values are not imported, scraped, or treated as API data.
+
+| Dashboard column | Production mapping |
+| --- | --- |
+| 24h / 7d / 30d volume, previous 7d, WoW, TVL, volume/TVL, share, rank | Existing native-first reconciliation described above. Version rows never enter aggregate totals, market ranks, weekly summaries, or charts. |
+| Fees 24h / 7d | Minswap `trading_fee_24h` / `trading_fee_7d`; aggregate WingRiders `dailyFees` for 24h. Other DEXes show `Data unavailable`. |
+| Trades, Users, DAU | `Data unavailable` until a documented public DEX endpoint or configured licensed indexer supplies a period-aligned value. SundaeSwap's unlabeled order counters are intentionally not presented as 24h trades. |
+| Market Cap, MCap/TVL | `Data unavailable`. A token market cap is not assumed to equal protocol market cap, and values from the screenshot are not copied. MCap/TVL is calculated only when both verified inputs exist. |
+| Pools | Number of Minswap rows in the top-100 24h response by version; SundaeSwap aggregate `stats.poolCount`. The column is labelled as observed coverage and is not assumed complete across providers. |
 
 ## Comparison snapshot
 
@@ -91,7 +103,7 @@ Minswap's native 7-day aggregate was approximately $10.8m versus DefiLlama's $2.
 
 - `price`: ADA/USD value, provider, endpoint, and timestamp.
 - `aggregates`: observed totals, benchmark totals, comparable changes, and coverage counts.
-- `dexes[]`: normalized current/period volumes, TVL, rank, share, native and DefiLlama comparison fields, quality flag, source, period note, and timestamp.
+- `dexes[]`: normalized protocol and version rows with current/period volumes, fees, operational fields, TVL, market-cap fields, pool count, rank, share, native and DefiLlama comparison fields, quality flag, source, period note, and timestamp. `rowKind`, `parentId`, and `protocolVersion` prevent version rows from entering protocol aggregates.
 - `benchmarkSeries[]`: daily DefiLlama total plus normalized per-DEX breakdown for historical charts.
 - `sources[]`: endpoint health, fetch timestamp, data timestamp, expected update interval, and status message.
 - `warnings[]`: material variances, failed sources, and coverage cautions rendered in the UI.
@@ -119,6 +131,8 @@ The browser never calls third-party analytics APIs directly and does not receive
 
 - Public provider endpoints can change without versioning or an SLA. Failed/changed schemas surface as source errors instead of being coerced.
 - DEXes do not use one shared definition for rolling 24h, latest UTC day, aggregator-routed trades, or protocol versions.
+- WingRiders V1/V2 and SundaeSwap V1/V3 are explicitly represented, but their public protocol APIs do not expose a reliable version split. Their version cells stay unavailable rather than inheriting or dividing the aggregate total.
+- Trades, unique users, DAU and protocol market cap require a consistent on-chain index or a licensed provider endpoint. These columns are included for schema and reporting continuity but remain unavailable when no verified source exists.
 - Minswap's top-100 request is deliberately a lower bound, despite currently exceeding DefiLlama materially.
 - Historical charts are clearly labelled DefiLlama benchmark because native endpoints do not expose one aligned, complete Cardano series.
 - TVL definitions can include different assets, farms, versions, or pricing methods. Native TVL is used only when its units and semantics are compatible.

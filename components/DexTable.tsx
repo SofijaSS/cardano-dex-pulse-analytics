@@ -19,10 +19,23 @@ type SortKey =
   | "volume30dUsd"
   | "previous7dUsd"
   | "weekChangePct"
+  | "trades24h"
+  | "users24h"
+  | "dau24h"
+  | "fees24hUsd"
+  | "fees7dUsd"
   | "tvlUsd"
   | "volumeToTvl"
+  | "marketCapUsd"
+  | "marketCapToTvl"
+  | "poolCount"
   | "marketShare24hPct"
   | "variance24hPct";
+
+function formatCount(value: number | null) {
+  if (value == null || !Number.isFinite(value)) return "Data unavailable";
+  return new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(value);
+}
 
 function SortableHeader({
   label,
@@ -83,7 +96,7 @@ export function DexTable({
 
   const filtered = dexes
     .filter((dex) => {
-      const matchesQuery = `${dex.name} ${dex.sourceLabel}`
+      const matchesQuery = `${dex.name} ${dex.protocolVersion || ""} ${dex.sourceLabel}`
         .toLowerCase()
         .includes(deferredQuery.trim().toLowerCase());
       return matchesQuery && (quality === "all" || dex.quality === quality);
@@ -109,7 +122,7 @@ export function DexTable({
         <div>
           <span className="eyebrow">Exchange detail</span>
           <h2>DEX performance table</h2>
-          <p>Every numeric column is sortable. Source quality is evaluated against the current DefiLlama benchmark.</p>
+          <p>Protocol totals and configured contract versions, with every numeric column sortable.</p>
         </div>
         <div className="table-actions">
           <label className="search-field">
@@ -131,6 +144,11 @@ export function DexTable({
         </div>
       </div>
 
+      <div className="table-data-note" role="note">
+        <strong>Version-aware, no double counting.</strong>
+        Version rows are excluded from totals, charts and protocol ranks. Public DEX APIs do not expose verified Trades, Users, DAU or protocol Market Cap consistently, so unavailable cells are never inferred from the reference image.
+      </div>
+
       <div className="table-shell">
         <table>
           <thead>
@@ -141,8 +159,16 @@ export function DexTable({
               <th><SortableHeader label="30d volume" field="volume30dUsd" {...headerProps} /></th>
               <th><SortableHeader label="Previous 7d" field="previous7dUsd" {...headerProps} /></th>
               <th><SortableHeader label="WoW" field="weekChangePct" {...headerProps} /></th>
+              <th><SortableHeader label="Trades · 24h" field="trades24h" {...headerProps} /></th>
+              <th><SortableHeader label="Users · 24h" field="users24h" {...headerProps} /></th>
+              <th><SortableHeader label="DAU · 24h" field="dau24h" {...headerProps} /></th>
+              <th><SortableHeader label="Fees · 24h" field="fees24hUsd" {...headerProps} /></th>
+              <th><SortableHeader label="Fees · 7d" field="fees7dUsd" {...headerProps} /></th>
               <th><SortableHeader label="TVL" field="tvlUsd" {...headerProps} /></th>
               <th><SortableHeader label="Vol / TVL" field="volumeToTvl" {...headerProps} /></th>
+              <th><SortableHeader label="Market cap" field="marketCapUsd" {...headerProps} /></th>
+              <th><SortableHeader label="MCap / TVL" field="marketCapToTvl" {...headerProps} /></th>
+              <th><SortableHeader label="Pools" field="poolCount" {...headerProps} /></th>
               <th><SortableHeader label="Share" field="marketShare24hPct" {...headerProps} /></th>
               <th><SortableHeader label="vs DefiLlama" field="variance24hPct" {...headerProps} /></th>
               <th>Last data</th>
@@ -152,10 +178,10 @@ export function DexTable({
             {filtered.map((dex) => {
               const trend = dex.weekChangePct == null ? "neutral" : dex.weekChangePct > 0 ? "positive" : dex.weekChangePct < 0 ? "negative" : "neutral";
               return (
-                <tr key={dex.id}>
+                <tr key={dex.id} className={dex.rowKind === "version" ? "version-row" : "protocol-row"}>
                   <td>
                     <div className="dex-cell">
-                      <span className="rank">{dex.rank7d ? `#${dex.rank7d}` : "–"}</span>
+                      <span className="rank">{dex.rowKind === "version" ? "↳" : dex.rank7d ? `#${dex.rank7d}` : "–"}</span>
                       {dex.logo ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={dex.logo} alt="" width={30} height={30} loading="lazy" />
@@ -164,6 +190,9 @@ export function DexTable({
                       )}
                       <div>
                         <strong>{dex.name}</strong>
+                        <span className={`row-kind row-kind--${dex.rowKind}`}>
+                          {dex.rowKind === "version" ? `${dex.protocolVersion} version` : "Protocol total"}
+                        </span>
                         <span className={`quality quality--${dex.quality}`}>{qualityLabels[dex.quality]}</span>
                       </div>
                     </div>
@@ -173,8 +202,16 @@ export function DexTable({
                   <td>{formatMoney(dex.volume30dUsd, currency, adaPriceUsd)}</td>
                   <td>{formatMoney(dex.previous7dUsd, currency, adaPriceUsd)}</td>
                   <td><span className={`trend-text trend-text--${trend}`}>{formatPercent(dex.weekChangePct)}</span></td>
+                  <td>{formatCount(dex.trades24h)}</td>
+                  <td>{formatCount(dex.users24h)}</td>
+                  <td>{formatCount(dex.dau24h)}</td>
+                  <td>{formatMoney(dex.fees24hUsd, currency, adaPriceUsd)}</td>
+                  <td>{formatMoney(dex.fees7dUsd, currency, adaPriceUsd)}</td>
                   <td>{formatMoney(dex.tvlUsd, currency, adaPriceUsd)}</td>
                   <td>{formatRatio(dex.volumeToTvl)}</td>
+                  <td>{formatMoney(dex.marketCapUsd, currency, adaPriceUsd)}</td>
+                  <td>{formatRatio(dex.marketCapToTvl)}</td>
+                  <td>{formatCount(dex.poolCount)}</td>
                   <td>{formatPercent(dex.marketShare24hPct, false)}</td>
                   <td>
                     <span className={`variance variance--${dex.quality}`} title={`${dex.sourceLabel}. ${dex.periodNote}`}>

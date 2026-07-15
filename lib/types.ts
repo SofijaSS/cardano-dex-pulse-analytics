@@ -30,6 +30,9 @@ export interface PricePoint {
 export interface DexMetric {
   id: string;
   name: string;
+  rowKind: "protocol" | "version";
+  parentId: string | null;
+  protocolVersion: string | null;
   logo: string | null;
   color: string;
   volume24hUsd: number | null;
@@ -41,6 +44,14 @@ export interface DexMetric {
   volumeToTvl: number | null;
   marketShare24hPct: number | null;
   rank7d: number | null;
+  trades24h: number | null;
+  users24h: number | null;
+  dau24h: number | null;
+  fees24hUsd: number | null;
+  fees7dUsd: number | null;
+  marketCapUsd: number | null;
+  marketCapToTvl: number | null;
+  poolCount: number | null;
   nativeVolume24hUsd: number | null;
   defillamaVolume24hUsd: number | null;
   defillamaVolume7dUsd: number | null;
@@ -99,6 +110,13 @@ export interface NativeDexSnapshot {
   volume30dUsd: number | null;
   previous7dUsd: number | null;
   tvlUsd: number | null;
+  trades24h?: number | null;
+  users24h?: number | null;
+  dau24h?: number | null;
+  fees24hUsd?: number | null;
+  fees7dUsd?: number | null;
+  marketCapUsd?: number | null;
+  poolCount?: number | null;
   sourceLabel: string;
   sourceUrl: string;
   periodNote: string;

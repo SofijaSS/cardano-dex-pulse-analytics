@@ -7,6 +7,15 @@ export interface DexConfig {
   required: boolean;
 }
 
+export interface DexVersionConfig {
+  id: string;
+  parentId: string;
+  name: string;
+  version: string;
+  nativeType?: string;
+  unavailableNote: string;
+}
+
 export const DEX_REGISTRY: DexConfig[] = [
   {
     id: "wingriders",
@@ -79,6 +88,62 @@ export const DEX_REGISTRY: DexConfig[] = [
     volumeAliases: ["Saturn Swap"],
     tvlAliases: ["Saturn Swap"],
     required: false,
+  },
+];
+
+// Version rows are table-only and are never included in market totals or charts.
+export const DEX_VERSION_REGISTRY: DexVersionConfig[] = [
+  {
+    id: "minswap-v2",
+    parentId: "minswap",
+    name: "Minswap (V2)",
+    version: "V2",
+    nativeType: "MinswapV2",
+    unavailableNote: "Minswap V2 is configured, but its current version-level feed is unavailable.",
+  },
+  {
+    id: "minswap-v1",
+    parentId: "minswap",
+    name: "Minswap (V1)",
+    version: "V1",
+    nativeType: "Minswap",
+    unavailableNote: "Minswap V1 is configured, but its current version-level feed is unavailable.",
+  },
+  {
+    id: "minswap-stable",
+    parentId: "minswap",
+    name: "Minswap (Stable)",
+    version: "Stable",
+    nativeType: "MinswapStable",
+    unavailableNote: "Minswap Stable is configured, but its current version-level feed is unavailable.",
+  },
+  {
+    id: "wingriders-v2",
+    parentId: "wingriders",
+    name: "WingRiders (V2)",
+    version: "V2",
+    unavailableNote: "The public WingRiders endpoint reports protocol totals and does not split metrics by V2.",
+  },
+  {
+    id: "wingriders-v1",
+    parentId: "wingriders",
+    name: "WingRiders (V1)",
+    version: "V1",
+    unavailableNote: "The public WingRiders endpoint reports protocol totals and does not split metrics by V1.",
+  },
+  {
+    id: "sundaeswap-v3",
+    parentId: "sundaeswap",
+    name: "SundaeSwap (V3)",
+    version: "V3",
+    unavailableNote: "SundaeSwap GraphQL confirms V3, but public stats are aggregate and not split by version.",
+  },
+  {
+    id: "sundaeswap-v1",
+    parentId: "sundaeswap",
+    name: "SundaeSwap (V1)",
+    version: "V1",
+    unavailableNote: "SundaeSwap GraphQL confirms V1, but public stats are aggregate and not split by version.",
   },
 ];
 
