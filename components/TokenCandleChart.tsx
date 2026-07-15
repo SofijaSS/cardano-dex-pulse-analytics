@@ -55,7 +55,7 @@ export function TokenCandleChart({
   const bodyWidth = Math.max(1.5, Math.min(8, xStep * 0.7));
   const yPrice = (price: number) =>
     plotTop + ((maxPrice - price) / priceSpan) * (plotBottom - plotTop);
-  const latest = candles.at(-1)!;
+  const latest = candles[candles.length - 1];
   const latestY = yPrice(latest.close);
   const grid = Array.from({ length: 6 }, (_, index) => {
     const ratio = index / 5;

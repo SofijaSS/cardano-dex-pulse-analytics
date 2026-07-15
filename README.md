@@ -48,6 +48,10 @@ This mode intentionally provides one shared account. Teams that require per-user
 
 New users start with ADA as the display currency. USD remains available whenever desired, while ADA conversion is disabled when no fresh validated ADA/USD price exists. The header also provides Light, Dark, and Auto themes; Auto follows the operating-system preference. Currency and theme choices are stored only in the user's browser. Table-column choices are intentionally session-only and reset to all columns on every refresh or new visit.
 
+## Browser compatibility
+
+The production client targets Safari/iOS 14 and newer. A small inline compatibility layer runs before the client router to cover APIs absent from older WebKit releases, while critical `color-mix()` styles have plain-color fallbacks so the login, loading indicator, and Token Charts remain usable when advanced color syntax is unavailable. WebKit-prefixed blur, touch scrolling, explicit mobile viewport metadata, and compositor-safe loading animations are included. Reduced Motion keeps the logo static and uses a low-motion opacity pulse rather than presenting a frozen loading state.
+
 ## Token charts
 
 The authenticated `/tokens` page tracks governance/utility tokens in this configured order: WingRiders (`WRT`), Minswap (`MIN`), SundaeSwap (`SUNDAE`), Splash (`SPLASH`), VyFinance (`VYFI`), and CSWAP (`CSWAP`). Token policy IDs live in `config/tokens.ts`; adding another token does not require changing the page component.
@@ -112,7 +116,7 @@ The supplied reference image matches TapTools' [Market Overview / Protocols](htt
 
 The main table shows one canonical row per independently tracked DEX version. `Minswap` means the original V1 contract, while `Minswap V2` is the current V2 contract. `WingRiders` is the legacy V1 row and `WingRiders V2` is the primary current deployment; the verified protocol feed is mapped to V2 with an explicit source note. `SundaeSwap V1` is the legacy row and `SundaeSwap V3` is the primary current deployment; its verified aggregate feed is mapped to V3 with the same disclosure. Both family totals are still counted only once in aggregate cards and charts. Minswap Stable and duplicate family-total rows are not shown. Family totals remain available in each row's expandable source details without being counted twice.
 
-The table defaults to descending 24-hour DEX volume and recalculates visible rank from those canonical rows. When a version-level public value is unavailable, the row remains unranked. Native and DefiLlama protocol totals are shown side by side in the disclosure panel; the app does not average them because differing pool coverage and rolling/calendar windows would make the midpoint a new, unsupported metric.
+The table defaults to descending 7-day DEX volume and recalculates visible rank from those canonical rows. When a version-level public value is unavailable, the row remains unranked. Native and DefiLlama protocol totals are shown side by side in the disclosure panel; the app does not average them because differing pool coverage and rolling/calendar windows would make the midpoint a new, unsupported metric.
 
 ## Comparison snapshot
 

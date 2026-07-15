@@ -65,7 +65,7 @@ export function formatDateTime(value: string | null | undefined) {
 
 export function escapeCsv(value: unknown) {
   const stringValue = value == null ? "" : String(value);
-  return `"${stringValue.replaceAll('"', '""')}"`;
+  return `"${stringValue.replace(/"/g, '""')}"`;
 }
 
 export function downloadCsv(filename: string, rows: unknown[][]) {

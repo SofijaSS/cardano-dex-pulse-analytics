@@ -108,7 +108,7 @@ function filterSeries(
   customEnd: string,
 ) {
   if (!series.length) return [];
-  const end = series.at(-1)?.timestamp || 0;
+  const end = series[series.length - 1]?.timestamp || 0;
   let start = 0;
   let inclusiveEnd = end;
 
@@ -181,7 +181,7 @@ export function Dashboard({ authEnabled = false }: { authEnabled?: boolean }) {
           }
           return new Set(defaults);
         });
-        const latest = payload.benchmarkSeries.at(-1)?.timestamp;
+        const latest = payload.benchmarkSeries[payload.benchmarkSeries.length - 1]?.timestamp;
         if (latest) {
           setCustomEnd(toDateInput(latest));
           setCustomStart(toDateInput(latest - 29 * 86_400));
@@ -262,8 +262,9 @@ export function Dashboard({ authEnabled = false }: { authEnabled?: boolean }) {
   const minDate = data.benchmarkSeries[0]?.timestamp
     ? toDateInput(data.benchmarkSeries[0].timestamp)
     : "";
-  const maxDate = data.benchmarkSeries.at(-1)?.timestamp
-    ? toDateInput(data.benchmarkSeries.at(-1)?.timestamp || 0)
+  const latestBenchmark = data.benchmarkSeries[data.benchmarkSeries.length - 1];
+  const maxDate = latestBenchmark?.timestamp
+    ? toDateInput(latestBenchmark.timestamp)
     : "";
   const sourceLabel =
     sourceMode === "defillama" ? "DefiLlama benchmark" : "Native-first reconciled";

@@ -40,8 +40,14 @@ export function ThemeControl() {
     const systemTheme = window.matchMedia("(prefers-color-scheme: dark)");
     const handleSystemTheme = () => applyTheme(themeStore.getSnapshot());
     handleSystemTheme();
-    systemTheme.addEventListener("change", handleSystemTheme);
-    return () => systemTheme.removeEventListener("change", handleSystemTheme);
+    if (typeof systemTheme.addEventListener === "function") {
+      systemTheme.addEventListener("change", handleSystemTheme);
+      return () => systemTheme.removeEventListener("change", handleSystemTheme);
+    }
+
+    // Safari before 14 exposes the legacy MediaQueryList listener API.
+    systemTheme.addListener(handleSystemTheme);
+    return () => systemTheme.removeListener(handleSystemTheme);
   }, [preference]);
 
   return (
