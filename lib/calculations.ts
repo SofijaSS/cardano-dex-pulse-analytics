@@ -65,3 +65,26 @@ export function classifySourceQuality(
     ? ("aligned" as const)
     : ("material-variance" as const);
 }
+
+export function validateUsdAdaPair(
+  usdValue: number | null,
+  adaValue: number | null,
+  referenceAdaUsd: number | null,
+  tolerancePct = 5,
+) {
+  const impliedAdaUsd = safeDivide(usdValue, adaValue);
+  const deviationPct = safePercentChange(impliedAdaUsd, referenceAdaUsd);
+
+  if (impliedAdaUsd == null || deviationPct == null) {
+    return { status: "unavailable" as const, impliedAdaUsd, deviationPct };
+  }
+
+  return {
+    status:
+      Math.abs(deviationPct) <= tolerancePct
+        ? ("aligned" as const)
+        : ("mismatch" as const),
+    impliedAdaUsd,
+    deviationPct,
+  };
+}

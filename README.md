@@ -46,7 +46,7 @@ Research and comparison were last reviewed on **2026-07-15**. Values below are a
 | DefiLlama TVL | `GET https://api.llama.fi/protocols`; filter `category="Dexs"` and Cardano, map `chainTvls.Cardano`, fallback `tvl` | DefiLlama documents hourly TVL updates. App stale threshold: 2h. | Used as TVL fallback when a compatible native metric is unavailable. A protocol can expose multiple versions. |
 | CoinGecko | `GET /api/v3/simple/price?ids=cardano&vs_currencies=usd&include_last_updated_at=true`; `cardano.usd`, `last_updated_at` | Near-real-time. App rejects price older than 4h. | Primary ADA/USD display price. No implicit conversion occurs without a fresh primary or fallback price. |
 | Coinbase | `GET https://api.coinbase.com/v2/prices/ADA-USD/spot`; `data.amount` | Requested with each cached refresh; app stale threshold: 1h. | Used only when CoinGecko fails or is stale. The public response has no provider timestamp, so the server fetch time is displayed. |
-| Minswap | `POST https://api-mainnet-prod.minswap.org/v1/pools/metrics`; sum `pool_metrics[].volume_24h` or `volume_7d` with `currency="usd"` | Rolling/current; app stale threshold: 2h. | API is requested with `limit=100`; the result is a lower bound across the top 100 pools ranked separately for each period. Native 30d and previous 7d are unavailable. |
+| Minswap | `POST https://api-mainnet-prod.minswap.org/v1/pools/metrics`; sum `pool_metrics[].volume_24h` or `volume_7d` with `currency="usd"`. A parallel no-currency 24h request returns ADA and validates the implied ADA/USD rate. | Rolling/current; app stale threshold: 2h. | Minswap documents that omitted `currency` means ADA and `currency="usd"` means USD. The result uses `limit=100`, so it is a lower bound across pools ranked separately for each period. Native 30d and previous 7d are unavailable. |
 | WingRiders | `GET https://api.mainnet.wingriders.com/v1/defillama`; `dailyVolume` in ADA, converted with timestamped CoinGecko price | Current daily metric; app stale threshold: 2h. | Native endpoint exposes only the current daily value. Historical periods use DefiLlama only after live agreement passes. |
 | SundaeSwap | `POST https://api.sundae.fi/graphql`; `stats.volume.quantity` for lovelace | Current protocol metric; app stale threshold: 2h. | Public schema does not label the window as clearly as desired. The live value is checked against DefiLlama before benchmark history is accepted. Native `stats.tvl` is intentionally excluded because its semantics did not reconcile with protocol TVL. |
 | Splash | `GET https://analytics.splash.trade/platform-api/v1/platform/stats`; `volumeUsd / 1e6`, `tvlUsd / 1e6` | Rolling/current; app stale threshold: 2h. | DefiLlama volume history is excluded when the live variance exceeds 20%. |
@@ -79,6 +79,7 @@ Minswap's native 7-day aggregate was approximately $10.8m versus DefiLlama's $2.
 - If current/previous is unavailable, non-finite, or previous is zero, change is `N/A`.
 - Volume-to-TVL: `24h volume / current TVL`; missing, zero, or negative TVL returns `N/A`.
 - Source variance uses the same safe percentage formula with native as current and DefiLlama as previous.
+- Minswap's USD response is accepted only when its ratio to the parallel ADA response is within 5% of the fresh ADA/USD reference price. A mismatch removes Minswap from observed totals and raises a source error.
 - `aligned` means absolute live variance is at most 20%; `material-variance` means it exceeds 20%.
 - Market share is share of the displayed observed cohort, never silently described as complete Cardano market share.
 - Reconciled week-over-week compares only DEXes that have both periods from native or runtime-validated sources.
@@ -121,7 +122,7 @@ The browser never calls third-party analytics APIs directly and does not receive
 - Minswap's top-100 request is deliberately a lower bound, despite currently exceeding DefiLlama materially.
 - Historical charts are clearly labelled DefiLlama benchmark because native endpoints do not expose one aligned, complete Cardano series.
 - TVL definitions can include different assets, farms, versions, or pricing methods. Native TVL is used only when its units and semantics are compatible.
-- ADA values are derived from USD only while the CoinGecko timestamp is no more than four hours old. This is a display conversion, not historical daily FX conversion.
+- The normalized internal model is USD. Selecting ADA divides every displayed USD value by one fresh, timestamped ADA/USD price, including both Minswap and DefiLlama, so providers are never compared in mixed units. ADA display is disabled without a fresh price. This is a display conversion, not historical daily FX conversion.
 - This dashboard is decision support for reporting, not trading or financial advice.
 
 ## Project structure

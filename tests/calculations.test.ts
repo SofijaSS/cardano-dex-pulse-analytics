@@ -4,6 +4,7 @@ import {
   safeDivide,
   safePercentChange,
   sumAvailable,
+  validateUsdAdaPair,
   variancePct,
 } from "../lib/calculations";
 import { formatMoney } from "../lib/format";
@@ -40,6 +41,20 @@ describe("source reconciliation", () => {
     expect(classifySourceQuality(100, null)).toBe("native-only");
     expect(classifySourceQuality(null, 100)).toBe("benchmark-only");
     expect(classifySourceQuality(null, null)).toBe("unavailable");
+  });
+});
+
+describe("currency normalization", () => {
+  it("accepts a Minswap USD/ADA pair that implies the reference ADA price", () => {
+    const result = validateUsdAdaPair(351_083, 2_147_014, 0.1645);
+    expect(result.status).toBe("aligned");
+    expect(result.impliedAdaUsd).toBeCloseTo(0.1635, 3);
+  });
+
+  it("rejects a mislabeled currency pair", () => {
+    expect(validateUsdAdaPair(2_147_014, 2_147_014, 0.1645).status).toBe(
+      "mismatch",
+    );
   });
 });
 

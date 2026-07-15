@@ -5,6 +5,7 @@ import {
   safeDivide,
   safePercentChange,
   sumAvailable,
+  validateUsdAdaPair,
   variancePct,
 } from "@/lib/calculations";
 import { SOURCE_ENDPOINTS } from "@/lib/source-config";
@@ -469,12 +470,15 @@ function buildDexRows({
 
 export async function loadLiveDashboardData(): Promise<DashboardData> {
   const previousDay = latestCompleteDayStart();
-  const minswapBody = (field: "volume_24h" | "volume_7d") => ({
+  const minswapBody = (
+    field: "volume_24h" | "volume_7d",
+    currency?: "usd",
+  ) => ({
     limit: 100,
     only_verified: false,
     sort_direction: "desc",
     sort_field: field,
-    currency: "usd",
+    ...(currency ? { currency } : {}),
   });
 
   const [
@@ -540,21 +544,27 @@ export async function loadLiveDashboardData(): Promise<DashboardData> {
       endpoint: SOURCE_ENDPOINTS.minswapPools,
       expectedUpdateMinutes: 120,
       load: async () => {
-        const [day, week] = await Promise.all([
+        const [dayUsd, weekUsd, dayAda] = await Promise.all([
+          fetchJson(SOURCE_ENDPOINTS.minswapPools, {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify(minswapBody("volume_24h", "usd")),
+          }),
+          fetchJson(SOURCE_ENDPOINTS.minswapPools, {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify(minswapBody("volume_7d", "usd")),
+          }),
           fetchJson(SOURCE_ENDPOINTS.minswapPools, {
             method: "POST",
             headers: { "content-type": "application/json" },
             body: JSON.stringify(minswapBody("volume_24h")),
           }),
-          fetchJson(SOURCE_ENDPOINTS.minswapPools, {
-            method: "POST",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify(minswapBody("volume_7d")),
-          }),
         ]);
         return {
-          day: minswapSchema.parse(day),
-          week: minswapSchema.parse(week),
+          dayUsd: minswapSchema.parse(dayUsd),
+          weekUsd: minswapSchema.parse(weekUsd),
+          dayAda: minswapSchema.parse(dayAda),
         };
       },
     }),
@@ -684,25 +694,41 @@ export async function loadLiveDashboardData(): Promise<DashboardData> {
   const nativeSnapshots = new Map<string, NativeDexSnapshot>();
 
   if (minswap.data) {
-    nativeSnapshots.set("minswap", {
-      id: "minswap",
-      volume24hUsd: sumField(
-        minswap.data.day.pool_metrics as Array<Record<string, unknown>>,
-        "volume_24h",
-      ),
-      volume7dUsd: sumField(
-        minswap.data.week.pool_metrics as Array<Record<string, unknown>>,
-        "volume_7d",
-      ),
-      volume30dUsd: null,
-      previous7dUsd: null,
-      tvlUsd: null,
-      sourceLabel: "Minswap native API",
-      sourceUrl: SOURCE_ENDPOINTS.minswapPools,
-      periodNote:
-        "Rolling windows; sum of the top 100 pools ranked by each metric. This is a documented lower bound.",
-      dataAt: minswap.status.fetchedAt,
-    });
+    const dayUsd = sumField(
+      minswap.data.dayUsd.pool_metrics as Array<Record<string, unknown>>,
+      "volume_24h",
+    );
+    const weekUsd = sumField(
+      minswap.data.weekUsd.pool_metrics as Array<Record<string, unknown>>,
+      "volume_7d",
+    );
+    const dayAda = sumField(
+      minswap.data.dayAda.pool_metrics as Array<Record<string, unknown>>,
+      "volume_24h",
+    );
+    const currencyCheck = validateUsdAdaPair(dayUsd, dayAda, adaUsd);
+
+    if (currencyCheck.status === "mismatch") {
+      minswap.status.health = "error";
+      minswap.status.message = `Minswap USD/ADA unit check differs from ${priceSource} by ${Math.abs(currencyCheck.deviationPct || 0).toFixed(1)}%; Minswap volumes were rejected.`;
+    } else {
+      const unitNote =
+        currencyCheck.status === "aligned"
+          ? `currency=\"usd\" verified against the no-currency ADA response; implied ADA/USD ${currencyCheck.impliedAdaUsd?.toFixed(4)} (${Math.abs(currencyCheck.deviationPct || 0).toFixed(1)}% from ${priceSource}).`
+          : `currency=\"usd\" requested per the official API contract; live cross-unit validation was unavailable because no fresh ADA/USD reference price was available.`;
+      nativeSnapshots.set("minswap", {
+        id: "minswap",
+        volume24hUsd: dayUsd,
+        volume7dUsd: weekUsd,
+        volume30dUsd: null,
+        previous7dUsd: null,
+        tvlUsd: null,
+        sourceLabel: "Minswap native API (USD unit-checked)",
+        sourceUrl: SOURCE_ENDPOINTS.minswapPools,
+        periodNote: `${unitNote} Rolling windows; sum of the top 100 pools ranked by each metric. This is a documented lower bound.`,
+        dataAt: minswap.status.fetchedAt,
+      });
+    }
   }
 
   if (wingriders.data) {
