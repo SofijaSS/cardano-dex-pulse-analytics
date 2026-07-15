@@ -5,7 +5,6 @@ import {
   startTransition,
   useEffect,
   useState,
-  type CSSProperties,
 } from "react";
 import {
   AlertTriangle,
@@ -86,11 +85,28 @@ function TokenLoading() {
   );
 }
 
+function DexLogo({
+  logo,
+  name,
+  large = false,
+}: {
+  logo: string;
+  name: string;
+  large?: boolean;
+}) {
+  return (
+    <span className={`token-mark token-mark--image${large ? " token-mark--large" : ""}`}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={logo} alt={`${name} logo`} width={large ? 58 : 34} height={large ? 58 : 34} />
+    </span>
+  );
+}
+
 function SourcePill({ data }: { data: TokenAnalyticsData }) {
   return (
     <span className={`token-source-pill token-source-pill--${data.source.health}`} title={data.source.message}>
       <i />
-      {data.source.health === "healthy" ? "DEX Hunter live" : data.source.health === "unconfigured" ? "DEX Hunter setup needed" : "DEX Hunter degraded"}
+      {data.source.health === "healthy" ? "Public token data live" : "Public token data degraded"}
     </span>
   );
 }
@@ -183,7 +199,7 @@ export function TokenAnalytics({ authEnabled = false }: { authEnabled?: boolean 
         <div>
           <span className="eyebrow"><ShieldCheck size={14} aria-hidden="true" /> Verified token intelligence</span>
           <h1>Cardano DEX token charts</h1>
-          <p>DEX Hunter market data, with missing fields kept visible and no synthetic values.</p>
+          <p>Public Minswap OHLCV with DexScreener validation, missing fields kept visible and no synthetic values.</p>
         </div>
         <div className="token-live-stamp">
           <span className={isStale ? "is-stale" : ""} />
@@ -210,7 +226,7 @@ export function TokenAnalytics({ authEnabled = false }: { authEnabled?: boolean 
             }}
             aria-pressed={selectedToken === entry.id}
           >
-            <span className="token-mark" style={{ "--token-color": entry.color } as CSSProperties}>{entry.ticker.slice(0, 2)}</span>
+            <DexLogo logo={entry.logo} name={entry.dexName} />
             <span><strong>{entry.dexName}</strong><small>{entry.ticker}</small></span>
           </button>
         ))}
@@ -233,22 +249,22 @@ export function TokenAnalytics({ authEnabled = false }: { authEnabled?: boolean 
         <>
           <section className="token-market-header">
             <div className="token-identity">
-              <span className="token-mark token-mark--large" style={{ "--token-color": token.color } as CSSProperties}>{token.ticker.slice(0, 2)}</span>
+              <DexLogo logo={token.logo} name={token.dexName} large />
               <div><span>{token.dexName}</span><h2>{token.ticker} / ADA</h2><p>{token.tokenName}</p></div>
             </div>
             <div className="token-current-price">
-              <span>Current DEX Hunter price</span>
+              <span>Current Minswap price</span>
               <strong>{formatPrice(data.price.tokenAda)}</strong>
               <small className={change24h == null ? "" : change24h >= 0 ? "positive" : "negative"}>{formatPercent(change24h)} · 24H</small>
             </div>
-            <article><span>Market cap</span><strong>{formatCompact(data.market.marketCapAda, " ADA")}</strong><small>Not exposed by documented API</small></article>
-            <article><span>Liquidity</span><strong>{formatCompact(data.market.liquidityAda, " ADA")}</strong><small>Sum of returned ADA pools</small></article>
-            <article><span>24H volume</span><strong>{formatCompact(data.market.volume24hAda, " ADA")}</strong><small>DEX Hunter daily stats</small></article>
+            <article><span>Market cap</span><strong>{formatCompact(data.market.marketCapAda, " ADA")}</strong><small>Minswap asset metrics</small></article>
+            <article><span>Liquidity</span><strong>{formatCompact(data.market.liquidityAda, " ADA")}</strong><small>Minswap-tracked liquidity</small></article>
+            <article><span>24H volume</span><strong>{formatCompact(data.market.volume24hAda, " ADA")}</strong><small>Minswap-tracked volume</small></article>
           </section>
 
           <section className="token-price-strip">
             <article><span>ADA / USD</span><strong>{data.price.adaUsd == null ? "Data unavailable" : `$${formatPrice(data.price.adaUsd)}`}</strong><small>{data.price.adaUsdSource} · {formatUtc(data.price.adaUsdAt)}</small></article>
-            <article><span>{token.ticker} / ADA</span><strong>{formatPrice(data.price.tokenAda)}{data.price.tokenAda != null ? " ADA" : ""}</strong><small>DEX Hunter average price</small></article>
+            <article><span>{token.ticker} / ADA</span><strong>{formatPrice(data.price.tokenAda)}{data.price.tokenAda != null ? " ADA" : ""}</strong><small>Minswap public asset price</small></article>
             <article><span>ADA / {token.ticker}</span><strong>{formatPrice(data.price.tokenPerAda)}{data.price.tokenPerAda != null ? ` ${token.ticker}` : ""}</strong><small>Calculated inverse; zero protected</small></article>
             <article><span>{token.ticker} / USD</span><strong>{data.price.tokenUsd == null ? "Data unavailable" : `$${formatPrice(data.price.tokenUsd)}`}</strong><small>Token/ADA × fresh ADA/USD</small></article>
           </section>
@@ -256,8 +272,8 @@ export function TokenAnalytics({ authEnabled = false }: { authEnabled?: boolean 
           <section className="token-workspace">
             <div className="token-chart-panel">
               <header>
-                <div><span className="eyebrow">DEX Hunter OHLCV</span><h2>{token.ticker}_ADA market</h2><p>Price candles and reported pair volume. Hover a candle for exact OHLCV values.</p></div>
-                <a className="button button--secondary" href={data.dexHunterUrl} target="_blank" rel="noreferrer">Open on DEX Hunter <ExternalLink size={14} /></a>
+                <div><span className="eyebrow">Minswap public OHLCV</span><h2>{token.ticker}_ADA market</h2><p>ADA-denominated candles and Minswap-tracked volume. Hover a candle for exact OHLCV values.</p></div>
+                <a className="button button--secondary" href={data.marketUrl} target="_blank" rel="noreferrer">Open market source <ExternalLink size={14} /></a>
               </header>
               <div className="token-range-control" aria-label="Chart date range">
                 {CHART_RANGES.map((option) => (
@@ -270,7 +286,7 @@ export function TokenAnalytics({ authEnabled = false }: { authEnabled?: boolean 
                 <span>{loading ? "Refreshing…" : `${data.candles.length} verified candles`}</span>
               </div>
               <TokenCandleChart candles={data.candles} ticker={token.ticker} />
-              <p className="token-chart-note">Source: DEX Hunter Partner Charts API. Candle periods are selected automatically for the active range. Provider responses do not include an authoritative publish timestamp, so the server fetch time is shown.</p>
+              <p className="token-chart-note">Source: Minswap public asset candlestick API. Candle periods are selected automatically for the active range. This is Minswap-tracked activity, not an all-DEX aggregate; the provider response has no publish timestamp, so server fetch time is shown.</p>
             </div>
 
             <aside className="token-side-panel">
@@ -317,7 +333,7 @@ export function TokenAnalytics({ authEnabled = false }: { authEnabled?: boolean 
                 <article><BarChart3 size={17} /><span>Top 10</span><strong>{formatPercent(data.market.top10Pct)}</strong></article>
                 <article><BarChart3 size={17} /><span>Top 100</span><strong>{formatPercent(data.market.top100Pct)}</strong></article>
               </div>
-              <p>DEX Hunter’s documented Partner API does not expose holder counts or concentration. These fields remain unavailable rather than being copied from an unverified source.</p>
+              <p>The selected public APIs do not expose verified holder counts or concentration. These fields remain unavailable rather than being estimated.</p>
             </div>
           </section>
 

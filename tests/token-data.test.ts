@@ -2,9 +2,9 @@ import { describe, expect, it } from "vitest";
 import { DEX_TOKEN_REGISTRY } from "../config/tokens";
 import {
   calculateTokenChanges,
-  normalizeDexHunterCandles,
-  parseDexHunterOrderbook,
-  sumDexHunterLiquidityAda,
+  normalizeMinswapCandles,
+  parseDexScreenerSnapshot,
+  parseMinswapAssetMetrics,
 } from "../lib/token-data";
 import type { TokenCandle } from "../lib/token-types";
 
@@ -31,21 +31,20 @@ describe("DEX token registry", () => {
     ]);
     expect(new Set(DEX_TOKEN_REGISTRY.map((token) => token.tokenId)).size).toBe(6);
     expect(DEX_TOKEN_REGISTRY.every((token) => /^[0-9a-f]+$/.test(token.tokenId))).toBe(true);
+    expect(DEX_TOKEN_REGISTRY.every((token) => token.logo.startsWith("https://icons.llamao.fi/"))).toBe(true);
   });
 });
 
-describe("DEX Hunter candle validation", () => {
+describe("Minswap candle validation", () => {
   it("normalizes valid candles and rejects impossible or non-positive prices", () => {
-    const result = normalizeDexHunterCandles({
-      data: [
-        { time: 2, open: "2", high: "3", low: "1", close: "2.5", volume: "40" },
-        { time: 1, open: 2, high: 1.5, low: 1, close: 2.5, volume: 10 },
-        { time: 3, open: 0, high: 3, low: 1, close: 2, volume: 10 },
-      ],
-    });
+    const result = normalizeMinswapCandles([
+      { timestamp: 1_700_000_002_000, open: "2", high: "3", low: "1", close: "2.5", volume: "40" },
+      { timestamp: 1_700_000_001_000, open: 2, high: 1.5, low: 1, close: 2.5, volume: 10 },
+      { timestamp: 1_700_000_003_000, open: 0, high: 3, low: 1, close: 2, volume: 10 },
+    ]);
 
     expect(result).toEqual([
-      { time: 2, open: 2, high: 3, low: 1, close: 2.5, volume: 40 },
+      { time: 1_700_000_002, open: 2, high: 3, low: 1, close: 2.5, volume: 40 },
     ]);
   });
 
@@ -64,27 +63,69 @@ describe("DEX Hunter candle validation", () => {
   });
 });
 
-describe("DEX Hunter market transformations", () => {
-  it("sums only positive ADA-side pool liquidity", () => {
-    expect(sumDexHunterLiquidityAda({ data: [
-      { token_1_amount: "100" },
-      { token_1_amount: 50 },
-      { token_1_amount: 0 },
-      { token_1_amount: "invalid" },
-    ] })).toBe(150);
+describe("public token market transformations", () => {
+  it("maps Minswap ADA metrics without inventing absent fields", () => {
+    expect(parseMinswapAssetMetrics({
+      price: "0.0216",
+      price_change_1h: 0.62,
+      price_change_24h: -1.25,
+      price_change_7d: 55.76,
+      volume_24h: 825.78,
+      liquidity: 396_130.5,
+      market_cap: 2_066_428,
+    })).toEqual({
+      priceAda: 0.0216,
+      change1h: 0.62,
+      change24h: -1.25,
+      change7d: 55.76,
+      volume24hAda: 825.78,
+      liquidityAda: 396_130.5,
+      marketCapAda: 2_066_428,
+    });
+    expect(parseMinswapAssetMetrics({ price: 0 })).toBeNull();
   });
 
-  it("parses nested order arrays and protects the spread calculation", () => {
-    const orderbook = parseDexHunterOrderbook({ data: [
-      { side: "buy", price: 0.02, amount: 100 },
-      { side: "buy", price: 0.019, amount: 50 },
-      { side: "sell", price: 0.022, amount: 80 },
-    ] });
+  it("selects the most liquid DexScreener ADA pair and sums reported trades", () => {
+    const tokenId = "abcd";
+    const snapshot = parseDexScreenerSnapshot([
+      {
+        baseToken: { address: tokenId, symbol: "TEST" },
+        quoteToken: { address: "0x", symbol: "ADA" },
+        priceNative: "0.02",
+        liquidity: { usd: 100 },
+        volume: { h24: 10 },
+        txns: { h24: { buys: 1, sells: 2 } },
+        marketCap: 500,
+        url: "https://example.com/one",
+      },
+      {
+        baseToken: { address: tokenId, symbol: "TEST" },
+        quoteToken: { address: "0x", symbol: "ADA" },
+        priceNative: "0.021",
+        liquidity: { usd: 200 },
+        volume: { h24: 20 },
+        txns: { h24: { buys: 2, sells: 3 } },
+        marketCap: 550,
+        url: "https://example.com/two",
+      },
+      {
+        baseToken: { address: tokenId, symbol: "TEST" },
+        quoteToken: { address: "stable", symbol: "USDM" },
+        priceNative: "0.01",
+        liquidity: { usd: 10_000 },
+      },
+    ], tokenId);
 
-    expect(orderbook?.bestBid).toBe(0.02);
-    expect(orderbook?.bestAsk).toBe(0.022);
-    expect(orderbook?.bids[1].cumulative).toBe(150);
-    expect(orderbook?.spreadPct).toBeCloseTo(9.5238, 3);
-    expect(parseDexHunterOrderbook({ data: [] })).toBeNull();
+    expect(snapshot).toMatchObject({
+      tokenAda: 0.021,
+      liquidityUsd: 200,
+      marketCapUsd: 550,
+      volume24hUsd: 30,
+      buys24h: 3,
+      sells24h: 5,
+      url: "https://example.com/two",
+      pairCount: 2,
+    });
+    expect(parseDexScreenerSnapshot([], tokenId)).toBeNull();
   });
 });

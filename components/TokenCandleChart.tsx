@@ -28,7 +28,7 @@ export function TokenCandleChart({
     return (
       <div className="token-chart-empty">
         <strong>OHLCV data unavailable</strong>
-        <span>DEX Hunter did not return verified candle data for this range.</span>
+        <span>Minswap did not return verified candle data for this token and range.</span>
       </div>
     );
   }
@@ -158,7 +158,7 @@ export function TokenDepthChart({
   ).join(" ");
 
   return (
-    <svg className="depth-chart" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="DEX Hunter bid and ask depth chart">
+    <svg className="depth-chart" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Bid and ask depth chart">
       <line className="depth-baseline" x1={padding} x2={width - padding} y1={height - padding} y2={height - padding} />
       {orderbook.bids.length ? <path className="depth-bids" d={line(orderbook.bids)} /> : null}
       {orderbook.asks.length ? <path className="depth-asks" d={line(orderbook.asks)} /> : null}

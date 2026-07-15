@@ -32,7 +32,7 @@ export interface TokenAnalyticsData {
   configured: boolean;
   token: DexTokenConfig;
   range: TokenChartRange;
-  dexHunterUrl: string;
+  marketUrl: string;
   source: {
     health: "healthy" | "degraded" | "error" | "unconfigured";
     label: string;
