@@ -58,7 +58,7 @@ export async function verifyDashboardCredentials(
   if (!isDashboardAuthEnabled() || !configuration) return false;
   const [usernameMatches, passwordMatches] = await Promise.all([
     secureTextEqual(username, configuration.username),
-    verifyPassword(password, configuration.passwordHash),
+    verifyPassword(password, configuration.passwordHash, configuration.secret),
   ]);
   return usernameMatches && passwordMatches;
 }

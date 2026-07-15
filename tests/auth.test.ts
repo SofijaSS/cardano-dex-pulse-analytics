@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   createPasswordHash,
+  createPasswordVerifier,
   createSessionToken,
   verifyPassword,
   verifySessionToken,
@@ -18,6 +19,21 @@ describe("dashboard authentication", () => {
 
   it("rejects malformed password hashes", async () => {
     await expect(verifyPassword("password", "not-a-supported-hash")).resolves.toBe(false);
+  });
+
+  it("verifies hosting-compatible password verifiers with the server secret", async () => {
+    const secret = "password-verifier-secret-that-is-long-enough";
+    const verifier = await createPasswordVerifier("high-entropy-password", secret);
+
+    await expect(
+      verifyPassword("high-entropy-password", verifier, secret),
+    ).resolves.toBe(true);
+    await expect(
+      verifyPassword("wrong-password", verifier, secret),
+    ).resolves.toBe(false);
+    await expect(
+      verifyPassword("high-entropy-password", verifier, `${secret}-wrong`),
+    ).resolves.toBe(false);
   });
 
   it("decodes the hosting-safe password hash transport format", async () => {

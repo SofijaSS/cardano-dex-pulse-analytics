@@ -1,5 +1,6 @@
 const encoder = new TextEncoder();
 const PASSWORD_HASH_PREFIX = "pbkdf2_sha256";
+const PASSWORD_VERIFIER_PREFIX = "hmac_sha256:";
 const DEFAULT_PASSWORD_ITERATIONS = 310_000;
 const MIN_PASSWORD_ITERATIONS = 100_000;
 const MAX_PASSWORD_ITERATIONS = 1_000_000;
@@ -90,7 +91,29 @@ export async function createPasswordHash(
   ].join("$");
 }
 
-export async function verifyPassword(password: string, encodedHash: string) {
+export async function createPasswordVerifier(password: string, secret: string) {
+  if (!password) throw new Error("Password cannot be empty.");
+  if (secret.length < 32) throw new Error("Password verifier secret is too short.");
+  return `${PASSWORD_VERIFIER_PREFIX}${bytesToBase64Url(await sign(password, secret))}`;
+}
+
+export async function verifyPassword(
+  password: string,
+  encodedHash: string,
+  secret?: string,
+) {
+  if (encodedHash.startsWith(PASSWORD_VERIFIER_PREFIX)) {
+    if (!secret || secret.length < 32) return false;
+    try {
+      const expected = base64UrlToBytes(
+        encodedHash.slice(PASSWORD_VERIFIER_PREFIX.length),
+      );
+      return secureBytesEqual(await sign(password, secret), expected);
+    } catch {
+      return false;
+    }
+  }
+
   const [prefix, iterationsValue, saltValue, expectedValue, ...extra] =
     encodedHash.split("$");
   const iterations = Number.parseInt(iterationsValue || "", 10);
