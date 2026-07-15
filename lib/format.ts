@@ -1,5 +1,7 @@
 export type Currency = "USD" | "ADA";
 
+export const CENTRAL_EUROPE_TIME_ZONE = "Europe/Belgrade";
+
 export function convertUsd(
   value: number | null | undefined,
   currency: Currency,
@@ -50,9 +52,14 @@ export function formatDateTime(value: string | null | undefined) {
   const date = new Date(value);
   if (!Number.isFinite(date.getTime())) return "Data unavailable";
   return new Intl.DateTimeFormat("en-GB", {
-    dateStyle: "medium",
-    timeStyle: "short",
-    timeZone: "UTC",
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    timeZone: CENTRAL_EUROPE_TIME_ZONE,
+    timeZoneName: "short",
   }).format(date);
 }
 

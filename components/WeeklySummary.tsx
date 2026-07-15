@@ -95,7 +95,7 @@ export function WeeklySummary({
         <div className="weekly-copy" aria-live="polite">
           <span>Auto-generated weekly summary</span>
           <blockquote>{summary}</blockquote>
-          <small>Generated {formatDateTime(generatedAt)} UTC. Share is based only on DEXes with comparable 7-day values.</small>
+          <small>Generated {formatDateTime(generatedAt)}. Share is based only on DEXes with comparable 7-day values.</small>
         </div>
       </div>
 

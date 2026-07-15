@@ -287,7 +287,7 @@ export function Dashboard({ authEnabled = false }: { authEnabled?: boolean }) {
       poolCount: { header: "Pools observed", value: (dex) => dex.poolCount },
       marketShare24hPct: { header: "Observed 24h share %", value: (dex) => dex.marketShare24hPct },
       variance24hPct: { header: "Native vs DefiLlama %", value: (dex) => dex.variance24hPct },
-      lastData: { header: "Last data UTC", value: (dex) => dex.lastDataAt },
+      lastData: { header: "Last data (CET/CEST)", value: (dex) => formatDateTime(dex.lastDataAt) },
     };
     const selectedColumns = columns.map((column) => columnExporters[column]);
 
@@ -316,9 +316,9 @@ export function Dashboard({ authEnabled = false }: { authEnabled?: boolean }) {
   const exportRange = () => {
     const selected = displayedDexes.filter((dex) => selectedDexes.has(dex.id));
     downloadCsv(`cardano-dex-range-${preset}-${currency.toLowerCase()}.csv`, [
-      ["Date UTC", `Total benchmark (${currency})`, ...selected.map((dex) => `${dex.name} (${currency})`)],
+      ["Date (CET/CEST)", `Total benchmark (${currency})`, ...selected.map((dex) => `${dex.name} (${currency})`)],
       ...chartSeries.map((point) => [
-        new Date(point.timestamp * 1000).toISOString().slice(0, 10),
+        formatDateTime(new Date(point.timestamp * 1000).toISOString()),
         convertUsd(point.totalUsd, currency, adaPrice),
         ...selected.map((dex) => convertUsd(point.byDex[dex.id] || 0, currency, adaPrice)),
       ]),
@@ -394,13 +394,13 @@ export function Dashboard({ authEnabled = false }: { authEnabled?: boolean }) {
           </div>
           <div className="update-stamp">
             <span className="live-dot" />
-            <div><small>Last reconciled</small><strong>{formatDateTime(data.generatedAt)} UTC</strong></div>
+            <div><small>Last reconciled</small><strong>{formatDateTime(data.generatedAt)}</strong></div>
             <button type="button" onClick={refreshData} aria-label="Refresh all data sources"><RefreshCw size={15} /></button>
           </div>
           <div className="price-stamp">
             <span>ADA / USD</span>
             <strong>{adaPrice ? `$${adaPrice.toFixed(4)}` : "Data unavailable"}</strong>
-            <small>{data.price.source} · {formatDateTime(data.price.timestamp)} UTC</small>
+            <small>{data.price.source} · {formatDateTime(data.price.timestamp)}</small>
           </div>
         </div>
       </section>

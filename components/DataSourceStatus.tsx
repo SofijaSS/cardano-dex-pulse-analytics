@@ -31,7 +31,7 @@ export function DataSourceStatus({
                 <div>
                   <strong>{source.label}</strong>
                   <span>{source.message}</span>
-                  <small>Data: {formatDateTime(source.dataAt)} UTC</small>
+                  <small>Data: {formatDateTime(source.dataAt)}</small>
                 </div>
               </article>
             );

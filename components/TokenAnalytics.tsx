@@ -18,6 +18,7 @@ import {
 import { DEX_TOKEN_REGISTRY, type DexTokenId } from "@/config/tokens";
 import { ThemeControl } from "@/components/ThemeControl";
 import { TokenCandleChart, TokenDepthChart } from "@/components/TokenCandleChart";
+import { formatDateTime } from "@/lib/format";
 import type {
   TokenAnalyticsData,
   TokenChartRange,
@@ -60,18 +61,6 @@ function formatCompact(value: number | null, suffix = "") {
 function formatPercent(value: number | null) {
   if (value == null || !Number.isFinite(value)) return "N/A";
   return `${value > 0 ? "+" : ""}${value.toFixed(1)}%`;
-}
-
-function formatUtc(value: string | null) {
-  if (!value) return "Timestamp unavailable";
-  return `${new Intl.DateTimeFormat("en-GB", {
-    day: "2-digit",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-    timeZone: "UTC",
-  }).format(new Date(value))} UTC`;
 }
 
 function TokenLoading() {
@@ -202,7 +191,7 @@ export function TokenAnalytics({ authEnabled = false }: { authEnabled?: boolean 
         </div>
         <div className="token-live-stamp">
           <span className={isStale ? "is-stale" : ""} />
-          <div><small>Last token refresh</small><strong>{formatUtc(data?.generatedAt || null)}</strong></div>
+          <div><small>Last token refresh</small><strong>{formatDateTime(data?.generatedAt || null)}</strong></div>
           <button type="button" onClick={() => {
             setLoading(true);
             setError(null);
@@ -262,7 +251,7 @@ export function TokenAnalytics({ authEnabled = false }: { authEnabled?: boolean 
           </section>
 
           <section className="token-price-strip">
-            <article><span>ADA / USD</span><strong>{data.price.adaUsd == null ? "Data unavailable" : `$${formatPrice(data.price.adaUsd)}`}</strong><small>{data.price.adaUsdSource} · {formatUtc(data.price.adaUsdAt)}</small></article>
+            <article><span>ADA / USD</span><strong>{data.price.adaUsd == null ? "Data unavailable" : `$${formatPrice(data.price.adaUsd)}`}</strong><small>{data.price.adaUsdSource} · {formatDateTime(data.price.adaUsdAt)}</small></article>
             <article><span>{token.ticker} / ADA</span><strong>{formatPrice(data.price.tokenAda)}{data.price.tokenAda != null ? " ADA" : ""}</strong><small>Minswap public asset price</small></article>
             <article><span>ADA / {token.ticker}</span><strong>{formatPrice(data.price.tokenPerAda)}{data.price.tokenPerAda != null ? ` ${token.ticker}` : ""}</strong><small>Calculated inverse; zero protected</small></article>
             <article><span>{token.ticker} / USD</span><strong>{data.price.tokenUsd == null ? "Data unavailable" : `$${formatPrice(data.price.tokenUsd)}`}</strong><small>Token/ADA × fresh ADA/USD</small></article>

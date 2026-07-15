@@ -7,7 +7,7 @@ import {
   validateUsdAdaPair,
   variancePct,
 } from "../lib/calculations";
-import { formatMoney } from "../lib/format";
+import { formatDateTime, formatMoney } from "../lib/format";
 import { summarizeMinswapVersion } from "../lib/protocol-versions";
 import { DEX_REGISTRY, DEX_VERSION_REGISTRY } from "../config/dexes";
 import { buildDexRows } from "../lib/dashboard-data";
@@ -74,6 +74,11 @@ describe("sumAvailable", () => {
 describe("report formatting", () => {
   it("places a negative sign before the USD symbol", () => {
     expect(formatMoney(-1_250, "USD", null, false)).toBe("-$1,250");
+  });
+
+  it("uses Central European time with daylight-saving awareness", () => {
+    expect(formatDateTime("2026-01-15T12:00:00Z")).toContain("13:00 CET");
+    expect(formatDateTime("2026-07-15T12:00:00Z")).toContain("14:00 CEST");
   });
 });
 

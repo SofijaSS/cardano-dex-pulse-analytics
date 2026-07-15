@@ -18,7 +18,7 @@ import {
   YAxis,
 } from "recharts";
 import { ChartCard } from "@/components/ChartCard";
-import { convertUsd, formatMoney, type Currency } from "@/lib/format";
+import { CENTRAL_EUROPE_TIME_ZONE, convertUsd, formatMoney, type Currency } from "@/lib/format";
 import type { DexMetric, VolumeSeriesPoint } from "@/lib/types";
 
 const gridColor = "var(--chart-grid)";
@@ -32,7 +32,7 @@ function dateLabel(timestamp: number) {
   return new Intl.DateTimeFormat("en-GB", {
     day: "2-digit",
     month: "short",
-    timeZone: "UTC",
+    timeZone: CENTRAL_EUROPE_TIME_ZONE,
   }).format(new Date(timestamp * 1000));
 }
 

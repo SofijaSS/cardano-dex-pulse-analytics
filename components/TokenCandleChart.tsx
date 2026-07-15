@@ -1,5 +1,6 @@
 "use client";
 
+import { CENTRAL_EUROPE_TIME_ZONE, formatDateTime } from "@/lib/format";
 import type { TokenCandle, TokenOrderbook } from "@/lib/token-types";
 
 function priceLabel(value: number) {
@@ -13,7 +14,7 @@ function dateLabel(timestamp: number) {
   return new Intl.DateTimeFormat("en-GB", {
     day: "2-digit",
     month: "short",
-    timeZone: "UTC",
+    timeZone: CENTRAL_EUROPE_TIME_ZONE,
   }).format(timestamp * 1000);
 }
 
@@ -94,7 +95,7 @@ export function TokenCandleChart({
           const volumeHeight = (candle.volume / maxVolume) * (volumeBottom - volumeTop);
           return (
             <g key={candle.time} className={positive ? "candle-positive" : "candle-negative"}>
-              <title>{`${new Date(candle.time * 1000).toISOString()} · O ${priceLabel(candle.open)} · H ${priceLabel(candle.high)} · L ${priceLabel(candle.low)} · C ${priceLabel(candle.close)} · Vol ${candle.volume.toLocaleString("en-US")}`}</title>
+              <title>{`${formatDateTime(new Date(candle.time * 1000).toISOString())} · O ${priceLabel(candle.open)} · H ${priceLabel(candle.high)} · L ${priceLabel(candle.low)} · C ${priceLabel(candle.close)} · Vol ${candle.volume.toLocaleString("en-US")}`}</title>
               <line className="candle-wick" x1={x} x2={x} y1={highY} y2={lowY} />
               <rect
                 className="candle-body"
