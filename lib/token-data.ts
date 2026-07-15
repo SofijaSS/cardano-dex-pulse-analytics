@@ -1,4 +1,5 @@
 import type { DexTokenConfig } from "@/config/tokens";
+import { fetchJsonWithRetry } from "@/lib/fetch-json";
 import { SOURCE_ENDPOINTS } from "@/lib/source-config";
 import type {
   TokenAnalyticsData,
@@ -23,9 +24,6 @@ export const TOKEN_RANGE_CONFIG: Record<
   "1y": { seconds: 365 * 86_400, interval: "1d", limit: 500 },
 };
 
-const wait = (milliseconds: number) =>
-  new Promise((resolve) => setTimeout(resolve, milliseconds));
-
 function asRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value)
     ? value as Record<string, unknown>
@@ -47,32 +45,6 @@ function nonNegativeNumber(value: unknown) {
   return parsed != null && parsed >= 0 ? parsed : null;
 }
 
-async function fetchJson(url: string, init: RequestInit = {}) {
-  let lastError: Error | null = null;
-
-  for (let attempt = 0; attempt < 3; attempt += 1) {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 10_000);
-    try {
-      const response = await fetch(url, {
-        ...init,
-        cache: "no-store",
-        headers: { accept: "application/json", ...init.headers },
-        signal: controller.signal,
-      });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      return await response.json() as unknown;
-    } catch (error) {
-      lastError = error instanceof Error ? error : new Error("Unknown request error");
-      if (attempt < 2) await wait(250 * 2 ** attempt);
-    } finally {
-      clearTimeout(timeout);
-    }
-  }
-
-  throw lastError || new Error("Request failed");
-}
-
 async function fetchMinswapCandles(
   tokenId: string,
   range: TokenChartRange,
@@ -85,7 +57,7 @@ async function fetchMinswapCandles(
     limit: String(config.limit),
     interval: config.interval,
   });
-  return fetchJson(
+  return fetchJsonWithRetry(
     `${MINSWAP_API_URL}/v1/assets/${tokenId}/price/candlestick?${params}`,
   );
 }
@@ -178,8 +150,8 @@ export function calculateTokenChanges(
 async function loadAdaUsd() {
   const fetchedAt = new Date().toISOString();
   const [coinGecko, coinbase] = await Promise.allSettled([
-    fetchJson(SOURCE_ENDPOINTS.coinGeckoPrice),
-    fetchJson(SOURCE_ENDPOINTS.coinbasePrice),
+    fetchJsonWithRetry(SOURCE_ENDPOINTS.coinGeckoPrice),
+    fetchJsonWithRetry(SOURCE_ENDPOINTS.coinbasePrice),
   ]);
 
   if (coinGecko.status === "fulfilled") {
@@ -215,7 +187,7 @@ export async function loadTokenAnalytics(
   const [adaUsd, requests] = await Promise.all([
     loadAdaUsd(),
     Promise.allSettled([
-      fetchJson(`${MINSWAP_API_URL}/v1/assets/${token.tokenId}/metrics`),
+      fetchJsonWithRetry(`${MINSWAP_API_URL}/v1/assets/${token.tokenId}/metrics`),
       chartRequest,
       dayRequest,
       monthRequest,

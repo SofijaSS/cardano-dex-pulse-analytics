@@ -14,6 +14,7 @@ import {
   validateUsdAdaPair,
   variancePct,
 } from "@/lib/calculations";
+import { fetchJsonWithRetry } from "@/lib/fetch-json";
 import { SOURCE_ENDPOINTS } from "@/lib/source-config";
 import { summarizeMinswapVersion } from "@/lib/protocol-versions";
 import type {
@@ -149,44 +150,6 @@ type DefillamaProtocol = z.infer<typeof defillamaProtocolSchema>;
 interface Captured<T> {
   data: T | null;
   status: SourceStatus;
-}
-
-const wait = (milliseconds: number) =>
-  new Promise((resolve) => setTimeout(resolve, milliseconds));
-
-async function fetchJson(url: string, init?: RequestInit) {
-  let lastError: Error | null = null;
-
-  for (let attempt = 0; attempt < 3; attempt += 1) {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 12_000);
-
-    try {
-      const response = await fetch(url, {
-        ...init,
-        cache: "no-store",
-        headers: {
-          accept: "application/json",
-          "user-agent": "CardanoDEXPulse/1.0 public-analytics-dashboard",
-          ...init?.headers,
-        },
-        signal: controller.signal,
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-
-      return await response.json();
-    } catch (error) {
-      lastError = error instanceof Error ? error : new Error("Unknown fetch error");
-      if (attempt < 2) await wait(250 * 2 ** attempt);
-    } finally {
-      clearTimeout(timeout);
-    }
-  }
-
-  throw lastError || new Error("Request failed");
 }
 
 async function capture<T>({
@@ -627,7 +590,7 @@ export async function loadLiveDashboardData(): Promise<DashboardData> {
       expectedUpdateMinutes: 1_560,
       load: async () =>
         defillamaOverviewSchema.parse(
-          await fetchJson(SOURCE_ENDPOINTS.defillamaVolume),
+          await fetchJsonWithRetry(SOURCE_ENDPOINTS.defillamaVolume),
         ),
       dataAt: (data) => {
         const latest = data.totalDataChart.at(-1)?.[0];
@@ -641,7 +604,7 @@ export async function loadLiveDashboardData(): Promise<DashboardData> {
       expectedUpdateMinutes: 120,
       load: async () =>
         defillamaProtocolsSchema.parse(
-          await fetchJson(SOURCE_ENDPOINTS.defillamaProtocols),
+          await fetchJsonWithRetry(SOURCE_ENDPOINTS.defillamaProtocols),
         ),
     }),
     capture({
@@ -650,7 +613,7 @@ export async function loadLiveDashboardData(): Promise<DashboardData> {
       endpoint: SOURCE_ENDPOINTS.coinGeckoPrice,
       expectedUpdateMinutes: 240,
       load: async () =>
-        coinGeckoSchema.parse(await fetchJson(SOURCE_ENDPOINTS.coinGeckoPrice)),
+        coinGeckoSchema.parse(await fetchJsonWithRetry(SOURCE_ENDPOINTS.coinGeckoPrice)),
       dataAt: (data) =>
         new Date(data.cardano.last_updated_at * 1000).toISOString(),
     }),
@@ -660,7 +623,7 @@ export async function loadLiveDashboardData(): Promise<DashboardData> {
       endpoint: SOURCE_ENDPOINTS.coinbasePrice,
       expectedUpdateMinutes: 60,
       load: async () =>
-        coinbaseSchema.parse(await fetchJson(SOURCE_ENDPOINTS.coinbasePrice)),
+        coinbaseSchema.parse(await fetchJsonWithRetry(SOURCE_ENDPOINTS.coinbasePrice)),
     }),
     capture({
       id: "minswap-native",
@@ -669,17 +632,17 @@ export async function loadLiveDashboardData(): Promise<DashboardData> {
       expectedUpdateMinutes: 120,
       load: async () => {
         const [dayUsd, weekUsd, dayAda] = await Promise.all([
-          fetchJson(SOURCE_ENDPOINTS.minswapPools, {
+          fetchJsonWithRetry(SOURCE_ENDPOINTS.minswapPools, {
             method: "POST",
             headers: { "content-type": "application/json" },
             body: JSON.stringify(minswapBody("volume_24h", "usd")),
           }),
-          fetchJson(SOURCE_ENDPOINTS.minswapPools, {
+          fetchJsonWithRetry(SOURCE_ENDPOINTS.minswapPools, {
             method: "POST",
             headers: { "content-type": "application/json" },
             body: JSON.stringify(minswapBody("volume_7d", "usd")),
           }),
-          fetchJson(SOURCE_ENDPOINTS.minswapPools, {
+          fetchJsonWithRetry(SOURCE_ENDPOINTS.minswapPools, {
             method: "POST",
             headers: { "content-type": "application/json" },
             body: JSON.stringify(minswapBody("volume_24h")),
@@ -698,7 +661,7 @@ export async function loadLiveDashboardData(): Promise<DashboardData> {
       endpoint: SOURCE_ENDPOINTS.wingriders,
       expectedUpdateMinutes: 120,
       load: async () =>
-        wingridersSchema.parse(await fetchJson(SOURCE_ENDPOINTS.wingriders)),
+        wingridersSchema.parse(await fetchJsonWithRetry(SOURCE_ENDPOINTS.wingriders)),
     }),
     capture({
       id: "sundaeswap-native",
@@ -707,7 +670,7 @@ export async function loadLiveDashboardData(): Promise<DashboardData> {
       expectedUpdateMinutes: 120,
       load: async () =>
         sundaeswapSchema.parse(
-          await fetchJson(SOURCE_ENDPOINTS.sundaeswap, {
+          await fetchJsonWithRetry(SOURCE_ENDPOINTS.sundaeswap, {
             method: "POST",
             headers: { "content-type": "application/json" },
             body: JSON.stringify({
@@ -722,7 +685,7 @@ export async function loadLiveDashboardData(): Promise<DashboardData> {
       label: "Splash official analytics",
       endpoint: SOURCE_ENDPOINTS.splash,
       expectedUpdateMinutes: 120,
-      load: async () => splashSchema.parse(await fetchJson(SOURCE_ENDPOINTS.splash)),
+      load: async () => splashSchema.parse(await fetchJsonWithRetry(SOURCE_ENDPOINTS.splash)),
     }),
     capture({
       id: "muesliswap-native",
@@ -731,8 +694,8 @@ export async function loadLiveDashboardData(): Promise<DashboardData> {
       expectedUpdateMinutes: 1_560,
       load: async () => {
         const [volume, tvl] = await Promise.all([
-          fetchJson(SOURCE_ENDPOINTS.muesliVolume),
-          fetchJson(SOURCE_ENDPOINTS.muesliTvl),
+          fetchJsonWithRetry(SOURCE_ENDPOINTS.muesliVolume),
+          fetchJsonWithRetry(SOURCE_ENDPOINTS.muesliTvl),
         ]);
         return {
           volume: muesliVolumeSchema.parse(volume),
@@ -751,7 +714,7 @@ export async function loadLiveDashboardData(): Promise<DashboardData> {
       expectedUpdateMinutes: 120,
       load: async () =>
         vyfinanceSchema.parse(
-          await fetchJson(SOURCE_ENDPOINTS.vyfinance, {
+          await fetchJsonWithRetry(SOURCE_ENDPOINTS.vyfinance, {
             headers: { "content-type": "application/json" },
           }),
         ),
@@ -763,7 +726,7 @@ export async function loadLiveDashboardData(): Promise<DashboardData> {
       expectedUpdateMinutes: 3_000,
       load: async () =>
         danoSchema.parse(
-          await fetchJson(timestampParam(SOURCE_ENDPOINTS.dano, previousDay)),
+          await fetchJsonWithRetry(timestampParam(SOURCE_ENDPOINTS.dano, previousDay)),
         ),
       dataAt: () => new Date(previousDay).toISOString(),
     }),
@@ -774,7 +737,7 @@ export async function loadLiveDashboardData(): Promise<DashboardData> {
       expectedUpdateMinutes: 3_000,
       load: async () =>
         deltaSchema.parse(
-          await fetchJson(timestampParam(SOURCE_ENDPOINTS.delta, previousDay)),
+          await fetchJsonWithRetry(timestampParam(SOURCE_ENDPOINTS.delta, previousDay)),
         ),
       dataAt: () => new Date(previousDay).toISOString(),
     }),
@@ -785,7 +748,7 @@ export async function loadLiveDashboardData(): Promise<DashboardData> {
       expectedUpdateMinutes: 3_000,
       load: async () =>
         saturnSchema.parse(
-          await fetchJson(timestampParam(SOURCE_ENDPOINTS.saturn, previousDay)),
+          await fetchJsonWithRetry(timestampParam(SOURCE_ENDPOINTS.saturn, previousDay)),
         ),
       dataAt: () => new Date(previousDay).toISOString(),
     }),

@@ -1,5 +1,17 @@
 const env = (name: string, fallback: string) => process.env[name] || fallback;
 
+const boundedNumber = (
+  name: string,
+  fallback: number,
+  minimum: number,
+  maximum: number,
+) => {
+  const value = Number(process.env[name]);
+  return Number.isFinite(value) && value >= minimum && value <= maximum
+    ? value
+    : fallback;
+};
+
 export const SOURCE_ENDPOINTS = {
   defillamaVolume: env(
     "DEFILLAMA_VOLUME_URL",
@@ -60,5 +72,11 @@ export const SOURCE_ENDPOINTS = {
   ),
 } as const;
 
-export const DATA_CACHE_SECONDS = Number(process.env.DATA_CACHE_SECONDS || 900);
+export const DATA_CACHE_SECONDS = boundedNumber("DATA_CACHE_SECONDS", 300, 30, 3_600);
+export const DATA_STALE_SECONDS = boundedNumber("DATA_STALE_SECONDS", 1_800, 60, 86_400);
+export const TOKEN_CACHE_SECONDS = boundedNumber("TOKEN_CACHE_SECONDS", 60, 15, 600);
+export const SOURCE_FETCH_TIMEOUT_MS = boundedNumber("SOURCE_FETCH_TIMEOUT_MS", 7_000, 2_000, 20_000);
+export const SOURCE_FETCH_ATTEMPTS = Math.floor(
+  boundedNumber("SOURCE_FETCH_ATTEMPTS", 2, 1, 4),
+);
 export const USE_MOCK_DATA = process.env.USE_MOCK_DATA === "true";

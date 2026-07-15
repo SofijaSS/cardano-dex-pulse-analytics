@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { startTransition, useEffect, useState, useSyncExternalStore } from "react";
 import {
   AlertTriangle,
@@ -11,7 +12,6 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { BrandLoader } from "@/components/BrandLoader";
-import { DashboardCharts } from "@/components/DashboardCharts";
 import { DataSourceStatus } from "@/components/DataSourceStatus";
 import { DateRangeSelector, type DatePreset } from "@/components/DateRangeSelector";
 import { DexSelector } from "@/components/DexSelector";
@@ -31,6 +31,20 @@ import {
 import type { DashboardData, DexMetric, VolumeSeriesPoint } from "@/lib/types";
 
 type SourceMode = "reconciled" | "defillama";
+
+const DashboardCharts = dynamic(
+  () => import("@/components/DashboardCharts").then((module) => module.DashboardCharts),
+  {
+    ssr: false,
+    loading: () => (
+      <BrandLoader
+        compact
+        label="Preparing interactive charts"
+        detail="Loading the selected market range"
+      />
+    ),
+  },
+);
 
 const currencyStore = createBrowserPreferenceStore<Currency>({
   key: "cardano-dex-pulse:currency",

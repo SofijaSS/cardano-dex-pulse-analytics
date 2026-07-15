@@ -40,7 +40,7 @@ Configure these values as server-side hosting secrets:
 
 Run `npm run auth:generate` locally to generate a strong random password, its HMAC-SHA256 verifier, and the signing secret. The command prints the password once for secure handoff; only the verifier and signing secret belong in the hosting environment.
 
-Sessions use a signed `HttpOnly`, `Secure`, `SameSite=Lax` cookie and expire after 4 hours. Both `/` and `/api/dashboard` validate the session. Authenticated API responses use private, no-store caching to prevent a shared CDN cache from bypassing access control. Login failures are delayed and limited per serving instance. Keep actual hash and signing-secret values out of source control, client-side code, and `NEXT_PUBLIC_*` variables.
+Sessions use a signed `HttpOnly`, `Secure`, `SameSite=Lax` cookie and expire after 4 hours. The `/`, `/tokens`, `/api/dashboard`, and `/api/tokens` routes all validate the session. Authenticated browser responses use private, no-store caching to prevent a shared CDN cache from bypassing access control; the server may reuse only the underlying public market payload after auth succeeds. Login failures are delayed and limited per serving instance. Keep actual hash and signing-secret values out of source control, client-side code, and `NEXT_PUBLIC_*` variables.
 
 This mode intentionally provides one shared account. Teams that require per-user audit logs, password reset, MFA, or immediate individual revocation should use an identity provider instead of the shared-login mode.
 
@@ -96,7 +96,7 @@ Research and comparison were last reviewed on **2026-07-15**. Values below are a
 | DeltaDeFi | `GET .../public/volume/daily?timestamp=...`; `volume_usd` | Latest complete UTC day; app stale threshold: 50h from the period-start timestamp. | Daily endpoint. DefiLlama history is accepted only after live agreement passes. |
 | Saturn Swap | `GET .../v1/defillama/volume?timestamp=...`; `volume.volume` USD | Latest complete UTC day; app stale threshold: 50h from the period-start timestamp. | A real zero remains zero; it is not converted to unavailable. Historical fallback still requires live agreement. |
 
-Dashboard-source responses use Zod validation, a 12-second timeout, and three attempts with exponential backoff. Token-source responses use strict structural and numeric validation, a 10-second timeout, and the same three-attempt retry policy. Each source reports `healthy`, `stale`, or `error`. The dashboard API route caches successful responses using `DATA_CACHE_SECONDS` (default 15 minutes); authenticated token responses remain private and no-store.
+Dashboard and token source responses use structural validation, a configurable 7-second timeout, and two attempts with exponential backoff. Non-retryable 4xx responses fail immediately. Each source reports `healthy`, `stale`, or `error`. Auth is checked before every API response; after that check, public market payloads use an in-memory server cache with single-flight request deduplication. Dashboard data is fresh for `DATA_CACHE_SECONDS` (default 5 minutes), token data for `TOKEN_CACHE_SECONDS` (default 60 seconds), and a recent cached payload may be served only when a provider refresh fails. Browser responses remain private and `no-store` while login protection is enabled.
 
 ### Reference-table field audit
 

@@ -1,6 +1,8 @@
 import { getDexToken } from "@/config/tokens";
+import { serverDataCache } from "@/lib/async-data-cache";
 import { hasValidDashboardSession, isDashboardAuthEnabled } from "@/lib/auth";
 import { loadTokenAnalytics, TOKEN_RANGE_CONFIG } from "@/lib/token-data";
+import { DATA_STALE_SECONDS, TOKEN_CACHE_SECONDS } from "@/lib/source-config";
 import type { TokenChartRange } from "@/lib/token-types";
 
 export async function GET(request: Request) {
@@ -25,8 +27,20 @@ export async function GET(request: Request) {
   }
 
   try {
-    return Response.json(await loadTokenAnalytics(token, range), {
+    const requestId = url.searchParams.get("request");
+    const force = requestId != null && requestId !== "0";
+    const cached = await serverDataCache.get(
+      `token:${token.id}:${range}`,
+      () => loadTokenAnalytics(token, range),
+      {
+        force,
+        ttlMs: TOKEN_CACHE_SECONDS * 1_000,
+        staleForMs: DATA_STALE_SECONDS * 1_000,
+      },
+    );
+    return Response.json(cached.value, {
       headers: {
+        "x-data-cache": cached.status,
         "cache-control": isDashboardAuthEnabled()
           ? "private, no-store"
           : "no-store",
