@@ -93,8 +93,10 @@ function DexLogo({
   name: string;
   large?: boolean;
 }) {
+  const isWingRiders = logo.endsWith("/wingriders-v2.png");
+
   return (
-    <span className={`token-mark token-mark--image${large ? " token-mark--large" : ""}`}>
+    <span className={`token-mark token-mark--image${isWingRiders ? " token-mark--wingriders" : ""}${large ? " token-mark--large" : ""}`}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={logo} alt={`${name} logo`} width={large ? 58 : 34} height={large ? 58 : 34} />
     </span>

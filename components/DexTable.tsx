@@ -377,8 +377,10 @@ export function DexTable({
                       <div className="dex-cell">
                         <span className="rank">{volumeRanks.has(dex.id) ? `#${volumeRanks.get(dex.id)}` : "–"}</span>
                         {dex.logo ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={dex.logo} alt="" width={30} height={30} loading="lazy" />
+                          <span className={`dex-logo-frame${dex.logo.endsWith("/wingriders-v2.png") ? " dex-logo-frame--wingriders" : ""}`}>
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={dex.logo} alt="" width={30} height={30} loading="lazy" />
+                          </span>
                         ) : (
                           <span className="dex-fallback" style={{ background: dex.color }}>{dex.name.slice(0, 1)}</span>
                         )}
