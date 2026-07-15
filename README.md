@@ -14,7 +14,7 @@ npm run dev
 
 Open `http://localhost:3000`. All configured production endpoints are public and need no key today. URL overrides stay server-side in `app/api/dashboard/route.ts`; add private headers there if a future provider requires authentication.
 
-Both the DEX-volume dashboard and `/tokens` workspace work without provider API keys. Token/ADA metrics and OHLCV use Minswap's documented public asset endpoints, DexScreener provides optional current ADA-pair validation/fallback, and ADA/USD uses the independently validated CoinGecko/Coinbase path.
+Both the DEX-volume dashboard and `/tokens` workspace work without provider API keys. Every configured token, including WRT and CSWAP, uses Minswap's documented public asset endpoints as the exclusive token-market source. ADA/USD uses the independently validated CoinGecko/Coinbase path only for currency conversion.
 
 Verification commands:
 
@@ -52,18 +52,17 @@ New users start with ADA as the display currency. USD remains available whenever
 
 The authenticated `/tokens` page tracks governance/utility tokens in this configured order: WingRiders (`WRT`), Minswap (`MIN`), SundaeSwap (`SUNDAE`), Splash (`SPLASH`), VyFinance (`VYFI`), and CSWAP (`CSWAP`). Token policy IDs live in `config/tokens.ts`; adding another token does not require changing the page component.
 
-The browser refreshes the selected token every 60 seconds through the protected, no-store `/api/tokens` route. All third-party calls run server-side. Neither Minswap nor DexScreener requires a key for the endpoints used here. DEX logos reuse the same protocol icon mapping as the DEX performance table; WingRiders V2 uses the official WingRiders app mark stored locally at `public/dex-logos/wingriders-v2.svg`.
+The browser refreshes the selected token every 60 seconds through the protected, no-store `/api/tokens` route. All third-party calls run server-side. Minswap requires no key for the endpoints used here. DEX logos reuse the same protocol icon mapping as the DEX performance table; WingRiders V2 uses the supplied yellow PNG stored locally at `public/dex-logos/wingriders-v2.png`.
 
 | Token source | Endpoint and field mapping | Expected update | Known limitation |
 | --- | --- | --- | --- |
 | Minswap asset metrics | `GET https://api-mainnet-prod.minswap.org/v1/assets/{tokenId}/metrics`; map `price`, `price_change_1h`, `price_change_24h`, `price_change_7d`, `volume_24h`, `liquidity`, and `market_cap` | Requested every 60s; app stale threshold 10m | Currency is omitted, which Minswap documents as ADA. Metrics describe Minswap-tracked markets, not all Cardano DEX venues. The response has no authoritative publish timestamp, so server fetch time is displayed. |
 | Minswap asset OHLCV | `GET /v1/assets/{tokenId}/price/candlestick?start_time=...&end_time=...&limit=500&interval=...`; map `timestamp`, `open`, `high`, `low`, `close`, `volume` | Requested every 60s and whenever a 15m/1h/4h/24h/7d/30d/90d/1y control is selected | Intervals are 1m, 5m, 15m, 15m, 1h, 4h, 1d, and 1d respectively. Sparse trading can produce fewer or zero candles. Invalid OHLC relationships, non-positive prices, negative volume, and duplicate timestamps are rejected. |
-| DexScreener ADA pairs | `GET https://api.dexscreener.com/token-pairs/v1/cardano/{tokenId}`; filter explicit ADA pairs, select the most liquid pair for `priceNative`, liquidity and market cap; sum returned 24h pair trades/volume | Requested every 60s | Cardano token coverage is incomplete. Used only as current-price validation or fallback; values are never averaged with Minswap. No historical OHLCV endpoint is used. |
 | ADA/USD | CoinGecko `cardano.usd` and `last_updated_at`; Coinbase `data.amount` fallback | Requested with every token refresh | CoinGecko is rejected after 4h. Coinbase has no provider timestamp, so fetch time is used. |
 
 `ADA / token` is the zero-protected inverse of the primary Minswap `token / ADA` value. `token / USD` is calculated only when both verified inputs exist: `token / ADA * ADA / USD`. No historical USD candle conversion is performed.
 
-The selected public APIs do not expose a verified order book, token holder count, Top 10 concentration, or Top 100 concentration. Those cards intentionally display `Data unavailable`. Minswap supplies current 1h, 24h and 7d changes; derived 15m, 4h and 30d changes are returned only when validated candles cover at least 80% of the requested period, otherwise the value is `N/A`.
+The Minswap public API does not expose a verified buy/sell split, order book, token holder count, Top 10 concentration, or Top 100 concentration. Those sections intentionally display `Data unavailable`; no secondary provider fills those gaps. Minswap supplies current 1h, 24h and 7d changes; derived 15m, 4h and 30d changes are returned only when validated candles cover at least 80% of the requested period, otherwise the value is `N/A`.
 
 ## Data policy
 
@@ -87,7 +86,6 @@ Research and comparison were last reviewed on **2026-07-15**. Values below are a
 | CoinGecko | `GET /api/v3/simple/price?ids=cardano&vs_currencies=usd&include_last_updated_at=true`; `cardano.usd`, `last_updated_at` | Near-real-time. App rejects price older than 4h. | Primary ADA/USD display price. No implicit conversion occurs without a fresh primary or fallback price. |
 | Coinbase | `GET https://api.coinbase.com/v2/prices/ADA-USD/spot`; `data.amount` | Requested with each cached refresh; app stale threshold: 1h. | Used only when CoinGecko fails or is stale. The public response has no provider timestamp, so the server fetch time is displayed. |
 | Minswap token API | `GET /v1/assets/{tokenId}/metrics` and `GET /v1/assets/{tokenId}/price/candlestick`; detailed mappings are listed in **Token charts** above | Token page requests every 60s; app stale threshold: 10m | Public and keyless. Values cover Minswap-tracked token markets rather than all Cardano DEX venues. Sparse markets can produce discontinuous candles. |
-| DexScreener | `GET /token-pairs/v1/cardano/{tokenId}`; explicit ADA-pair validation and fallback mappings are listed in **Token charts** above | Token page requests every 60s | Public and keyless, but Cardano coverage is incomplete. It is not used for historical charts and is never averaged with Minswap. |
 | Minswap | `POST https://api-mainnet-prod.minswap.org/v1/pools/metrics`; sum `pool_metrics[].volume_24h`, `volume_7d`, `trading_fee_24h`, `trading_fee_7d`, and `liquidity_currency` with `currency="usd"`. `pool_metrics[].type` maps `Minswap` to V1, `MinswapV2` to V2, and `MinswapStable` to Stable. A parallel no-currency 24h request returns ADA and validates the implied ADA/USD rate. | Rolling/current; app stale threshold: 2h. | Minswap documents that omitted `currency` means ADA and `currency="usd"` means USD. Each request uses `limit=100`, so version volume, fees, TVL/liquidity and pool count are lower bounds from independently ranked pool cohorts. Native 30d and previous 7d are unavailable. |
 | WingRiders | `GET https://api.mainnet.wingriders.com/v1/defillama`; `dailyVolume` and `dailyFees` in ADA, converted with the timestamped ADA/USD price | Current daily metric; app stale threshold: 2h. | WingRiders identifies its current product as AMM DEX V2, so the verified protocol feed is displayed on the primary `WingRiders V2` row. The endpoint does not expose a V1/V2 split; any residual V1 activity cannot be separated. V1 therefore remains `Data unavailable`. Historical aggregate periods use DefiLlama only after live agreement passes. |
 | SundaeSwap | `POST https://api.sundae.fi/graphql`; `stats.volume.quantity` for lovelace, `stats.poolCount`, and `protocols[].version` | Current protocol metric; app stale threshold: 2h. | GraphQL confirms V1, V3 and Stableswaps, but public `stats` are aggregate rather than version-scoped. The verified aggregate is displayed on the primary `SundaeSwap V3` row with an explicit mapping note; legacy V1 remains `Data unavailable` because residual V1 activity cannot be separated. The volume window is not labelled as clearly as desired; live aggregate volume is checked against DefiLlama before benchmark history is accepted. Native `stats.tvl` is intentionally excluded because its semantics did not reconcile with protocol TVL. |
@@ -172,7 +170,7 @@ Browser
   -> GET /api/tokens?token=wrt&range=30d
      -> fresh ADA/USD validation
      -> server-side Minswap public metrics + OHLCV requests
-     -> optional DexScreener ADA-pair validation/fallback
+     -> no secondary market-data fallback
      -> validated TokenAnalyticsData or explicit unavailable fields
   -> protected token charts workspace
 ```

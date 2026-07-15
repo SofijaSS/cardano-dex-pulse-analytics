@@ -25,10 +25,6 @@ export const SOURCE_ENDPOINTS = {
     "MINSWAP_API_URL",
     "https://api-mainnet-prod.minswap.org",
   ),
-  dexScreenerApi: env(
-    "DEXSCREENER_API_URL",
-    "https://api.dexscreener.com",
-  ),
   wingriders: env(
     "WINGRIDERS_STATS_URL",
     "https://api.mainnet.wingriders.com/v1/defillama",

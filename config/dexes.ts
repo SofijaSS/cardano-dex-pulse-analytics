@@ -184,7 +184,7 @@ export const DEX_VERSION_REGISTRY: DexVersionConfig[] = [
     parentId: "wingriders",
     name: "WingRiders V2",
     version: "V2",
-    logo: "/dex-logos/wingriders-v2.svg",
+    logo: "/dex-logos/wingriders-v2.png",
     useParentMetrics: true,
     showInTable: true,
     unavailableNote: "WingRiders V2 is the primary deployment; its public protocol feed is unavailable.",

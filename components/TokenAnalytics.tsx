@@ -105,7 +105,7 @@ function SourcePill({ data }: { data: TokenAnalyticsData }) {
   return (
     <span className={`token-source-pill token-source-pill--${data.source.health}`} title={data.source.message}>
       <i />
-      {data.source.health === "healthy" ? "Public token data live" : "Public token data degraded"}
+      {data.source.health === "healthy" ? "Minswap token data live" : "Minswap token data degraded"}
     </span>
   );
 }
@@ -164,8 +164,6 @@ export function TokenAnalytics({ authEnabled = false }: { authEnabled?: boolean 
 
   const token = data?.token || DEX_TOKEN_REGISTRY.find((entry) => entry.id === selectedToken)!;
   const change24h = data?.changes["24h"] ?? null;
-  const totalTrades = (data?.market.buys24h || 0) + (data?.market.sells24h || 0);
-  const buyShare = totalTrades > 0 ? ((data?.market.buys24h || 0) / totalTrades) * 100 : null;
   const isStale = data && clock != null
     ? clock - new Date(data.generatedAt).getTime() > data.source.expectedUpdateMinutes * 60_000
     : false;
@@ -198,7 +196,7 @@ export function TokenAnalytics({ authEnabled = false }: { authEnabled?: boolean 
         <div>
           <span className="eyebrow"><ShieldCheck size={14} aria-hidden="true" /> Verified token intelligence</span>
           <h1>Cardano DEX token charts</h1>
-          <p>Public Minswap OHLCV with DexScreener validation, missing fields kept visible and no synthetic values.</p>
+          <p>Minswap-only public token metrics and OHLCV, with missing fields kept visible and no secondary market-data fallback.</p>
         </div>
         <div className="token-live-stamp">
           <span className={isStale ? "is-stale" : ""} />
@@ -316,16 +314,10 @@ export function TokenAnalytics({ authEnabled = false }: { authEnabled?: boolean 
 
               <section>
                 <div className="token-panel-title"><span>Buy vs sell · 24H</span><i /></div>
-                <div className="trade-balance"><strong>{formatCompact(data.market.buys24h)}</strong><strong>{formatCompact(data.market.sells24h)}</strong></div>
-                <div className="trade-balance-bar"><i style={{ width: `${buyShare ?? 50}%` }} /></div>
-                <dl className="trade-stats">
-                  <div><dt>Buys</dt><dd>{formatCompact(data.market.buys24h)}</dd></div>
-                  <div><dt>Sells</dt><dd>{formatCompact(data.market.sells24h)}</dd></div>
-                  <div><dt>Buy volume</dt><dd>{formatCompact(data.market.buyVolume24hAda, " ADA")}</dd></div>
-                  <div><dt>Sell volume</dt><dd>{formatCompact(data.market.sellVolume24hAda, " ADA")}</dd></div>
-                  <div><dt>Buyers</dt><dd>{formatCompact(data.market.buyers24h)}</dd></div>
-                  <div><dt>Sellers</dt><dd>{formatCompact(data.market.sellers24h)}</dd></div>
-                </dl>
+                <div className="trade-unavailable">
+                  <strong>Data unavailable</strong>
+                  <p>Minswap&apos;s public asset API does not expose a verified buy/sell split.</p>
+                </div>
               </section>
             </aside>
           </section>

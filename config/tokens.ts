@@ -17,7 +17,7 @@ export const DEX_TOKEN_REGISTRY = [
     tokenName: "WingRiders Governance Token",
     description: "Governance token for the WingRiders ecosystem.",
     tokenId: "c0ee29a85b13209423b10447d3c2e6a50641a15c57770e27cb9d507357696e67526964657273",
-    logo: "/dex-logos/wingriders-v2.svg",
+    logo: "/dex-logos/wingriders-v2.png",
     color: "#1b5cff",
   },
   {

@@ -8,7 +8,6 @@ import type {
 } from "@/lib/token-types";
 
 const MINSWAP_API_URL = SOURCE_ENDPOINTS.minswapApi.replace(/\/$/, "");
-const DEXSCREENER_API_URL = SOURCE_ENDPOINTS.dexScreenerApi.replace(/\/$/, "");
 
 export const TOKEN_RANGE_CONFIG: Record<
   TokenChartRange,
@@ -151,72 +150,6 @@ export function parseMinswapAssetMetrics(payload: unknown): MinswapAssetMetrics 
   return result.priceAda != null ? result : null;
 }
 
-export interface DexScreenerSnapshot {
-  tokenAda: number | null;
-  liquidityUsd: number | null;
-  marketCapUsd: number | null;
-  volume24hUsd: number | null;
-  buys24h: number | null;
-  sells24h: number | null;
-  pairCount: number;
-}
-
-export function parseDexScreenerSnapshot(
-  payload: unknown,
-  tokenId: string,
-): DexScreenerSnapshot | null {
-  if (!Array.isArray(payload)) return null;
-  const normalizedToken = tokenId.toLowerCase();
-  const pairs = payload.flatMap((entry) => {
-    const pair = asRecord(entry);
-    const base = asRecord(pair?.baseToken);
-    const quote = asRecord(pair?.quoteToken);
-    const baseAddress = String(base?.address ?? "").toLowerCase();
-    const quoteAddress = String(quote?.address ?? "").toLowerCase();
-    const baseIsAda = baseAddress === "0x" || String(base?.symbol ?? "").toUpperCase() === "ADA";
-    const quoteIsAda = quoteAddress === "0x" || String(quote?.symbol ?? "").toUpperCase() === "ADA";
-    const tokenIsBase = baseAddress === normalizedToken;
-    const tokenIsQuote = quoteAddress === normalizedToken;
-    if (!(tokenIsBase && quoteIsAda) && !(tokenIsQuote && baseIsAda)) return [];
-
-    const nativePrice = positiveNumber(pair?.priceNative);
-    const tokenAda = nativePrice == null
-      ? null
-      : tokenIsBase ? nativePrice : 1 / nativePrice;
-    const liquidity = asRecord(pair?.liquidity);
-    const volume = asRecord(pair?.volume);
-    const transactions = asRecord(asRecord(pair?.txns)?.h24);
-    const reportedBuys = nonNegativeNumber(transactions?.buys);
-    const reportedSells = nonNegativeNumber(transactions?.sells);
-    return [{
-      tokenAda,
-      liquidityUsd: nonNegativeNumber(liquidity?.usd),
-      marketCapUsd: tokenIsBase ? nonNegativeNumber(pair?.marketCap) : null,
-      volume24hUsd: nonNegativeNumber(volume?.h24),
-      buys24h: tokenIsBase ? reportedBuys : reportedSells,
-      sells24h: tokenIsBase ? reportedSells : reportedBuys,
-    }];
-  });
-  if (!pairs.length) return null;
-
-  const best = [...pairs].sort(
-    (left, right) => (right.liquidityUsd ?? -1) - (left.liquidityUsd ?? -1),
-  )[0];
-  const sumAvailable = (values: Array<number | null>) => {
-    const available = values.filter((value): value is number => value != null);
-    return available.length ? available.reduce((sum, value) => sum + value, 0) : null;
-  };
-  return {
-    tokenAda: best.tokenAda,
-    liquidityUsd: best.liquidityUsd,
-    marketCapUsd: best.marketCapUsd,
-    volume24hUsd: sumAvailable(pairs.map((pair) => pair.volume24hUsd)),
-    buys24h: sumAvailable(pairs.map((pair) => pair.buys24h)),
-    sells24h: sumAvailable(pairs.map((pair) => pair.sells24h)),
-    pairCount: pairs.length,
-  };
-}
-
 function percentChange(candles: TokenCandle[], seconds: number) {
   const latest = candles.at(-1);
   const earliest = candles[0];
@@ -286,10 +219,9 @@ export async function loadTokenAnalytics(
       chartRequest,
       dayRequest,
       monthRequest,
-      fetchJson(`${DEXSCREENER_API_URL}/token-pairs/v1/cardano/${token.tokenId}`),
     ]),
   ]);
-  const [metricsResult, chartResult, dayResult, monthResult, dexScreenerResult] = requests;
+  const [metricsResult, chartResult, dayResult, monthResult] = requests;
 
   const metrics = metricsResult.status === "fulfilled"
     ? parseMinswapAssetMetrics(metricsResult.value)
@@ -303,40 +235,25 @@ export async function loadTokenAnalytics(
   const monthCandles = monthResult.status === "fulfilled"
     ? normalizeMinswapCandles(monthResult.value)
     : [];
-  const dexScreener = dexScreenerResult.status === "fulfilled"
-    ? parseDexScreenerSnapshot(dexScreenerResult.value, token.tokenId)
-    : null;
   const derivedChanges = calculateTokenChanges(dayCandles, monthCandles);
-  const tokenAda = metrics?.priceAda ?? dexScreener?.tokenAda ?? null;
+  const tokenAda = metrics?.priceAda ?? null;
   const warnings = [
     "Minswap asset metrics and OHLCV describe Minswap-tracked trading, not aggregated activity across every Cardano DEX.",
-    "Order-book depth and holder concentration are not exposed by the selected public APIs and remain unavailable.",
+    "Buy/sell split, order-book depth and holder concentration are not exposed by the Minswap public API and remain unavailable.",
   ];
 
   if (!metrics) {
-    warnings.push("Minswap current asset metrics were unavailable; a verified DexScreener ADA pair is used only when present.");
+    warnings.push("Minswap current asset metrics were unavailable; no secondary market-data fallback was used.");
   }
   if (!candles.length) {
     warnings.push(`Minswap returned no valid ${range} candles for this token and range.`);
   }
-  if (!dexScreener) {
-    warnings.push("DexScreener returned no ADA pair for independent current-price validation; no value was invented.");
-  }
-  if (metrics?.priceAda != null && dexScreener?.tokenAda != null) {
-    const variance = Math.abs(metrics.priceAda - dexScreener.tokenAda) / metrics.priceAda * 100;
-    if (variance > 15) {
-      warnings.push(`Minswap and DexScreener current ADA prices differ by ${variance.toFixed(1)}%; Minswap remains primary and values are not averaged.`);
-    }
-  }
 
   const health = metrics && candles.length
     ? "healthy"
-    : metrics || candles.length || dexScreener
+    : metrics || candles.length
       ? "degraded"
       : "error";
-  const dexScreenerCoverage = dexScreener
-    ? `DexScreener validated ${dexScreener.pairCount} ADA pair${dexScreener.pairCount === 1 ? "" : "s"}.`
-    : "DexScreener ADA-pair validation was unavailable.";
 
   return {
     schemaVersion: "1.0",
@@ -348,9 +265,9 @@ export async function loadTokenAnalytics(
       health,
       label: "Minswap public token API",
       message: metrics || candles.length
-        ? `Loaded public ADA-denominated metrics and ${candles.length} verified candles. ${dexScreenerCoverage}`
+        ? `Loaded Minswap ADA-denominated metrics and ${candles.length} verified candles. No secondary market-data fallback is used.`
         : "Public token metrics and chart data could not be loaded.",
-      endpoint: `${MINSWAP_API_URL}/v1/assets/:asset + ${DEXSCREENER_API_URL}/token-pairs/v1/cardano/:asset`,
+      endpoint: `${MINSWAP_API_URL}/v1/assets/:asset`,
       expectedUpdateMinutes: 10,
     },
     price: {
@@ -363,27 +280,15 @@ export async function loadTokenAnalytics(
       tokenPriceAt: tokenAda != null ? generatedAt : null,
     },
     market: {
-      liquidityAda: metrics?.liquidityAda ?? (
-        dexScreener?.liquidityUsd != null && adaUsd.usd != null
-          ? dexScreener.liquidityUsd / adaUsd.usd
-          : null
-      ),
-      volume24hAda: metrics?.volume24hAda ?? (
-        dexScreener?.volume24hUsd != null && adaUsd.usd != null
-          ? dexScreener.volume24hUsd / adaUsd.usd
-          : null
-      ),
-      buys24h: dexScreener?.buys24h ?? null,
-      sells24h: dexScreener?.sells24h ?? null,
+      liquidityAda: metrics?.liquidityAda ?? null,
+      volume24hAda: metrics?.volume24hAda ?? null,
+      buys24h: null,
+      sells24h: null,
       buyVolume24hAda: null,
       sellVolume24hAda: null,
       buyers24h: null,
       sellers24h: null,
-      marketCapAda: metrics?.marketCapAda ?? (
-        dexScreener?.marketCapUsd != null && adaUsd.usd != null
-          ? dexScreener.marketCapUsd / adaUsd.usd
-          : null
-      ),
+      marketCapAda: metrics?.marketCapAda ?? null,
       holders: null,
       top10Pct: null,
       top100Pct: null,
