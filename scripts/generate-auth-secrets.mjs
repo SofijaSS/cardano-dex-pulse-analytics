@@ -11,10 +11,11 @@ const encodedHash = [
   salt.toString("base64url"),
   passwordHash.toString("base64url"),
 ].join("$");
+const transportedHash = `base64url:${Buffer.from(encodedHash).toString("base64url")}`;
 
 console.log(`DASHBOARD_AUTH_ENABLED=true`);
 console.log(`DASHBOARD_AUTH_USERNAME=${username}`);
 console.log(`DASHBOARD_AUTH_PASSWORD=${password}`);
-console.log(`DASHBOARD_AUTH_PASSWORD_HASH=${encodedHash}`);
+console.log(`DASHBOARD_AUTH_PASSWORD_HASH=${transportedHash}`);
 console.log(`DASHBOARD_AUTH_SECRET=${randomBytes(32).toString("base64url")}`);
 console.log("\nDASHBOARD_AUTH_PASSWORD is shown for handoff only; do not store it as an environment variable.");

@@ -15,13 +15,32 @@ type AuthConfiguration = {
   username: string;
 };
 
+const PASSWORD_HASH_TRANSPORT_PREFIX = "base64url:";
+
+export function decodePasswordHash(value: string) {
+  if (!value.startsWith(PASSWORD_HASH_TRANSPORT_PREFIX)) return value;
+  try {
+    const encoded = value.slice(PASSWORD_HASH_TRANSPORT_PREFIX.length);
+    const normalized = encoded.replaceAll("-", "+").replaceAll("_", "/");
+    const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=");
+    return new TextDecoder().decode(
+      Uint8Array.from(atob(padded), (character) => character.charCodeAt(0)),
+    );
+  } catch {
+    return "";
+  }
+}
+
 export function isDashboardAuthEnabled() {
   return process.env.DASHBOARD_AUTH_ENABLED === "true";
 }
 
 export function getDashboardAuthConfiguration(): AuthConfiguration | null {
   const username = process.env.DASHBOARD_AUTH_USERNAME?.trim();
-  const passwordHash = process.env.DASHBOARD_AUTH_PASSWORD_HASH?.trim();
+  const encodedPasswordHash = process.env.DASHBOARD_AUTH_PASSWORD_HASH?.trim();
+  const passwordHash = encodedPasswordHash
+    ? decodePasswordHash(encodedPasswordHash)
+    : "";
   const secret = process.env.DASHBOARD_AUTH_SECRET?.trim();
   if (!username || !passwordHash || !secret || secret.length < 32) return null;
   return { username, passwordHash, secret };

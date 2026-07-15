@@ -5,6 +5,7 @@ import {
   verifyPassword,
   verifySessionToken,
 } from "@/lib/auth-core";
+import { decodePasswordHash } from "@/lib/auth";
 
 describe("dashboard authentication", () => {
   it("verifies PBKDF2 password hashes without accepting a different password", async () => {
@@ -17,6 +18,18 @@ describe("dashboard authentication", () => {
 
   it("rejects malformed password hashes", async () => {
     await expect(verifyPassword("password", "not-a-supported-hash")).resolves.toBe(false);
+  });
+
+  it("decodes the hosting-safe password hash transport format", async () => {
+    const hash = await createPasswordHash(
+      "transport-safe password",
+      Uint8Array.from({ length: 16 }, (_, index) => 16 - index),
+      100_000,
+    );
+    const transported = `base64url:${Buffer.from(hash).toString("base64url")}`;
+
+    expect(decodePasswordHash(transported)).toBe(hash);
+    expect(decodePasswordHash(hash)).toBe(hash);
   });
 
   it("accepts signed sessions only for the configured user before expiry", async () => {
