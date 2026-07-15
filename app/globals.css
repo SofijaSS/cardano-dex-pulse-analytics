@@ -753,11 +753,20 @@ footer {
 
 .table-shell {
   position: relative;
-  overflow-x: auto;
+  isolation: isolate;
+  max-height: min(72vh, 760px);
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
   background: rgba(250, 249, 245, 0.86);
   border: 1px solid var(--line);
   border-radius: 12px;
   box-shadow: 0 12px 40px rgba(20, 38, 54, 0.045);
+}
+
+.table-shell:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 3px;
 }
 
 table {
@@ -775,9 +784,9 @@ td {
 }
 
 th:first-child,
-td:first-child { position: sticky; left: 0; z-index: 2; min-width: 230px; text-align: left; background: #faf9f5; box-shadow: 8px 0 15px rgba(20, 38, 54, 0.025); }
-thead th { position: sticky; top: 0; z-index: 3; background: #f6f5ef; }
-thead th:first-child { z-index: 4; background: #f6f5ef; }
+td:first-child { position: sticky; left: 0; z-index: 3; min-width: 230px; text-align: left; background: #faf9f5; box-shadow: 8px 0 15px rgba(20, 38, 54, 0.025); }
+thead th { position: sticky; top: 0; z-index: 5; background: #f6f5ef; box-shadow: 0 1px 0 var(--line), 0 9px 18px rgba(20, 38, 54, 0.07); }
+thead th:first-child { z-index: 7; background: #f6f5ef; box-shadow: 8px 1px 15px rgba(20, 38, 54, 0.07), 0 1px 0 var(--line); }
 tbody tr:last-child td { border-bottom: 0; }
 tbody tr:hover td { background-color: #f7f8f4; }
 .version-row td { background: rgba(238, 244, 250, 0.5); }

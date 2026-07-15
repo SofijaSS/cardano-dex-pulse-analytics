@@ -196,7 +196,12 @@ export function DexTable({
         Minswap Stable and duplicate protocol-total rows are hidden. Source details show native and DefiLlama values side by side; they are not averaged because their coverage and period definitions can differ. Versions without a public split remain unranked.
       </div>
 
-      <div className="table-shell">
+      <div
+        className="table-shell"
+        role="region"
+        aria-label="Scrollable DEX performance table with frozen headers"
+        tabIndex={0}
+      >
         <table>
           <thead>
             <tr>
