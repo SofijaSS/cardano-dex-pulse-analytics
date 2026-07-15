@@ -10,7 +10,6 @@ import {
   AlertTriangle,
   BarChart3,
   Database,
-  ExternalLink,
   LogOut,
   RefreshCw,
   ShieldCheck,
@@ -273,7 +272,6 @@ export function TokenAnalytics({ authEnabled = false }: { authEnabled?: boolean 
             <div className="token-chart-panel">
               <header>
                 <div><span className="eyebrow">Minswap public OHLCV</span><h2>{token.ticker}_ADA market</h2><p>ADA-denominated candles and Minswap-tracked volume. Hover a candle for exact OHLCV values.</p></div>
-                <a className="button button--secondary" href={data.marketUrl} target="_blank" rel="noreferrer">Open market source <ExternalLink size={14} /></a>
               </header>
               <div className="token-range-control" aria-label="Chart date range">
                 {CHART_RANGES.map((option) => (
@@ -283,7 +281,7 @@ export function TokenAnalytics({ authEnabled = false }: { authEnabled?: boolean 
                     startTransition(() => setRange(option.id));
                   }} aria-pressed={range === option.id}>{option.label}</button>
                 ))}
-                <span>{loading ? "Refreshing…" : `${data.candles.length} verified candles`}</span>
+                <span>{loading ? "Refreshing…" : `${data.candles.length} verified candles · ${range.toUpperCase()}`}</span>
               </div>
               <TokenCandleChart candles={data.candles} ticker={token.ticker} />
               <p className="token-chart-note">Source: Minswap public asset candlestick API. Candle periods are selected automatically for the active range. This is Minswap-tracked activity, not an all-DEX aggregate; the provider response has no publish timestamp, so server fetch time is shown.</p>
@@ -295,7 +293,23 @@ export function TokenAnalytics({ authEnabled = false }: { authEnabled?: boolean 
                 <div className="timeframe-grid">
                   {TIMEFRAMES.map((timeframe) => {
                     const value = data.changes[timeframe.id];
-                    return <article key={timeframe.id} className={timeframe.id === "24h" ? "is-active" : ""}><span>{timeframe.label}</span><strong className={value == null ? "" : value >= 0 ? "positive" : "negative"}>{formatPercent(value)}</strong></article>;
+                    return (
+                      <button
+                        type="button"
+                        key={timeframe.id}
+                        className={range === timeframe.id ? "is-active" : ""}
+                        onClick={() => {
+                          setLoading(true);
+                          setError(null);
+                          startTransition(() => setRange(timeframe.id));
+                        }}
+                        aria-pressed={range === timeframe.id}
+                        aria-label={`Show ${timeframe.label} chart range`}
+                      >
+                        <span>{timeframe.label}</span>
+                        <strong className={value == null ? "" : value >= 0 ? "positive" : "negative"}>{formatPercent(value)}</strong>
+                      </button>
+                    );
                   })}
                 </div>
               </section>
@@ -337,10 +351,6 @@ export function TokenAnalytics({ authEnabled = false }: { authEnabled?: boolean 
             </div>
           </section>
 
-          <section className={`token-data-quality token-data-quality--${data.source.health}`}>
-            <div><span className="eyebrow">Data quality</span><h2>{data.source.label}</h2><p>{data.source.message}</p></div>
-            <ul>{data.warnings.map((warning) => <li key={warning}>{warning}</li>)}</ul>
-          </section>
         </>
       )}
 

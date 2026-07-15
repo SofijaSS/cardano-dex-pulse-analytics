@@ -9,12 +9,14 @@ import type {
 
 const MINSWAP_API_URL = SOURCE_ENDPOINTS.minswapApi.replace(/\/$/, "");
 const DEXSCREENER_API_URL = SOURCE_ENDPOINTS.dexScreenerApi.replace(/\/$/, "");
-const MINSWAP_MARKET_URL = "https://minswap.org/";
 
 export const TOKEN_RANGE_CONFIG: Record<
   TokenChartRange,
   { seconds: number; interval: string; limit: number }
 > = {
+  "15m": { seconds: 15 * 60, interval: "1m", limit: 500 },
+  "1h": { seconds: 60 * 60, interval: "5m", limit: 500 },
+  "4h": { seconds: 4 * 60 * 60, interval: "15m", limit: 500 },
   "24h": { seconds: 86_400, interval: "15m", limit: 500 },
   "7d": { seconds: 7 * 86_400, interval: "1h", limit: 500 },
   "30d": { seconds: 30 * 86_400, interval: "4h", limit: 500 },
@@ -156,7 +158,6 @@ export interface DexScreenerSnapshot {
   volume24hUsd: number | null;
   buys24h: number | null;
   sells24h: number | null;
-  url: string | null;
   pairCount: number;
 }
 
@@ -194,7 +195,6 @@ export function parseDexScreenerSnapshot(
       volume24hUsd: nonNegativeNumber(volume?.h24),
       buys24h: tokenIsBase ? reportedBuys : reportedSells,
       sells24h: tokenIsBase ? reportedSells : reportedBuys,
-      url: typeof pair?.url === "string" ? pair.url : null,
     }];
   });
   if (!pairs.length) return null;
@@ -213,7 +213,6 @@ export function parseDexScreenerSnapshot(
     volume24hUsd: sumAvailable(pairs.map((pair) => pair.volume24hUsd)),
     buys24h: sumAvailable(pairs.map((pair) => pair.buys24h)),
     sells24h: sumAvailable(pairs.map((pair) => pair.sells24h)),
-    url: best.url,
     pairCount: pairs.length,
   };
 }
@@ -345,7 +344,6 @@ export async function loadTokenAnalytics(
     configured: true,
     token,
     range,
-    marketUrl: dexScreener?.url || MINSWAP_MARKET_URL,
     source: {
       health,
       label: "Minswap public token API",

@@ -543,7 +543,7 @@ export function buildDexRows({
       tableRole: version.showInTable ? "primary" : "hidden",
       parentId: version.parentId,
       protocolVersion: version.version,
-      logo: parent.logo,
+      logo: version.logo || parent.logo,
       color: parent.color,
       volume24hUsd: volume24,
       volume7dUsd: volume7,

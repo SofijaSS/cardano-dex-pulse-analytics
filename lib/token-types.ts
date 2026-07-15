@@ -1,7 +1,7 @@
 import type { DexTokenConfig } from "@/config/tokens";
 
-export type TokenChartRange = "24h" | "7d" | "30d" | "90d" | "1y";
 export type TokenTimeframe = "15m" | "1h" | "4h" | "24h" | "7d" | "30d";
+export type TokenChartRange = TokenTimeframe | "90d" | "1y";
 
 export interface TokenCandle {
   time: number;
@@ -32,7 +32,6 @@ export interface TokenAnalyticsData {
   configured: boolean;
   token: DexTokenConfig;
   range: TokenChartRange;
-  marketUrl: string;
   source: {
     health: "healthy" | "degraded" | "error" | "unconfigured";
     label: string;

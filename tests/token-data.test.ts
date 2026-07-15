@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
+import { DEX_VERSION_REGISTRY } from "../config/dexes";
 import { DEX_TOKEN_REGISTRY } from "../config/tokens";
 import {
   calculateTokenChanges,
   normalizeMinswapCandles,
   parseDexScreenerSnapshot,
   parseMinswapAssetMetrics,
+  TOKEN_RANGE_CONFIG,
 } from "../lib/token-data";
 import type { TokenCandle } from "../lib/token-types";
 
@@ -31,7 +33,26 @@ describe("DEX token registry", () => {
     ]);
     expect(new Set(DEX_TOKEN_REGISTRY.map((token) => token.tokenId)).size).toBe(6);
     expect(DEX_TOKEN_REGISTRY.every((token) => /^[0-9a-f]+$/.test(token.tokenId))).toBe(true);
-    expect(DEX_TOKEN_REGISTRY.every((token) => token.logo.startsWith("https://icons.llamao.fi/"))).toBe(true);
+    expect(DEX_TOKEN_REGISTRY[0].logo).toBe("/dex-logos/wingriders-v2.svg");
+    expect(DEX_TOKEN_REGISTRY.slice(1).every((token) => token.logo.startsWith("https://icons.llamao.fi/"))).toBe(true);
+    expect(DEX_VERSION_REGISTRY.find((version) => version.id === "wingriders-v2")?.logo)
+      .toBe("/dex-logos/wingriders-v2.svg");
+  });
+
+  it("supports every clickable timeframe as a real OHLCV range", () => {
+    expect(Object.keys(TOKEN_RANGE_CONFIG)).toEqual([
+      "15m",
+      "1h",
+      "4h",
+      "24h",
+      "7d",
+      "30d",
+      "90d",
+      "1y",
+    ]);
+    expect(TOKEN_RANGE_CONFIG["15m"].interval).toBe("1m");
+    expect(TOKEN_RANGE_CONFIG["1h"].interval).toBe("5m");
+    expect(TOKEN_RANGE_CONFIG["4h"].interval).toBe("15m");
   });
 });
 
@@ -96,7 +117,6 @@ describe("public token market transformations", () => {
         volume: { h24: 10 },
         txns: { h24: { buys: 1, sells: 2 } },
         marketCap: 500,
-        url: "https://example.com/one",
       },
       {
         baseToken: { address: tokenId, symbol: "TEST" },
@@ -106,7 +126,6 @@ describe("public token market transformations", () => {
         volume: { h24: 20 },
         txns: { h24: { buys: 2, sells: 3 } },
         marketCap: 550,
-        url: "https://example.com/two",
       },
       {
         baseToken: { address: tokenId, symbol: "TEST" },
@@ -123,7 +142,6 @@ describe("public token market transformations", () => {
       volume24hUsd: 30,
       buys24h: 3,
       sells24h: 5,
-      url: "https://example.com/two",
       pairCount: 2,
     });
     expect(parseDexScreenerSnapshot([], tokenId)).toBeNull();
