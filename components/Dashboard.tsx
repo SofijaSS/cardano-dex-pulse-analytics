@@ -347,10 +347,15 @@ export function Dashboard({ authEnabled = false }: { authEnabled?: boolean }) {
       ) : null}
 
       <header className="topbar">
-        <Link className="brand" href="/" aria-label="Cardano DEX Pulse home">
-          <span className="brand-mark"><i /><i /><i /></span>
-          <span><strong>Cardano DEX</strong><small>Pulse / Analytics</small></span>
-        </Link>
+        <div className="topbar-start">
+          <Link className="brand" href="/" aria-label="Cardano DEX Pulse home">
+            <span className="brand-mark"><i /><i /><i /></span>
+            <span><strong>Cardano DEX</strong><small>Pulse / Analytics</small></span>
+          </Link>
+          <Link className="mobile-page-link" href="/tokens">
+            <BarChart3 size={14} aria-hidden="true" /> Token charts
+          </Link>
+        </div>
         <nav aria-label="Dashboard sections">
           <a href="#overview">Overview</a>
           <a href="#charts">Charts</a>
