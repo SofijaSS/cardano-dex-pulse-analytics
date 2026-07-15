@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { startTransition, useEffect, useState, useSyncExternalStore } from "react";
 import {
   AlertTriangle,
@@ -333,15 +334,16 @@ export function Dashboard({ authEnabled = false }: { authEnabled?: boolean }) {
       ) : null}
 
       <header className="topbar">
-        <a className="brand" href="#top" aria-label="Cardano DEX Pulse home">
+        <Link className="brand" href="/" aria-label="Cardano DEX Pulse home">
           <span className="brand-mark"><i /><i /><i /></span>
           <span><strong>Cardano DEX</strong><small>Pulse / Analytics</small></span>
-        </a>
+        </Link>
         <nav aria-label="Dashboard sections">
           <a href="#overview">Overview</a>
           <a href="#charts">Charts</a>
           <a href="#dex-table">DEXes</a>
           <a href="#weekly-report">Weekly brief</a>
+          <Link href="/tokens">Token charts</Link>
         </nav>
         <div className="topbar-actions">
           <DataSourceStatus sources={data.sources} warnings={data.warnings} />

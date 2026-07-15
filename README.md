@@ -14,6 +14,8 @@ npm run dev
 
 Open `http://localhost:3000`. All configured production endpoints are public and need no key today. URL overrides stay server-side in `app/api/dashboard/route.ts`; add private headers there if a future provider requires authentication.
 
+The DEX-volume dashboard works without a key. The separate `/tokens` workspace requires a DEX Hunter Partner ID for token/ADA prices and charts; set `DEXHUNTER_PARTNER_ID` in `.env.local`. ADA/USD still uses the independently validated CoinGecko/Coinbase price path when DEX Hunter is not configured.
+
 Verification commands:
 
 ```bash
@@ -46,6 +48,25 @@ This mode intentionally provides one shared account. Teams that require per-user
 
 New users start with ADA as the display currency. USD remains available whenever desired, while ADA conversion is disabled when no fresh validated ADA/USD price exists. The header also provides Light, Dark, and Auto themes; Auto follows the operating-system preference. Currency and theme choices are stored only in the user's browser. Table-column choices are intentionally session-only and reset to all columns on every refresh or new visit.
 
+## Token charts
+
+The authenticated `/tokens` page tracks governance/utility tokens in this configured order: WingRiders (`WRT`), Minswap (`MIN`), SundaeSwap (`SUNDAE`), Splash (`SPLASH`), VyFinance (`VYFI`), and CSWAP (`CSWAP`). Token policy IDs live in `config/tokens.ts`; adding another token does not require changing the page component.
+
+The browser refreshes the selected token every 60 seconds through the protected, no-store `/api/tokens` route. All DEX Hunter calls run server-side and send `DEXHUNTER_PARTNER_ID` as `X-Partner-Id`; the credential is never included in the client bundle. The UI remains usable without the key, but labels DEX Hunter data as unconfigured and leaves affected values unavailable.
+
+| Token source | Endpoint and field mapping | Expected update | Known limitation |
+| --- | --- | --- | --- |
+| DEX Hunter token price | `GET /swap/averagePrice/ADA/{tokenId}`; `price_ba` maps token price in ADA | Requested every 60s; UI stale threshold 5m | Response has no authoritative provider timestamp, so server fetch time is displayed. |
+| DEX Hunter OHLCV | `POST https://charts.dhapi.io/charts`; body `tokenIn=""`, `tokenOut={tokenId}`, `period`, `from`, `to`; map `time`, `open`, `high`, `low`, `close`, `volume` | Requested every 60s for the active 24h/7d/30d/90d/1y range | Candle periods are 15m, 1h, 4h, 1d, and 1w respectively. Invalid OHLC relationships, non-positive prices, negative volume, and duplicate timestamps are rejected. |
+| DEX Hunter pools | `GET /stats/pools/ADA/{tokenId}`; sum positive `token_1_amount` as ADA liquidity | Requested every 60s | Sum covers only pools returned by the Partner API and is not presented as protocol TVL. |
+| DEX Hunter daily stats | `GET /stats/daily_stats/ADA/{tokenId}`; `daily_buys_count`, `daily_sales_count`, `daily_volume` | Requested every 60s | API documents trade counts and total ADA volume, not buy/sell volume or unique buyers/sellers; missing fields remain unavailable. |
+| DEX Hunter limit orders | `GET /swap/limit_orders/ADA/{tokenId}`; explicit bid/ask `price` and `amount` levels only | Requested every 60s | The depth chart renders only when a structurally recognized response contains both sides. No values are inferred from screenshots. |
+| ADA/USD | CoinGecko `cardano.usd` and `last_updated_at`; Coinbase `data.amount` fallback | Requested with every token refresh | CoinGecko is rejected after 4h. Coinbase has no provider timestamp, so fetch time is used. |
+
+`ADA / token` is the zero-protected inverse of DEX Hunter `token / ADA`. `token / USD` is calculated only when both verified inputs exist: `token / ADA * ADA / USD`. No historical USD candle conversion is performed.
+
+DEX Hunter's documented Partner API does not expose protocol market cap, token holder count, Top 10 concentration, or Top 100 concentration. Those cards intentionally display `Data unavailable`. Timeframe changes are returned only when validated candles cover at least 80% of the requested period; otherwise the value is `N/A`.
+
 ## Data policy
 
 The dashboard offers two explicit views:
@@ -67,6 +88,7 @@ Research and comparison were last reviewed on **2026-07-15**. Values below are a
 | DefiLlama TVL | `GET https://api.llama.fi/protocols`; filter `category="Dexs"` and Cardano, map `chainTvls.Cardano`, fallback `tvl` | DefiLlama documents hourly TVL updates. App stale threshold: 2h. | Used as TVL fallback when a compatible native metric is unavailable. A protocol can expose multiple versions. |
 | CoinGecko | `GET /api/v3/simple/price?ids=cardano&vs_currencies=usd&include_last_updated_at=true`; `cardano.usd`, `last_updated_at` | Near-real-time. App rejects price older than 4h. | Primary ADA/USD display price. No implicit conversion occurs without a fresh primary or fallback price. |
 | Coinbase | `GET https://api.coinbase.com/v2/prices/ADA-USD/spot`; `data.amount` | Requested with each cached refresh; app stale threshold: 1h. | Used only when CoinGecko fails or is stale. The public response has no provider timestamp, so the server fetch time is displayed. |
+| DEX Hunter Partner API | `/swap/averagePrice`, `/stats/pools`, `/stats/daily_stats`, `/swap/limit_orders`, and `POST https://charts.dhapi.io/charts`; detailed mappings are listed in **Token charts** above | Token page requests every 60s; app stale threshold: 5m | Requires server-only `DEXHUNTER_PARTNER_ID`. Market cap and holder concentration are not documented fields and remain unavailable. |
 | Minswap | `POST https://api-mainnet-prod.minswap.org/v1/pools/metrics`; sum `pool_metrics[].volume_24h`, `volume_7d`, `trading_fee_24h`, `trading_fee_7d`, and `liquidity_currency` with `currency="usd"`. `pool_metrics[].type` maps `Minswap` to V1, `MinswapV2` to V2, and `MinswapStable` to Stable. A parallel no-currency 24h request returns ADA and validates the implied ADA/USD rate. | Rolling/current; app stale threshold: 2h. | Minswap documents that omitted `currency` means ADA and `currency="usd"` means USD. Each request uses `limit=100`, so version volume, fees, TVL/liquidity and pool count are lower bounds from independently ranked pool cohorts. Native 30d and previous 7d are unavailable. |
 | WingRiders | `GET https://api.mainnet.wingriders.com/v1/defillama`; `dailyVolume` and `dailyFees` in ADA, converted with the timestamped ADA/USD price | Current daily metric; app stale threshold: 2h. | WingRiders identifies its current product as AMM DEX V2, so the verified protocol feed is displayed on the primary `WingRiders V2` row. The endpoint does not expose a V1/V2 split; any residual V1 activity cannot be separated. V1 therefore remains `Data unavailable`. Historical aggregate periods use DefiLlama only after live agreement passes. |
 | SundaeSwap | `POST https://api.sundae.fi/graphql`; `stats.volume.quantity` for lovelace, `stats.poolCount`, and `protocols[].version` | Current protocol metric; app stale threshold: 2h. | GraphQL confirms V1, V3 and Stableswaps, but public `stats` are aggregate rather than version-scoped. The verified aggregate is displayed on the primary `SundaeSwap V3` row with an explicit mapping note; legacy V1 remains `Data unavailable` because residual V1 activity cannot be separated. The volume window is not labelled as clearly as desired; live aggregate volume is checked against DefiLlama before benchmark history is accepted. Native `stats.tvl` is intentionally excluded because its semantics did not reconcile with protocol TVL. |
@@ -148,6 +170,11 @@ Browser
   -> responsive React dashboard
      -> metric cards, filters, charts, table, WingRiders report
      -> CSV exports, clipboard summary, print/save-PDF
+  -> GET /api/tokens?token=wrt&range=30d
+     -> fresh ADA/USD validation
+     -> server-side DEX Hunter Partner API + OHLCV requests
+     -> validated TokenAnalyticsData or explicit unavailable fields
+  -> protected token charts workspace
 ```
 
 The browser never calls third-party analytics APIs directly and does not receive private environment variables. CSV exports are generated from the currently displayed rows or selected historical benchmark range. The weekly PDF is a print-optimized report using the browser's Save as PDF flow.
@@ -170,9 +197,12 @@ The weekly performance brief is interactive: its three cards are the current top
 
 ```text
 app/api/dashboard/route.ts   server-side data endpoint
+app/api/tokens/route.ts      protected token-market endpoint
 components/                 reusable dashboard UI
 config/dexes.ts             configurable DEX registry
+config/tokens.ts            configurable token registry and policy IDs
 lib/dashboard-data.ts       provider adapters and reconciliation
+lib/token-data.ts           DEX Hunter adapter and validation
 lib/calculations.ts         guarded calculations
 lib/mock-data.ts            explicit development-only fixture
 lib/types.ts                normalized API data model
