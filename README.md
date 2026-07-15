@@ -25,6 +25,10 @@ npm run build
 
 Set `USE_MOCK_DATA=true` only for local UI development. Mock mode is synthetic, is never enabled by default, and shows a persistent red warning in the interface.
 
+## Interface preferences
+
+New users start with ADA as the display currency. USD remains available whenever desired, while ADA conversion is disabled when no fresh validated ADA/USD price exists. The header also provides Light, Dark, and Auto themes; Auto follows the operating-system preference. Currency, theme, and visible table-column choices are stored only in the user's browser and are not sent to the dashboard API.
+
 ## Data policy
 
 The dashboard offers two explicit views:

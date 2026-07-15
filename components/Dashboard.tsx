@@ -1,6 +1,6 @@
 "use client";
 
-import { startTransition, useEffect, useState } from "react";
+import { startTransition, useEffect, useState, useSyncExternalStore } from "react";
 import {
   AlertTriangle,
   BarChart3,
@@ -14,7 +14,9 @@ import { DateRangeSelector, type DatePreset } from "@/components/DateRangeSelect
 import { DexSelector } from "@/components/DexSelector";
 import { DexTable, type DexTableColumnKey } from "@/components/DexTable";
 import { MetricCard } from "@/components/MetricCard";
+import { ThemeControl } from "@/components/ThemeControl";
 import { WeeklySummary } from "@/components/WeeklySummary";
+import { createBrowserPreferenceStore } from "@/lib/browser-preference";
 import { safeDivide, safePercentChange } from "@/lib/calculations";
 import {
   convertUsd,
@@ -26,6 +28,12 @@ import {
 import type { DashboardData, DexMetric, VolumeSeriesPoint } from "@/lib/types";
 
 type SourceMode = "reconciled" | "defillama";
+
+const currencyStore = createBrowserPreferenceStore<Currency>({
+  key: "cardano-dex-pulse:currency",
+  defaultValue: "ADA",
+  values: ["ADA", "USD"],
+});
 
 function toDateInput(timestamp: number) {
   return new Date(timestamp * 1000).toISOString().slice(0, 10);
@@ -120,7 +128,11 @@ export function Dashboard() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
-  const [currency, setCurrency] = useState<Currency>("USD");
+  const preferredCurrency = useSyncExternalStore(
+    currencyStore.subscribe,
+    currencyStore.getSnapshot,
+    currencyStore.getServerSnapshot,
+  );
   const [sourceMode, setSourceMode] = useState<SourceMode>("reconciled");
   const [preset, setPreset] = useState<DatePreset>("30d");
   const [customStart, setCustomStart] = useState("");
@@ -190,6 +202,7 @@ export function Dashboard() {
   if (!data) return null;
 
   const adaPrice = data.price.usd;
+  const currency: Currency = preferredCurrency === "ADA" && !adaPrice ? "USD" : preferredCurrency;
   const protocolDexes = data.dexes.filter((dex) => dex.rowKind === "protocol");
   const displayedDexes =
     sourceMode === "defillama"
@@ -330,19 +343,20 @@ export function Dashboard() {
         <div className="topbar-actions">
           <DataSourceStatus sources={data.sources} warnings={data.warnings} />
           <div className="currency-control" aria-label="Display currency">
-            {(["USD", "ADA"] as Currency[]).map((option) => (
+            {(["ADA", "USD"] as Currency[]).map((option) => (
               <button
                 type="button"
                 key={option}
                 className={currency === option ? "is-active" : ""}
                 disabled={option === "ADA" && !adaPrice}
-                onClick={() => setCurrency(option)}
+                onClick={() => currencyStore.set(option)}
                 aria-pressed={currency === option}
               >
                 {option}
               </button>
             ))}
           </div>
+          <ThemeControl />
         </div>
       </header>
 

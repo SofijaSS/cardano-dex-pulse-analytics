@@ -3,6 +3,22 @@ import { IBM_Plex_Mono, Manrope } from "next/font/google";
 import { headers } from "next/headers";
 import "./globals.css";
 
+const themeScript = `
+  (() => {
+    try {
+      const preference = localStorage.getItem("cardano-dex-pulse:theme") || "auto";
+      const dark = preference === "dark" || (preference === "auto" && matchMedia("(prefers-color-scheme: dark)").matches);
+      document.documentElement.dataset.theme = dark ? "dark" : "light";
+      document.documentElement.dataset.themePreference = preference;
+      document.documentElement.style.colorScheme = dark ? "dark" : "light";
+    } catch {
+      const dark = matchMedia("(prefers-color-scheme: dark)").matches;
+      document.documentElement.dataset.theme = dark ? "dark" : "light";
+      document.documentElement.style.colorScheme = dark ? "dark" : "light";
+    }
+  })();
+`;
+
 const manrope = Manrope({
   variable: "--font-manrope",
   subsets: ["latin"],
@@ -56,7 +72,10 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
       <body className={`${manrope.variable} ${plexMono.variable}`}>{children}</body>
     </html>
   );

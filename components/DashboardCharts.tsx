@@ -21,8 +21,8 @@ import { ChartCard } from "@/components/ChartCard";
 import { convertUsd, formatMoney, type Currency } from "@/lib/format";
 import type { DexMetric, VolumeSeriesPoint } from "@/lib/types";
 
-const gridColor = "rgba(20, 38, 54, 0.10)";
-const axisColor = "#6d7b84";
+const gridColor = "var(--chart-grid)";
+const axisColor = "var(--chart-axis)";
 
 function EmptyChart({ message }: { message: string }) {
   return <div className="empty-chart">{message}</div>;
