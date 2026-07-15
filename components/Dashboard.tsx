@@ -12,7 +12,7 @@ import { DashboardCharts } from "@/components/DashboardCharts";
 import { DataSourceStatus } from "@/components/DataSourceStatus";
 import { DateRangeSelector, type DatePreset } from "@/components/DateRangeSelector";
 import { DexSelector } from "@/components/DexSelector";
-import { DexTable } from "@/components/DexTable";
+import { DexTable, type DexTableColumnKey } from "@/components/DexTable";
 import { MetricCard } from "@/components/MetricCard";
 import { WeeklySummary } from "@/components/WeeklySummary";
 import { safeDivide, safePercentChange } from "@/lib/calculations";
@@ -248,59 +248,50 @@ export function Dashboard() {
     });
   };
 
-  const exportTable = (rows: DexMetric[]) => {
+  const exportTable = (rows: DexMetric[], columns: DexTableColumnKey[]) => {
+    const columnExporters: Record<
+      DexTableColumnKey,
+      { header: string; value: (dex: DexMetric) => unknown }
+    > = {
+      volume24hUsd: { header: `24h volume (${currency})`, value: (dex) => convertUsd(dex.volume24hUsd, currency, adaPrice) },
+      volume7dUsd: { header: `7d volume (${currency})`, value: (dex) => convertUsd(dex.volume7dUsd, currency, adaPrice) },
+      volume30dUsd: { header: `30d volume (${currency})`, value: (dex) => convertUsd(dex.volume30dUsd, currency, adaPrice) },
+      previous7dUsd: { header: `Previous 7d (${currency})`, value: (dex) => convertUsd(dex.previous7dUsd, currency, adaPrice) },
+      weekChangePct: { header: "WoW %", value: (dex) => dex.weekChangePct },
+      trades24h: { header: "Trades (24h)", value: (dex) => dex.trades24h },
+      users24h: { header: "Users (24h)", value: (dex) => dex.users24h },
+      dau24h: { header: "DAU (24h)", value: (dex) => dex.dau24h },
+      fees24hUsd: { header: `Fees (24h, ${currency})`, value: (dex) => convertUsd(dex.fees24hUsd, currency, adaPrice) },
+      fees7dUsd: { header: `Fees (7d, ${currency})`, value: (dex) => convertUsd(dex.fees7dUsd, currency, adaPrice) },
+      tvlUsd: { header: `TVL (${currency})`, value: (dex) => convertUsd(dex.tvlUsd, currency, adaPrice) },
+      volumeToTvl: { header: "24h volume / TVL", value: (dex) => dex.volumeToTvl },
+      marketCapUsd: { header: `Market cap (${currency})`, value: (dex) => convertUsd(dex.marketCapUsd, currency, adaPrice) },
+      marketCapToTvl: { header: "Market cap / TVL", value: (dex) => dex.marketCapToTvl },
+      poolCount: { header: "Pools observed", value: (dex) => dex.poolCount },
+      marketShare24hPct: { header: "Observed 24h share %", value: (dex) => dex.marketShare24hPct },
+      variance24hPct: { header: "Native vs DefiLlama %", value: (dex) => dex.variance24hPct },
+      lastData: { header: "Last data UTC", value: (dex) => dex.lastDataAt },
+    };
+    const selectedColumns = columns.map((column) => columnExporters[column]);
+
     downloadCsv(`cardano-dex-table-${sourceMode}-${new Date().toISOString().slice(0, 10)}.csv`, [
       [
         "DEX",
         "Row type",
         "Protocol version",
         "Rank (7d)",
-        `24h volume (${currency})`,
-        `7d volume (${currency})`,
-        `30d volume (${currency})`,
-        `Previous 7d (${currency})`,
-        "WoW %",
-        "Trades (24h)",
-        "Users (24h)",
-        "DAU (24h)",
-        `Fees (24h, ${currency})`,
-        `Fees (7d, ${currency})`,
-        `TVL (${currency})`,
-        "24h volume / TVL",
-        `Market cap (${currency})`,
-        "Market cap / TVL",
-        "Pools observed",
-        "Observed 24h share %",
-        "Native vs DefiLlama %",
         "Quality",
         "Source",
-        "Last data UTC",
+        ...selectedColumns.map((column) => column.header),
       ],
       ...rows.map((dex) => [
         dex.name,
         dex.rowKind,
         dex.protocolVersion,
         dex.rank7d,
-        convertUsd(dex.volume24hUsd, currency, adaPrice),
-        convertUsd(dex.volume7dUsd, currency, adaPrice),
-        convertUsd(dex.volume30dUsd, currency, adaPrice),
-        convertUsd(dex.previous7dUsd, currency, adaPrice),
-        dex.weekChangePct,
-        dex.trades24h,
-        dex.users24h,
-        dex.dau24h,
-        convertUsd(dex.fees24hUsd, currency, adaPrice),
-        convertUsd(dex.fees7dUsd, currency, adaPrice),
-        convertUsd(dex.tvlUsd, currency, adaPrice),
-        dex.volumeToTvl,
-        convertUsd(dex.marketCapUsd, currency, adaPrice),
-        dex.marketCapToTvl,
-        dex.poolCount,
-        dex.marketShare24hPct,
-        dex.variance24hPct,
         dex.quality,
         dex.sourceLabel,
-        dex.lastDataAt,
+        ...selectedColumns.map((column) => column.value(dex)),
       ]),
     ]);
   };

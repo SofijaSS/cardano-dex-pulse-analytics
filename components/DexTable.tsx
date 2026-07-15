@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useDeferredValue, useState } from "react";
+import { Fragment, useDeferredValue, useState, useSyncExternalStore } from "react";
 import {
   ArrowDown,
   ArrowUp,
@@ -9,6 +9,7 @@ import {
   ChevronRight,
   Download,
   Search,
+  SlidersHorizontal,
 } from "lucide-react";
 import {
   formatDateTime,
@@ -40,6 +41,111 @@ type SortKey =
   | "marketShare24hPct"
   | "variance24hPct";
 
+export type DexTableColumnKey =
+  | "volume24hUsd"
+  | "volume7dUsd"
+  | "volume30dUsd"
+  | "previous7dUsd"
+  | "weekChangePct"
+  | "trades24h"
+  | "users24h"
+  | "dau24h"
+  | "fees24hUsd"
+  | "fees7dUsd"
+  | "tvlUsd"
+  | "volumeToTvl"
+  | "marketCapUsd"
+  | "marketCapToTvl"
+  | "poolCount"
+  | "marketShare24hPct"
+  | "variance24hPct"
+  | "lastData";
+
+type ColumnDefinition = {
+  key: DexTableColumnKey;
+  label: string;
+  group: "Volume" | "Activity" | "Value" | "Reporting";
+  sortKey?: SortKey;
+};
+
+export const DEX_TABLE_COLUMNS: ColumnDefinition[] = [
+  { key: "volume24hUsd", label: "DEX volume · 24h", group: "Volume", sortKey: "volume24hUsd" },
+  { key: "volume7dUsd", label: "7d volume", group: "Volume", sortKey: "volume7dUsd" },
+  { key: "volume30dUsd", label: "30d volume", group: "Volume", sortKey: "volume30dUsd" },
+  { key: "previous7dUsd", label: "Previous 7d", group: "Volume", sortKey: "previous7dUsd" },
+  { key: "weekChangePct", label: "WoW change", group: "Volume", sortKey: "weekChangePct" },
+  { key: "trades24h", label: "Trades · 24h", group: "Activity", sortKey: "trades24h" },
+  { key: "users24h", label: "Users · 24h", group: "Activity", sortKey: "users24h" },
+  { key: "dau24h", label: "DAU · 24h", group: "Activity", sortKey: "dau24h" },
+  { key: "fees24hUsd", label: "Fees · 24h", group: "Activity", sortKey: "fees24hUsd" },
+  { key: "fees7dUsd", label: "Fees · 7d", group: "Activity", sortKey: "fees7dUsd" },
+  { key: "tvlUsd", label: "TVL", group: "Value", sortKey: "tvlUsd" },
+  { key: "volumeToTvl", label: "Volume / TVL", group: "Value", sortKey: "volumeToTvl" },
+  { key: "marketCapUsd", label: "Market cap", group: "Value", sortKey: "marketCapUsd" },
+  { key: "marketCapToTvl", label: "Market cap / TVL", group: "Value", sortKey: "marketCapToTvl" },
+  { key: "poolCount", label: "Pools", group: "Value", sortKey: "poolCount" },
+  { key: "marketShare24hPct", label: "Market share", group: "Reporting", sortKey: "marketShare24hPct" },
+  { key: "variance24hPct", label: "vs DefiLlama", group: "Reporting", sortKey: "variance24hPct" },
+  { key: "lastData", label: "Last data", group: "Reporting" },
+];
+
+const COLUMN_PREFERENCE_KEY = "cardano-dex-pulse:table-columns";
+const COLUMN_PREFERENCE_EVENT = "cardano-dex-pulse:table-columns-changed";
+const ALL_COLUMN_KEYS = DEX_TABLE_COLUMNS.map((column) => column.key);
+const DEFAULT_COLUMN_PREFERENCE = JSON.stringify(ALL_COLUMN_KEYS);
+let memoryColumnPreference = DEFAULT_COLUMN_PREFERENCE;
+const SEVEN_DAY_COLUMN_KEYS: DexTableColumnKey[] = [
+  "volume7dUsd",
+  "previous7dUsd",
+  "weekChangePct",
+];
+
+function readColumnPreference() {
+  if (typeof window === "undefined") return DEFAULT_COLUMN_PREFERENCE;
+  try {
+    return window.localStorage.getItem(COLUMN_PREFERENCE_KEY) ?? memoryColumnPreference;
+  } catch {
+    return memoryColumnPreference;
+  }
+}
+
+function subscribeToColumnPreference(onStoreChange: () => void) {
+  if (typeof window === "undefined") return () => undefined;
+  const handleChange = () => onStoreChange();
+  window.addEventListener("storage", handleChange);
+  window.addEventListener(COLUMN_PREFERENCE_EVENT, handleChange);
+  return () => {
+    window.removeEventListener("storage", handleChange);
+    window.removeEventListener(COLUMN_PREFERENCE_EVENT, handleChange);
+  };
+}
+
+function writeColumnPreference(columns: Set<DexTableColumnKey>) {
+  memoryColumnPreference = JSON.stringify(
+    ALL_COLUMN_KEYS.filter((key) => columns.has(key)),
+  );
+  try {
+    window.localStorage.setItem(COLUMN_PREFERENCE_KEY, memoryColumnPreference);
+  } catch {
+    // The in-memory preference keeps customization working in privacy modes.
+  }
+  window.dispatchEvent(new Event(COLUMN_PREFERENCE_EVENT));
+}
+
+function parseColumnPreference(preference: string) {
+  try {
+    const parsed = JSON.parse(preference);
+    if (!Array.isArray(parsed)) return new Set<DexTableColumnKey>(ALL_COLUMN_KEYS);
+    return new Set(
+      parsed.filter((key): key is DexTableColumnKey =>
+        ALL_COLUMN_KEYS.includes(key as DexTableColumnKey),
+      ),
+    );
+  } catch {
+    return new Set<DexTableColumnKey>(ALL_COLUMN_KEYS);
+  }
+}
+
 function formatCount(value: number | null) {
   if (value == null || !Number.isFinite(value)) return "Data unavailable";
   return new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(value);
@@ -51,8 +157,6 @@ function sourceVariance(row: DexMetric) {
   if (native == null || benchmark == null || benchmark === 0) return null;
   return ((native - benchmark) / benchmark) * 100;
 }
-
-const COLUMN_COUNT = 19;
 
 function SortableHeader({
   label,
@@ -94,7 +198,7 @@ export function DexTable({
   dexes: DexMetric[];
   currency: Currency;
   adaPriceUsd: number | null;
-  onExport: (rows: DexMetric[]) => void;
+  onExport: (rows: DexMetric[], columns: DexTableColumnKey[]) => void;
 }) {
   const [query, setQuery] = useState("");
   const deferredQuery = useDeferredValue(query);
@@ -102,10 +206,28 @@ export function DexTable({
   const [sortKey, setSortKey] = useState<SortKey>("volume24hUsd");
   const [direction, setDirection] = useState<"asc" | "desc">("desc");
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  const columnPreference = useSyncExternalStore(
+    subscribeToColumnPreference,
+    readColumnPreference,
+    () => DEFAULT_COLUMN_PREFERENCE,
+  );
+  const visibleColumns = parseColumnPreference(columnPreference);
+  const fallbackSortKey = DEX_TABLE_COLUMNS.find(
+    (column) => visibleColumns.has(column.key) && column.sortKey,
+  )?.sortKey;
+  const activeSortKey =
+    sortKey === "name" || visibleColumns.has(sortKey as DexTableColumnKey)
+      ? sortKey
+      : fallbackSortKey || "name";
+  const activeDirection =
+    activeSortKey === sortKey
+      ? direction
+      : activeSortKey === "name" ? "asc" : "desc";
 
   const handleSort = (field: SortKey) => {
-    if (field === sortKey) {
-      setDirection((current) => (current === "asc" ? "desc" : "asc"));
+    if (field === activeSortKey) {
+      setSortKey(field);
+      setDirection(activeDirection === "asc" ? "desc" : "asc");
     } else {
       setSortKey(field);
       setDirection(field === "name" ? "asc" : "desc");
@@ -139,8 +261,8 @@ export function DexTable({
       );
     })
     .sort((left, right) => {
-      const a = left[sortKey];
-      const b = right[sortKey];
+      const a = left[activeSortKey];
+      const b = right[activeSortKey];
       if (a == null && b == null) return left.name.localeCompare(right.name);
       if (a == null) return 1;
       if (b == null) return -1;
@@ -149,7 +271,7 @@ export function DexTable({
           ? a.localeCompare(b)
           : Number(a) - Number(b);
       if (comparison === 0) return left.name.localeCompare(right.name);
-      return direction === "asc" ? comparison : -comparison;
+      return activeDirection === "asc" ? comparison : -comparison;
     });
 
   const toggleDetails = (id: string) => {
@@ -161,7 +283,37 @@ export function DexTable({
     });
   };
 
-  const headerProps = { sortKey, direction, onSort: handleSort };
+  const applyVisibleColumns = (next: Set<DexTableColumnKey>) => {
+    writeColumnPreference(next);
+    if (activeSortKey === "name" || next.has(activeSortKey as DexTableColumnKey)) {
+      if (sortKey !== activeSortKey) setSortKey(activeSortKey);
+      return;
+    }
+
+    const fallback = DEX_TABLE_COLUMNS.find(
+      (column) => next.has(column.key) && column.sortKey,
+    )?.sortKey;
+    setSortKey(fallback || "name");
+    setDirection(fallback ? "desc" : "asc");
+  };
+
+  const toggleColumn = (key: DexTableColumnKey) => {
+    const next = new Set(visibleColumns);
+    if (next.has(key)) next.delete(key);
+    else next.add(key);
+    applyVisibleColumns(next);
+  };
+
+  const visibleColumnKeys = ALL_COLUMN_KEYS.filter((key) => visibleColumns.has(key));
+  const visibleColumnCount = visibleColumnKeys.length;
+  const tableMinWidth = Math.max(640, 230 + visibleColumnCount * 115);
+  const showColumn = (key: DexTableColumnKey) => visibleColumns.has(key);
+
+  const headerProps = {
+    sortKey: activeSortKey,
+    direction: activeDirection,
+    onSort: handleSort,
+  };
 
   return (
     <section className="table-section" id="dex-table">
@@ -184,7 +336,45 @@ export function DexTable({
               {Object.entries(qualityLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
             </select>
           </label>
-          <button type="button" className="button button--secondary" onClick={() => onExport(filtered)}>
+          <details className="column-picker">
+            <summary>
+              <SlidersHorizontal size={15} aria-hidden="true" />
+              Columns
+              <span>{visibleColumnCount}/{DEX_TABLE_COLUMNS.length}</span>
+            </summary>
+            <div className="column-picker__menu">
+              <div className="column-picker__heading">
+                <div>
+                  <strong>Customize table</strong>
+                  <small>Rank / DEX is always visible.</small>
+                </div>
+                <span>{visibleColumnCount} shown</span>
+              </div>
+              <div className="column-picker__actions" aria-label="Column presets">
+                <button type="button" onClick={() => applyVisibleColumns(new Set(ALL_COLUMN_KEYS))}>Show all</button>
+                <button type="button" onClick={() => applyVisibleColumns(new Set(SEVEN_DAY_COLUMN_KEYS))}>7D focus</button>
+                <button type="button" onClick={() => applyVisibleColumns(new Set())}>Clear metrics</button>
+              </div>
+              {["Volume", "Activity", "Value", "Reporting"].map((group) => (
+                <fieldset key={group}>
+                  <legend>{group}</legend>
+                  <div className="column-picker__options">
+                    {DEX_TABLE_COLUMNS.filter((column) => column.group === group).map((column) => (
+                      <label key={column.key}>
+                        <input
+                          type="checkbox"
+                          checked={showColumn(column.key)}
+                          onChange={() => toggleColumn(column.key)}
+                        />
+                        <span>{column.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </fieldset>
+              ))}
+            </div>
+          </details>
+          <button type="button" className="button button--secondary" onClick={() => onExport(filtered, visibleColumnKeys)}>
             <Download size={15} aria-hidden="true" />
             Export table
           </button>
@@ -202,28 +392,28 @@ export function DexTable({
         aria-label="Scrollable DEX performance table with frozen headers"
         tabIndex={0}
       >
-        <table>
+        <table style={{ minWidth: `${tableMinWidth}px` }}>
           <thead>
             <tr>
               <th><SortableHeader label="Rank / DEX" field="name" {...headerProps} /></th>
-              <th><SortableHeader label="DEX volume · 24h" field="volume24hUsd" {...headerProps} /></th>
-              <th><SortableHeader label="7d volume" field="volume7dUsd" {...headerProps} /></th>
-              <th><SortableHeader label="30d volume" field="volume30dUsd" {...headerProps} /></th>
-              <th><SortableHeader label="Previous 7d" field="previous7dUsd" {...headerProps} /></th>
-              <th><SortableHeader label="WoW" field="weekChangePct" {...headerProps} /></th>
-              <th><SortableHeader label="Trades · 24h" field="trades24h" {...headerProps} /></th>
-              <th><SortableHeader label="Users · 24h" field="users24h" {...headerProps} /></th>
-              <th><SortableHeader label="DAU · 24h" field="dau24h" {...headerProps} /></th>
-              <th><SortableHeader label="Fees · 24h" field="fees24hUsd" {...headerProps} /></th>
-              <th><SortableHeader label="Fees · 7d" field="fees7dUsd" {...headerProps} /></th>
-              <th><SortableHeader label="TVL" field="tvlUsd" {...headerProps} /></th>
-              <th><SortableHeader label="Vol / TVL" field="volumeToTvl" {...headerProps} /></th>
-              <th><SortableHeader label="Market cap" field="marketCapUsd" {...headerProps} /></th>
-              <th><SortableHeader label="MCap / TVL" field="marketCapToTvl" {...headerProps} /></th>
-              <th><SortableHeader label="Pools" field="poolCount" {...headerProps} /></th>
-              <th><SortableHeader label="Share" field="marketShare24hPct" {...headerProps} /></th>
-              <th><SortableHeader label="vs DefiLlama" field="variance24hPct" {...headerProps} /></th>
-              <th>Last data</th>
+              {showColumn("volume24hUsd") ? <th><SortableHeader label="DEX volume · 24h" field="volume24hUsd" {...headerProps} /></th> : null}
+              {showColumn("volume7dUsd") ? <th><SortableHeader label="7d volume" field="volume7dUsd" {...headerProps} /></th> : null}
+              {showColumn("volume30dUsd") ? <th><SortableHeader label="30d volume" field="volume30dUsd" {...headerProps} /></th> : null}
+              {showColumn("previous7dUsd") ? <th><SortableHeader label="Previous 7d" field="previous7dUsd" {...headerProps} /></th> : null}
+              {showColumn("weekChangePct") ? <th><SortableHeader label="WoW" field="weekChangePct" {...headerProps} /></th> : null}
+              {showColumn("trades24h") ? <th><SortableHeader label="Trades · 24h" field="trades24h" {...headerProps} /></th> : null}
+              {showColumn("users24h") ? <th><SortableHeader label="Users · 24h" field="users24h" {...headerProps} /></th> : null}
+              {showColumn("dau24h") ? <th><SortableHeader label="DAU · 24h" field="dau24h" {...headerProps} /></th> : null}
+              {showColumn("fees24hUsd") ? <th><SortableHeader label="Fees · 24h" field="fees24hUsd" {...headerProps} /></th> : null}
+              {showColumn("fees7dUsd") ? <th><SortableHeader label="Fees · 7d" field="fees7dUsd" {...headerProps} /></th> : null}
+              {showColumn("tvlUsd") ? <th><SortableHeader label="TVL" field="tvlUsd" {...headerProps} /></th> : null}
+              {showColumn("volumeToTvl") ? <th><SortableHeader label="Vol / TVL" field="volumeToTvl" {...headerProps} /></th> : null}
+              {showColumn("marketCapUsd") ? <th><SortableHeader label="Market cap" field="marketCapUsd" {...headerProps} /></th> : null}
+              {showColumn("marketCapToTvl") ? <th><SortableHeader label="MCap / TVL" field="marketCapToTvl" {...headerProps} /></th> : null}
+              {showColumn("poolCount") ? <th><SortableHeader label="Pools" field="poolCount" {...headerProps} /></th> : null}
+              {showColumn("marketShare24hPct") ? <th><SortableHeader label="Share" field="marketShare24hPct" {...headerProps} /></th> : null}
+              {showColumn("variance24hPct") ? <th><SortableHeader label="vs DefiLlama" field="variance24hPct" {...headerProps} /></th> : null}
+              {showColumn("lastData") ? <th>Last data</th> : null}
             </tr>
           </thead>
           <tbody>
@@ -271,35 +461,35 @@ export function DexTable({
                         </div>
                       </div>
                     </td>
-                    <td>{formatMoney(dex.volume24hUsd, currency, adaPriceUsd)}</td>
-                    <td>{formatMoney(dex.volume7dUsd, currency, adaPriceUsd)}</td>
-                    <td>{formatMoney(dex.volume30dUsd, currency, adaPriceUsd)}</td>
-                    <td>{formatMoney(dex.previous7dUsd, currency, adaPriceUsd)}</td>
-                    <td><span className={`trend-text trend-text--${trend}`}>{formatPercent(dex.weekChangePct)}</span></td>
-                    <td>{formatCount(dex.trades24h)}</td>
-                    <td>{formatCount(dex.users24h)}</td>
-                    <td>{formatCount(dex.dau24h)}</td>
-                    <td>{formatMoney(dex.fees24hUsd, currency, adaPriceUsd)}</td>
-                    <td>{formatMoney(dex.fees7dUsd, currency, adaPriceUsd)}</td>
-                    <td>{formatMoney(dex.tvlUsd, currency, adaPriceUsd)}</td>
-                    <td>{formatRatio(dex.volumeToTvl)}</td>
-                    <td>{formatMoney(dex.marketCapUsd, currency, adaPriceUsd)}</td>
-                    <td>{formatRatio(dex.marketCapToTvl)}</td>
-                    <td>{formatCount(dex.poolCount)}</td>
-                    <td>{formatPercent(dex.marketShare24hPct, false)}</td>
-                    <td>
+                    {showColumn("volume24hUsd") ? <td>{formatMoney(dex.volume24hUsd, currency, adaPriceUsd)}</td> : null}
+                    {showColumn("volume7dUsd") ? <td>{formatMoney(dex.volume7dUsd, currency, adaPriceUsd)}</td> : null}
+                    {showColumn("volume30dUsd") ? <td>{formatMoney(dex.volume30dUsd, currency, adaPriceUsd)}</td> : null}
+                    {showColumn("previous7dUsd") ? <td>{formatMoney(dex.previous7dUsd, currency, adaPriceUsd)}</td> : null}
+                    {showColumn("weekChangePct") ? <td><span className={`trend-text trend-text--${trend}`}>{formatPercent(dex.weekChangePct)}</span></td> : null}
+                    {showColumn("trades24h") ? <td>{formatCount(dex.trades24h)}</td> : null}
+                    {showColumn("users24h") ? <td>{formatCount(dex.users24h)}</td> : null}
+                    {showColumn("dau24h") ? <td>{formatCount(dex.dau24h)}</td> : null}
+                    {showColumn("fees24hUsd") ? <td>{formatMoney(dex.fees24hUsd, currency, adaPriceUsd)}</td> : null}
+                    {showColumn("fees7dUsd") ? <td>{formatMoney(dex.fees7dUsd, currency, adaPriceUsd)}</td> : null}
+                    {showColumn("tvlUsd") ? <td>{formatMoney(dex.tvlUsd, currency, adaPriceUsd)}</td> : null}
+                    {showColumn("volumeToTvl") ? <td>{formatRatio(dex.volumeToTvl)}</td> : null}
+                    {showColumn("marketCapUsd") ? <td>{formatMoney(dex.marketCapUsd, currency, adaPriceUsd)}</td> : null}
+                    {showColumn("marketCapToTvl") ? <td>{formatRatio(dex.marketCapToTvl)}</td> : null}
+                    {showColumn("poolCount") ? <td>{formatCount(dex.poolCount)}</td> : null}
+                    {showColumn("marketShare24hPct") ? <td>{formatPercent(dex.marketShare24hPct, false)}</td> : null}
+                    {showColumn("variance24hPct") ? <td>
                       <span className={`variance variance--${dex.quality}`} title={`${dex.sourceLabel}. ${dex.periodNote}`}>
                         {formatPercent(dex.variance24hPct)}
                       </span>
-                    </td>
-                    <td>
+                    </td> : null}
+                    {showColumn("lastData") ? <td>
                       <time dateTime={dex.lastDataAt || undefined}>{formatDateTime(dex.lastDataAt)}</time>
                       <small>{dex.sourceLabel}</small>
-                    </td>
+                    </td> : null}
                   </tr>
                   {isExpanded && aggregateDetail ? (
                     <tr className="source-detail-row" id={`source-detail-${dex.id}`}>
-                      <td colSpan={COLUMN_COUNT}>
+                      <td colSpan={visibleColumnCount + 1}>
                         <div className="source-detail-panel">
                           <article>
                             <span>{dex.rowKind === "version" ? "Version 24h" : "Displayed 24h"}</span>
