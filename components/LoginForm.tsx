@@ -93,7 +93,7 @@ export function LoginForm({ configured }: { configured: boolean }) {
       </button>
 
       <small className="login-card__note">
-        Access is independent of ChatGPT. Your session expires automatically after 12 hours.
+        Your session expires automatically after 4 hours.
       </small>
     </form>
   );

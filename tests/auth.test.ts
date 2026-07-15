@@ -6,9 +6,13 @@ import {
   verifyPassword,
   verifySessionToken,
 } from "@/lib/auth-core";
-import { decodePasswordHash } from "@/lib/auth";
+import { DASHBOARD_SESSION_SECONDS, decodePasswordHash } from "@/lib/auth";
 
 describe("dashboard authentication", () => {
+  it("limits authenticated sessions to four hours", () => {
+    expect(DASHBOARD_SESSION_SECONDS).toBe(4 * 60 * 60);
+  });
+
   it("verifies PBKDF2 password hashes without accepting a different password", async () => {
     const salt = Uint8Array.from({ length: 16 }, (_, index) => index + 1);
     const hash = await createPasswordHash("correct horse battery staple", salt, 100_000);

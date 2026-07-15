@@ -38,7 +38,7 @@ Configure these values as server-side hosting secrets:
 
 Run `npm run auth:generate` locally to generate a strong random password, its HMAC-SHA256 verifier, and the signing secret. The command prints the password once for secure handoff; only the verifier and signing secret belong in the hosting environment.
 
-Sessions use a signed `HttpOnly`, `Secure`, `SameSite=Lax` cookie and expire after 12 hours. Both `/` and `/api/dashboard` validate the session. Authenticated API responses use private, no-store caching to prevent a shared CDN cache from bypassing access control. Login failures are delayed and limited per serving instance. Keep actual hash and signing-secret values out of source control, client-side code, and `NEXT_PUBLIC_*` variables.
+Sessions use a signed `HttpOnly`, `Secure`, `SameSite=Lax` cookie and expire after 4 hours. Both `/` and `/api/dashboard` validate the session. Authenticated API responses use private, no-store caching to prevent a shared CDN cache from bypassing access control. Login failures are delayed and limited per serving instance. Keep actual hash and signing-secret values out of source control, client-side code, and `NEXT_PUBLIC_*` variables.
 
 This mode intentionally provides one shared account. Teams that require per-user audit logs, password reset, MFA, or immediate individual revocation should use an identity provider instead of the shared-login mode.
 
