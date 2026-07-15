@@ -10,6 +10,7 @@ import {
   RefreshCw,
   ShieldCheck,
 } from "lucide-react";
+import { BrandLoader } from "@/components/BrandLoader";
 import { DashboardCharts } from "@/components/DashboardCharts";
 import { DataSourceStatus } from "@/components/DataSourceStatus";
 import { DateRangeSelector, type DatePreset } from "@/components/DateRangeSelector";
@@ -114,13 +115,10 @@ function filterSeries(
 
 function LoadingState() {
   return (
-    <main className="dashboard loading-dashboard" aria-busy="true">
-      <div className="loading-bar" />
-      <div className="loading-hero" />
-      <div className="loading-cards">{Array.from({ length: 7 }, (_, index) => <span key={index} />)}</div>
-      <div className="loading-panels"><span /><span /></div>
-      <p>Reconciling native DEX APIs with the DefiLlama benchmark…</p>
-    </main>
+    <BrandLoader
+      label="Reconciling live DEX data"
+      detail="Checking native APIs against the benchmark"
+    />
   );
 }
 

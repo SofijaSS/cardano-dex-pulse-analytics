@@ -15,6 +15,7 @@ import {
   ShieldCheck,
   Users,
 } from "lucide-react";
+import { BrandLoader } from "@/components/BrandLoader";
 import { DEX_TOKEN_REGISTRY, type DexTokenId } from "@/config/tokens";
 import { ThemeControl } from "@/components/ThemeControl";
 import { TokenCandleChart, TokenDepthChart } from "@/components/TokenCandleChart";
@@ -65,11 +66,11 @@ function formatPercent(value: number | null) {
 
 function TokenLoading() {
   return (
-    <div className="token-loading" aria-busy="true">
-      <span />
-      <span />
-      <div><i /><i /><i /></div>
-    </div>
+    <BrandLoader
+      compact
+      label="Loading token market data"
+      detail="Verifying Minswap prices and OHLCV candles"
+    />
   );
 }
 
