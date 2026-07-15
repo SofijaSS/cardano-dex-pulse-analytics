@@ -346,7 +346,6 @@ export function Dashboard({ authEnabled = false }: { authEnabled?: boolean }) {
           <Link href="/tokens">Token charts</Link>
         </nav>
         <div className="topbar-actions">
-          <DataSourceStatus sources={data.sources} warnings={data.warnings} />
           <div className="currency-control" aria-label="Display currency">
             {(["ADA", "USD"] as Currency[]).map((option) => (
               <button
@@ -380,6 +379,9 @@ export function Dashboard({ authEnabled = false }: { authEnabled?: boolean }) {
           <p>Native exchange APIs lead. DefiLlama is retained as a transparent benchmark and historical fallback only after a live agreement check.</p>
         </div>
         <div className="hero-side">
+          <div className="hero-source-status">
+            <DataSourceStatus sources={data.sources} warnings={data.warnings} />
+          </div>
           <div className="mode-control" aria-label="Data methodology">
             <button type="button" className={sourceMode === "reconciled" ? "is-active" : ""} onClick={() => startTransition(() => setSourceMode("reconciled"))} aria-pressed={sourceMode === "reconciled"}>
               Reconciled

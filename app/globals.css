@@ -164,7 +164,7 @@ a {
   top: 0;
   z-index: 15;
   display: grid;
-  grid-template-columns: minmax(220px, 1fr) auto minmax(460px, 1fr);
+  grid-template-columns: minmax(220px, 1fr) auto minmax(350px, 1fr);
   align-items: center;
   min-height: 72px;
   padding: 0 34px;
@@ -354,6 +354,10 @@ a {
   position: relative;
 }
 
+.source-status[open] {
+  z-index: 20;
+}
+
 .source-status > summary {
   display: flex;
   align-items: center;
@@ -492,6 +496,22 @@ footer {
   justify-content: flex-end;
   flex-direction: column;
   gap: 10px;
+}
+
+.hero-source-status .source-status > summary {
+  width: 100%;
+  min-height: 46px;
+  padding-inline: 15px;
+  border-radius: 12px;
+  background: var(--panel-bg);
+}
+
+.hero-source-status .source-status__count {
+  margin-left: auto;
+}
+
+.hero-source-status .source-status__panel {
+  z-index: 20;
 }
 
 .mode-control {
@@ -2008,6 +2028,7 @@ footer a { color: var(--blue); font-weight: 700; }
   .topbar nav { display: none; }
   .hero { grid-template-columns: 1fr; gap: 30px; padding-top: 54px; }
   .hero-side { display: grid; grid-template-columns: 1fr 1fr; }
+  .hero-source-status { grid-column: 1 / -1; }
   .mode-control { grid-row: span 2; }
   .metrics-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .metric-card--featured { grid-column: span 2; }
@@ -2046,6 +2067,7 @@ footer a { color: var(--blue); font-weight: 700; }
   .hero h1 { font-size: clamp(42px, 14vw, 60px); }
   .hero-copy > p { font-size: 14px; }
   .hero-side { grid-template-columns: 1fr; }
+  .hero-source-status { grid-column: auto; }
   .mode-control { grid-row: auto; }
   .metrics-section,
   .analytics-section,
@@ -2143,6 +2165,7 @@ footer a { color: var(--blue); font-weight: 700; }
 
 @media (max-width: 430px) {
   .source-status > summary > span:nth-of-type(2) { display: none; }
+  .hero-source-status .source-status > summary > span:nth-of-type(2) { display: inline; }
   .currency-control button { padding: 6px 9px; }
   .theme-control button { padding: 6px 8px; }
   .theme-control button span { display: none; }
