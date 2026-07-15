@@ -9,9 +9,10 @@ import {
 } from "../lib/calculations";
 import { formatMoney } from "../lib/format";
 import { summarizeMinswapVersion } from "../lib/protocol-versions";
-import { DEX_VERSION_REGISTRY } from "../config/dexes";
+import { DEX_REGISTRY, DEX_VERSION_REGISTRY } from "../config/dexes";
+import { buildDexRows } from "../lib/dashboard-data";
 import { buildWeeklyReportModel } from "../lib/weekly-report";
-import type { DexMetric } from "../lib/types";
+import type { DexMetric, NativeDexSnapshot } from "../lib/types";
 
 describe("safePercentChange", () => {
   it("uses the required current-versus-previous formula", () => {
@@ -115,6 +116,87 @@ describe("version-aware table configuration", () => {
       "SundaeSwap V1",
     ]);
     expect(visibleNames).not.toContain("Minswap (Stable)");
+    expect(
+      DEX_VERSION_REGISTRY.find((version) => version.id === "wingriders-v2")
+        ?.useParentMetrics,
+    ).toBe(true);
+    expect(
+      DEX_VERSION_REGISTRY.find((version) => version.id === "wingriders-v1")
+        ?.useParentMetrics,
+    ).not.toBe(true);
+  });
+
+  it("keeps the extended Cardano DEX registry visible during source outages", () => {
+    expect(DEX_REGISTRY.map((dex) => dex.id)).toEqual(
+      expect.arrayContaining([
+        "snek-fun",
+        "cswap",
+        "teddyswap",
+        "astarter-amm",
+        "genius-yield",
+        "adax-pro",
+        "meowswapfi",
+      ]),
+    );
+  });
+
+  it("maps verified WingRiders protocol metrics to V2 without populating V1", () => {
+    const nativeWingRiders: NativeDexSnapshot = {
+      id: "wingriders",
+      volume24hUsd: 100,
+      volume7dUsd: null,
+      volume30dUsd: null,
+      previous7dUsd: null,
+      tvlUsd: 400,
+      fees24hUsd: 1,
+      sourceLabel: "WingRiders official API",
+      sourceUrl: "https://api.mainnet.wingriders.com/v1/defillama",
+      periodNote: "Current WingRiders protocol metric.",
+      dataAt: "2026-07-15T10:00:00.000Z",
+    };
+    const { rows } = buildDexRows({
+      overview: {
+        total24h: 105,
+        total7d: 735,
+        total30d: 3_150,
+        total14dto7d: 680,
+        total60dto30d: 3_000,
+        protocols: [
+          {
+            name: "WingRiders",
+            total24h: 98,
+            total7d: 700,
+            total30d: 3_000,
+            total14dto7d: 650,
+            total60dto30d: 2_900,
+          },
+          { name: "Volume Only DEX", total24h: 7 },
+        ],
+        totalDataChart: [[1_752_571_200, 105]],
+        totalDataChartBreakdown: [],
+      },
+      protocols: [],
+      nativeSnapshots: new Map([["wingriders", nativeWingRiders]]),
+      versionSnapshots: new Map(),
+    });
+
+    const v2 = rows.find((row) => row.id === "wingriders-v2");
+    const v1 = rows.find((row) => row.id === "wingriders-v1");
+    expect(v2).toMatchObject({
+      volume24hUsd: 100,
+      volume7dUsd: 700,
+      volume30dUsd: 3_000,
+      previous7dUsd: 650,
+      defillamaVolume24hUsd: 98,
+      fees24hUsd: 1,
+      quality: "aligned",
+    });
+    expect(v1?.volume24hUsd).toBeNull();
+    expect(v1?.volume7dUsd).toBeNull();
+    expect(rows.find((row) => row.id === "volume-only-dex")).toMatchObject({
+      tableRole: "primary",
+      defillamaVolume24hUsd: 7,
+    });
   });
 });
 

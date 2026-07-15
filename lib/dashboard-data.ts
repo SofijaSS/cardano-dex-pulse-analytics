@@ -294,27 +294,45 @@ function sumPeriod(
   }, 0);
 }
 
-function addDynamicDexes(protocols: DefillamaProtocol[]) {
+function addDynamicDexes(
+  protocols: DefillamaProtocol[],
+  overview: DefillamaOverview | null,
+) {
   const claimed = new Set(
-    DEX_REGISTRY.flatMap((dex) => [...dex.volumeAliases, ...dex.tvlAliases]).map(
-      normalizeName,
-    ),
+    [
+      ...DEX_REGISTRY.flatMap((dex) => [
+        dex.name,
+        ...dex.volumeAliases,
+        ...dex.tvlAliases,
+      ]),
+      ...DEX_VERSION_REGISTRY.map((version) => version.name),
+    ].map(normalizeName),
   );
   const colors = ["#617a89", "#8b6f47", "#3d7f78", "#9a5b63", "#6f6a9a"];
+  const candidates = new Map<string, string>();
 
-  return protocols
-    .filter(
-      (protocol) =>
-        protocol.category === "Dexs" &&
-        protocol.chains.includes("Cardano") &&
-        !claimed.has(normalizeName(protocol.name)),
-    )
-    .map<DexConfig>((protocol, index) => ({
-      id: slugify(protocol.name),
-      name: protocol.name,
+  for (const protocol of protocols) {
+    if (
+      protocol.category === "Dexs" &&
+      protocol.chains.includes("Cardano")
+    ) {
+      candidates.set(normalizeName(protocol.name), protocol.name);
+    }
+  }
+  for (const protocol of overview?.protocols || []) {
+    candidates.set(normalizeName(protocol.name), protocol.name);
+  }
+
+  return [...candidates.entries()]
+    .filter(([normalized]) => !claimed.has(normalized))
+    .map(([, name]) => name)
+    .sort((left, right) => left.localeCompare(right))
+    .map<DexConfig>((name, index) => ({
+      id: slugify(name),
+      name,
       color: colors[index % colors.length],
-      volumeAliases: [protocol.name],
-      tvlAliases: [protocol.name],
+      volumeAliases: [name],
+      tvlAliases: [name],
       required: false,
     }));
 }
@@ -384,7 +402,7 @@ function buildBenchmarkSeries(
   });
 }
 
-function buildDexRows({
+export function buildDexRows({
   overview,
   protocols,
   nativeSnapshots,
@@ -395,7 +413,7 @@ function buildDexRows({
   nativeSnapshots: Map<string, NativeDexSnapshot>;
   versionSnapshots: Map<string, NativeDexSnapshot>;
 }) {
-  const configs = [...DEX_REGISTRY, ...addDynamicDexes(protocols)];
+  const configs = [...DEX_REGISTRY, ...addDynamicDexes(protocols, overview)];
   const latestBenchmarkAt = overview?.totalDataChart.at(-1)?.[0]
     ? new Date((overview.totalDataChart.at(-1)?.[0] || 0) * 1000).toISOString()
     : null;
@@ -508,8 +526,15 @@ function buildDexRows({
     const parent = rows.find((row) => row.id === version.parentId);
     if (!parent) return [];
     const native = versionSnapshots.get(version.id) || null;
-    const volume24 = native?.volume24hUsd ?? null;
-    const tvl = native?.tvlUsd ?? null;
+    const useParent = Boolean(version.useParentMetrics && !native);
+    const volume24 = native?.volume24hUsd ?? (useParent ? parent.volume24hUsd : null);
+    const volume7 = native?.volume7dUsd ?? (useParent ? parent.volume7dUsd : null);
+    const volume30 = native?.volume30dUsd ?? (useParent ? parent.volume30dUsd : null);
+    const previous7 = native?.previous7dUsd ?? (useParent ? parent.previous7dUsd : null);
+    const tvl = native?.tvlUsd ?? (useParent ? parent.tvlUsd : null);
+    const inheritedNote = useParent
+      ? "Mapped to the current primary WingRiders V2 deployment. The official API reports one protocol total, so any residual legacy V1 activity cannot be separated."
+      : null;
 
     return [{
       id: version.id,
@@ -521,37 +546,37 @@ function buildDexRows({
       logo: parent.logo,
       color: parent.color,
       volume24hUsd: volume24,
-      volume7dUsd: native?.volume7dUsd ?? null,
-      volume30dUsd: native?.volume30dUsd ?? null,
-      previous7dUsd: native?.previous7dUsd ?? null,
-      weekChangePct: safePercentChange(
-        native?.volume7dUsd ?? null,
-        native?.previous7dUsd ?? null,
-      ),
+      volume7dUsd: volume7,
+      volume30dUsd: volume30,
+      previous7dUsd: previous7,
+      weekChangePct: safePercentChange(volume7, previous7),
       tvlUsd: tvl,
       volumeToTvl: safeDivide(volume24, tvl),
       marketShare24hPct:
         observed24 && volume24 != null ? (volume24 / observed24) * 100 : null,
-      rank7d: null,
-      trades24h: native?.trades24h ?? null,
-      users24h: native?.users24h ?? null,
-      dau24h: native?.dau24h ?? null,
-      fees24hUsd: native?.fees24hUsd ?? null,
-      fees7dUsd: native?.fees7dUsd ?? null,
-      marketCapUsd: native?.marketCapUsd ?? null,
-      marketCapToTvl: safeDivide(native?.marketCapUsd ?? null, tvl),
-      poolCount: native?.poolCount ?? null,
-      nativeVolume24hUsd: volume24,
-      defillamaVolume24hUsd: null,
-      defillamaVolume7dUsd: null,
-      defillamaVolume30dUsd: null,
-      defillamaPrevious7dUsd: null,
-      variance24hPct: null,
-      quality: native ? "native-only" : "unavailable",
-      sourceLabel: native?.sourceLabel || "Version metrics unavailable",
+      rank7d: useParent ? parent.rank7d : null,
+      trades24h: native?.trades24h ?? (useParent ? parent.trades24h : null),
+      users24h: native?.users24h ?? (useParent ? parent.users24h : null),
+      dau24h: native?.dau24h ?? (useParent ? parent.dau24h : null),
+      fees24hUsd: native?.fees24hUsd ?? (useParent ? parent.fees24hUsd : null),
+      fees7dUsd: native?.fees7dUsd ?? (useParent ? parent.fees7dUsd : null),
+      marketCapUsd: native?.marketCapUsd ?? (useParent ? parent.marketCapUsd : null),
+      marketCapToTvl: safeDivide(
+        native?.marketCapUsd ?? (useParent ? parent.marketCapUsd : null),
+        tvl,
+      ),
+      poolCount: native?.poolCount ?? (useParent ? parent.poolCount : null),
+      nativeVolume24hUsd: native?.volume24hUsd ?? (useParent ? parent.nativeVolume24hUsd : null),
+      defillamaVolume24hUsd: useParent ? parent.defillamaVolume24hUsd : null,
+      defillamaVolume7dUsd: useParent ? parent.defillamaVolume7dUsd : null,
+      defillamaVolume30dUsd: useParent ? parent.defillamaVolume30dUsd : null,
+      defillamaPrevious7dUsd: useParent ? parent.defillamaPrevious7dUsd : null,
+      variance24hPct: useParent ? parent.variance24hPct : null,
+      quality: native ? "native-only" : useParent ? parent.quality : "unavailable",
+      sourceLabel: native?.sourceLabel || (useParent ? `${parent.sourceLabel} · primary V2 mapping` : "Version metrics unavailable"),
       sourceUrl: native?.sourceUrl || parent.sourceUrl,
-      periodNote: native?.periodNote || version.unavailableNote,
-      lastDataAt: native?.dataAt || null,
+      periodNote: native?.periodNote || inheritedNote || version.unavailableNote,
+      lastDataAt: native?.dataAt || (useParent ? parent.lastDataAt : null),
     }];
   });
 

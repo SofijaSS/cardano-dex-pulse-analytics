@@ -65,11 +65,9 @@ function benchmarkRows(dexes: DexMetric[], benchmarkTotal24: number | null) {
     poolCount: null,
     variance24hPct: null,
     quality:
-      dex.rowKind === "version"
-        ? "unavailable" as const
-        : dex.defillamaVolume24hUsd != null
-          ? "benchmark-only" as const
-          : "unavailable" as const,
+      dex.defillamaVolume24hUsd != null
+        ? "benchmark-only" as const
+        : "unavailable" as const,
     sourceLabel: "DefiLlama benchmark",
     periodNote:
       dex.rowKind === "version"

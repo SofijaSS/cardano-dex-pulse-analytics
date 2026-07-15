@@ -13,6 +13,7 @@ export interface DexVersionConfig {
   name: string;
   version: string;
   nativeType?: string;
+  useParentMetrics?: boolean;
   showInTable: boolean;
   unavailableNote: string;
 }
@@ -90,6 +91,62 @@ export const DEX_REGISTRY: DexConfig[] = [
     tvlAliases: ["Saturn Swap"],
     required: false,
   },
+  {
+    id: "snek-fun",
+    name: "snek.fun",
+    color: "#20b486",
+    volumeAliases: ["snek.fun", "Snek.fun"],
+    tvlAliases: ["snek.fun", "Snek.fun"],
+    required: false,
+  },
+  {
+    id: "cswap",
+    name: "CSWAP",
+    color: "#00b97d",
+    volumeAliases: ["CSWAP DEX"],
+    tvlAliases: ["CSWAP DEX"],
+    required: false,
+  },
+  {
+    id: "teddyswap",
+    name: "TeddySwap",
+    color: "#a87851",
+    volumeAliases: ["TeddySwap"],
+    tvlAliases: ["TeddySwap"],
+    required: false,
+  },
+  {
+    id: "astarter-amm",
+    name: "Astarter AMM",
+    color: "#557bce",
+    volumeAliases: ["Astarter AMM"],
+    tvlAliases: ["Astarter AMM"],
+    required: false,
+  },
+  {
+    id: "genius-yield",
+    name: "Genius Yield",
+    color: "#5f77a7",
+    volumeAliases: ["Genius Yield"],
+    tvlAliases: ["Genius Yield"],
+    required: false,
+  },
+  {
+    id: "adax-pro",
+    name: "ADAX Pro",
+    color: "#4c83c6",
+    volumeAliases: ["ADAX Pro"],
+    tvlAliases: ["ADAX Pro"],
+    required: false,
+  },
+  {
+    id: "meowswapfi",
+    name: "MeowSwapFi",
+    color: "#d16f91",
+    volumeAliases: ["MeowSwapFi"],
+    tvlAliases: ["MeowSwapFi"],
+    required: false,
+  },
 ];
 
 // Version rows are table-only and are never included in market totals or charts.
@@ -126,8 +183,9 @@ export const DEX_VERSION_REGISTRY: DexVersionConfig[] = [
     parentId: "wingriders",
     name: "WingRiders V2",
     version: "V2",
+    useParentMetrics: true,
     showInTable: true,
-    unavailableNote: "The public WingRiders endpoint reports protocol totals and does not split metrics by V2.",
+    unavailableNote: "WingRiders V2 is the primary deployment; its public protocol feed is unavailable.",
   },
   {
     id: "wingriders-v1",
@@ -135,7 +193,7 @@ export const DEX_VERSION_REGISTRY: DexVersionConfig[] = [
     name: "WingRiders",
     version: "V1",
     showInTable: true,
-    unavailableNote: "The public WingRiders endpoint reports protocol totals and does not split metrics by V1.",
+    unavailableNote: "The public WingRiders endpoint does not expose a separate legacy V1 metric.",
   },
   {
     id: "sundaeswap-v3",
