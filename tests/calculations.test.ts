@@ -10,6 +10,8 @@ import {
 import { formatMoney } from "../lib/format";
 import { summarizeMinswapVersion } from "../lib/protocol-versions";
 import { DEX_VERSION_REGISTRY } from "../config/dexes";
+import { buildWeeklyReportModel } from "../lib/weekly-report";
+import type { DexMetric } from "../lib/types";
 
 describe("safePercentChange", () => {
   it("uses the required current-versus-previous formula", () => {
@@ -113,5 +115,37 @@ describe("version-aware table configuration", () => {
       "SundaeSwap V1",
     ]);
     expect(visibleNames).not.toContain("Minswap (Stable)");
+  });
+});
+
+describe("interactive weekly report", () => {
+  const weeklyRows = [
+    { id: "minswap", name: "Minswap", volume7dUsd: 700, previous7dUsd: 600 },
+    { id: "sundaeswap", name: "SundaeSwap", volume7dUsd: 500, previous7dUsd: 550 },
+    { id: "wingriders", name: "WingRiders", volume7dUsd: 300, previous7dUsd: 250 },
+    { id: "other", name: "Other", volume7dUsd: 100, previous7dUsd: 80 },
+  ] as DexMetric[];
+
+  it("selects any top-three DEX and calculates its comparable share", () => {
+    const report = buildWeeklyReportModel(weeklyRows, "sundaeswap");
+    expect(report.topThree.map((dex) => dex.id)).toEqual([
+      "minswap",
+      "sundaeswap",
+      "wingriders",
+    ]);
+    expect(report.selectedDex?.id).toBe("sundaeswap");
+    expect(report.rank).toBe(2);
+    expect(report.share7d).toBeCloseTo((500 / 1_600) * 100);
+    expect(report.difference).toBe(-50);
+  });
+
+  it("falls back to WingRiders, then the leader, when selection is unavailable", () => {
+    expect(buildWeeklyReportModel(weeklyRows, "missing").selectedDex?.id).toBe(
+      "wingriders",
+    );
+    expect(
+      buildWeeklyReportModel(weeklyRows.filter((dex) => dex.id !== "wingriders"), "missing")
+        .selectedDex?.id,
+    ).toBe("minswap");
   });
 });

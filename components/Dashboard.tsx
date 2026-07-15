@@ -334,7 +334,7 @@ export function Dashboard() {
           <a href="#overview">Overview</a>
           <a href="#charts">Charts</a>
           <a href="#dex-table">DEXes</a>
-          <a href="#weekly-report">WingRiders</a>
+          <a href="#weekly-report">Weekly brief</a>
         </nav>
         <div className="topbar-actions">
           <DataSourceStatus sources={data.sources} warnings={data.warnings} />

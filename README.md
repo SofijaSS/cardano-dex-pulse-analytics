@@ -131,6 +131,8 @@ Browser
 
 The browser never calls third-party analytics APIs directly and does not receive private environment variables. CSV exports are generated from the currently displayed rows or selected historical benchmark range. The weekly PDF is a print-optimized report using the browser's Save as PDF flow.
 
+The weekly performance brief is interactive: its three cards are the current top three DEXes by available 7-day volume. Selecting a card updates every metric, the verified-data summary, clipboard text, and print/PDF report. WingRiders is the initial selection while it remains in the top three; otherwise the highest-ranked available DEX is selected.
+
 ## Assumptions and limitations
 
 - Public provider endpoints can change without versioning or an SLA. Failed/changed schemas surface as source errors instead of being coerced.

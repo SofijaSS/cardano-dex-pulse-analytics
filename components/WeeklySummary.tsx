@@ -10,6 +10,7 @@ import {
   type Currency,
 } from "@/lib/format";
 import type { DexMetric } from "@/lib/types";
+import { buildWeeklyReportModel } from "@/lib/weekly-report";
 
 export function WeeklySummary({
   dexes,
@@ -23,33 +24,29 @@ export function WeeklySummary({
   generatedAt: string;
 }) {
   const [copied, setCopied] = useState(false);
-  const wingriders = dexes.find((dex) => dex.id === "wingriders") || null;
-  const ranked = dexes
-    .filter((dex) => dex.volume7dUsd != null)
-    .sort((a, b) => (b.volume7dUsd || 0) - (a.volume7dUsd || 0));
-  const topThree = ranked.slice(0, 3);
-  const observed7d = ranked.reduce((sum, dex) => sum + (dex.volume7dUsd || 0), 0);
-  const share7d =
-    wingriders?.volume7dUsd != null && observed7d > 0
-      ? (wingriders.volume7dUsd / observed7d) * 100
-      : null;
-  const difference =
-    wingriders?.volume7dUsd != null && wingriders.previous7dUsd != null
-      ? wingriders.volume7dUsd - wingriders.previous7dUsd
-      : null;
+  const [selectedDexId, setSelectedDexId] = useState<string | null>("wingriders");
+  const { topThree, selectedDex, share7d, difference, rank } =
+    buildWeeklyReportModel(dexes, selectedDexId);
 
   let summary =
-    "WingRiders weekly summary: Data unavailable from the configured verified sources.";
-  if (wingriders?.volume7dUsd != null) {
-    summary = `WingRiders recorded ${formatMoney(wingriders.volume7dUsd, currency, adaPriceUsd, false)} in weekly volume`;
-    if (wingriders.weekChangePct != null) {
-      summary += `, representing a ${formatPercent(wingriders.weekChangePct)} change compared with the previous week`;
+    "Weekly summary: Data unavailable from the configured verified sources.";
+  if (selectedDex?.volume7dUsd != null) {
+    summary = `${selectedDex.name} recorded ${formatMoney(selectedDex.volume7dUsd, currency, adaPriceUsd, false)} in weekly volume`;
+    if (selectedDex.weekChangePct != null) {
+      summary += `, representing a ${formatPercent(selectedDex.weekChangePct)} change compared with the previous week`;
     }
     summary += ".";
-    if (share7d != null && wingriders.rank7d != null) {
-      summary += ` Its share of comparable reported 7-day volume was ${share7d.toFixed(1)}%, ranking it #${wingriders.rank7d} among DEXes with available weekly data.`;
+    if (share7d != null && rank != null) {
+      summary += ` Its share of comparable reported 7-day volume was ${share7d.toFixed(1)}%, ranking it #${rank} among DEXes with available weekly data.`;
     }
   }
+
+  const changeClass =
+    selectedDex?.weekChangePct == null
+      ? undefined
+      : selectedDex.weekChangePct >= 0
+        ? "positive"
+        : "negative";
 
   const copySummary = async () => {
     try {
@@ -66,9 +63,9 @@ export function WeeklySummary({
       <div className="wing-orbit" aria-hidden="true"><span /></div>
       <div className="section-heading wing-heading">
         <div>
-          <span className="eyebrow eyebrow--light">WingRiders focus</span>
+          <span className="eyebrow eyebrow--light">{selectedDex?.name || "DEX"} focus</span>
           <h2>Weekly performance brief</h2>
-          <p>Native current data with DefiLlama history only where the live reconciliation check passes.</p>
+          <p>Select any current top-three DEX to update the full weekly report.</p>
         </div>
         <div className="weekly-actions no-print">
           <button type="button" className="button button--ghost-light" onClick={copySummary}>
@@ -84,18 +81,18 @@ export function WeeklySummary({
 
       <div className="wing-grid">
         <div className="wing-metrics">
-          <article><span>24h volume</span><strong>{formatMoney(wingriders?.volume24hUsd, currency, adaPriceUsd)}</strong></article>
-          <article><span>7d volume</span><strong>{formatMoney(wingriders?.volume7dUsd, currency, adaPriceUsd)}</strong></article>
-          <article><span>30d volume</span><strong>{formatMoney(wingriders?.volume30dUsd, currency, adaPriceUsd)}</strong></article>
-          <article><span>Week change</span><strong className={(wingriders?.weekChangePct || 0) >= 0 ? "positive" : "negative"}>{formatPercent(wingriders?.weekChangePct)}</strong></article>
+          <article><span>24h volume</span><strong>{formatMoney(selectedDex?.volume24hUsd, currency, adaPriceUsd)}</strong></article>
+          <article><span>7d volume</span><strong>{formatMoney(selectedDex?.volume7dUsd, currency, adaPriceUsd)}</strong></article>
+          <article><span>30d volume</span><strong>{formatMoney(selectedDex?.volume30dUsd, currency, adaPriceUsd)}</strong></article>
+          <article><span>Week change</span><strong className={changeClass}>{formatPercent(selectedDex?.weekChangePct)}</strong></article>
           <article><span>Comparable 7d share</span><strong>{formatPercent(share7d, false)}</strong></article>
-          <article><span>Rank by 7d volume</span><strong>{wingriders?.rank7d ? `#${wingriders.rank7d}` : "N/A"}</strong></article>
-          <article><span>TVL</span><strong>{formatMoney(wingriders?.tvlUsd, currency, adaPriceUsd)}</strong></article>
-          <article><span>24h volume / TVL</span><strong>{formatRatio(wingriders?.volumeToTvl)}</strong></article>
+          <article><span>Rank by 7d volume</span><strong>{rank ? `#${rank}` : "N/A"}</strong></article>
+          <article><span>TVL</span><strong>{formatMoney(selectedDex?.tvlUsd, currency, adaPriceUsd)}</strong></article>
+          <article><span>24h volume / TVL</span><strong>{formatRatio(selectedDex?.volumeToTvl)}</strong></article>
           <article><span>vs previous week</span><strong>{formatMoney(difference, currency, adaPriceUsd)}</strong></article>
         </div>
 
-        <div className="weekly-copy">
+        <div className="weekly-copy" aria-live="polite">
           <span>Auto-generated weekly summary</span>
           <blockquote>{summary}</blockquote>
           <small>Generated {formatDateTime(generatedAt)} UTC. Share is based only on DEXes with comparable 7-day values.</small>
@@ -103,24 +100,25 @@ export function WeeklySummary({
       </div>
 
       <div className="top-three">
-        <span>Position vs top three</span>
+        <span>Select a top-three DEX</span>
         <div>
           {topThree.map((dex, index) => (
-            <article key={dex.id} className={dex.id === "wingriders" ? "is-wingriders" : ""}>
+            <button
+              type="button"
+              key={dex.id}
+              className={dex.id === selectedDex?.id ? "is-selected" : ""}
+              aria-pressed={dex.id === selectedDex?.id}
+              onClick={() => {
+                setSelectedDexId(dex.id);
+                setCopied(false);
+              }}
+            >
               <span>#{index + 1}</span>
               <i style={{ background: dex.color }} />
               <strong>{dex.name}</strong>
               <small>{formatMoney(dex.volume7dUsd, currency, adaPriceUsd)}</small>
-            </article>
+            </button>
           ))}
-          {wingriders && !topThree.some((dex) => dex.id === "wingriders") ? (
-            <article className="is-wingriders">
-              <span>{wingriders.rank7d ? `#${wingriders.rank7d}` : "–"}</span>
-              <i style={{ background: wingriders.color }} />
-              <strong>WingRiders</strong>
-              <small>{formatMoney(wingriders.volume7dUsd, currency, adaPriceUsd)}</small>
-            </article>
-          ) : null}
         </div>
       </div>
     </section>

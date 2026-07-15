@@ -718,13 +718,15 @@ footer {
 .weekly-copy small { color: var(--muted); font-size: 9px; line-height: 1.5; }
 
 .top-three { position: relative; z-index: 1; margin-top: 18px; }
-.top-three > div { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 7px; margin-top: 8px; }
-.top-three article { display: grid; grid-template-columns: auto auto 1fr; align-items: center; gap: 8px; padding: 10px 12px; border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 9px; background: rgba(255, 255, 255, 0.04); }
-.top-three article.is-wingriders { border-color: rgba(104, 147, 255, 0.62); background: rgba(27, 92, 255, 0.16); }
-.top-three article > span { font-family: var(--font-plex-mono), monospace; color: #9fb2bf; font-size: 9px; }
-.top-three article i { width: 8px; height: 8px; border-radius: 50%; }
-.top-three article strong { font-size: 10px; }
-.top-three article small { grid-column: 3; color: #9fb2bf; font-family: var(--font-plex-mono), monospace; font-size: 8px; }
+.top-three > div { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; margin-top: 8px; }
+.top-three button { display: grid; grid-template-columns: auto auto 1fr; align-items: center; gap: 8px; padding: 11px 12px; border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 9px; background: rgba(255, 255, 255, 0.04); color: inherit; cursor: pointer; font: inherit; text-align: left; transition: border-color 160ms ease, background 160ms ease, transform 160ms ease; }
+.top-three button:hover { border-color: rgba(255, 255, 255, 0.32); background: rgba(255, 255, 255, 0.08); transform: translateY(-1px); }
+.top-three button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.top-three button.is-selected { border-color: rgba(104, 147, 255, 0.78); background: rgba(27, 92, 255, 0.22); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05); }
+.top-three button > span { font-family: var(--font-plex-mono), monospace; color: #9fb2bf; font-size: 9px; }
+.top-three button i { width: 8px; height: 8px; border-radius: 50%; }
+.top-three button strong { font-size: 10px; }
+.top-three button small { grid-column: 3; color: #9fb2bf; font-family: var(--font-plex-mono), monospace; font-size: 8px; }
 
 .table-section { padding-top: 16px; }
 .table-heading { align-items: flex-end; }
