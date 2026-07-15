@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useDeferredValue, useState, useSyncExternalStore } from "react";
+import { Fragment, useDeferredValue, useState } from "react";
 import {
   ArrowDown,
   ArrowUp,
@@ -69,8 +69,8 @@ type ColumnDefinition = {
 };
 
 export const DEX_TABLE_COLUMNS: ColumnDefinition[] = [
-  { key: "volume24hUsd", label: "DEX volume · 24h", group: "Volume", sortKey: "volume24hUsd" },
-  { key: "volume7dUsd", label: "7d volume", group: "Volume", sortKey: "volume7dUsd" },
+  { key: "volume7dUsd", label: "DEX volume · 7d", group: "Volume", sortKey: "volume7dUsd" },
+  { key: "volume24hUsd", label: "24h volume", group: "Volume", sortKey: "volume24hUsd" },
   { key: "volume30dUsd", label: "30d volume", group: "Volume", sortKey: "volume30dUsd" },
   { key: "previous7dUsd", label: "Previous 7d", group: "Volume", sortKey: "previous7dUsd" },
   { key: "weekChangePct", label: "WoW change", group: "Volume", sortKey: "weekChangePct" },
@@ -89,62 +89,12 @@ export const DEX_TABLE_COLUMNS: ColumnDefinition[] = [
   { key: "lastData", label: "Last data", group: "Reporting" },
 ];
 
-const COLUMN_PREFERENCE_KEY = "cardano-dex-pulse:table-columns";
-const COLUMN_PREFERENCE_EVENT = "cardano-dex-pulse:table-columns-changed";
 const ALL_COLUMN_KEYS = DEX_TABLE_COLUMNS.map((column) => column.key);
-const DEFAULT_COLUMN_PREFERENCE = JSON.stringify(ALL_COLUMN_KEYS);
-let memoryColumnPreference = DEFAULT_COLUMN_PREFERENCE;
 const SEVEN_DAY_COLUMN_KEYS: DexTableColumnKey[] = [
   "volume7dUsd",
   "previous7dUsd",
   "weekChangePct",
 ];
-
-function readColumnPreference() {
-  if (typeof window === "undefined") return DEFAULT_COLUMN_PREFERENCE;
-  try {
-    return window.localStorage.getItem(COLUMN_PREFERENCE_KEY) ?? memoryColumnPreference;
-  } catch {
-    return memoryColumnPreference;
-  }
-}
-
-function subscribeToColumnPreference(onStoreChange: () => void) {
-  if (typeof window === "undefined") return () => undefined;
-  const handleChange = () => onStoreChange();
-  window.addEventListener("storage", handleChange);
-  window.addEventListener(COLUMN_PREFERENCE_EVENT, handleChange);
-  return () => {
-    window.removeEventListener("storage", handleChange);
-    window.removeEventListener(COLUMN_PREFERENCE_EVENT, handleChange);
-  };
-}
-
-function writeColumnPreference(columns: Set<DexTableColumnKey>) {
-  memoryColumnPreference = JSON.stringify(
-    ALL_COLUMN_KEYS.filter((key) => columns.has(key)),
-  );
-  try {
-    window.localStorage.setItem(COLUMN_PREFERENCE_KEY, memoryColumnPreference);
-  } catch {
-    // The in-memory preference keeps customization working in privacy modes.
-  }
-  window.dispatchEvent(new Event(COLUMN_PREFERENCE_EVENT));
-}
-
-function parseColumnPreference(preference: string) {
-  try {
-    const parsed = JSON.parse(preference);
-    if (!Array.isArray(parsed)) return new Set<DexTableColumnKey>(ALL_COLUMN_KEYS);
-    return new Set(
-      parsed.filter((key): key is DexTableColumnKey =>
-        ALL_COLUMN_KEYS.includes(key as DexTableColumnKey),
-      ),
-    );
-  } catch {
-    return new Set<DexTableColumnKey>(ALL_COLUMN_KEYS);
-  }
-}
 
 function formatCount(value: number | null) {
   if (value == null || !Number.isFinite(value)) return "Data unavailable";
@@ -203,15 +153,12 @@ export function DexTable({
   const [query, setQuery] = useState("");
   const deferredQuery = useDeferredValue(query);
   const [quality, setQuality] = useState<"all" | QualityFlag>("all");
-  const [sortKey, setSortKey] = useState<SortKey>("volume24hUsd");
+  const [sortKey, setSortKey] = useState<SortKey>("volume7dUsd");
   const [direction, setDirection] = useState<"asc" | "desc">("desc");
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
-  const columnPreference = useSyncExternalStore(
-    subscribeToColumnPreference,
-    readColumnPreference,
-    () => DEFAULT_COLUMN_PREFERENCE,
+  const [visibleColumns, setVisibleColumns] = useState<Set<DexTableColumnKey>>(
+    () => new Set(ALL_COLUMN_KEYS),
   );
-  const visibleColumns = parseColumnPreference(columnPreference);
   const fallbackSortKey = DEX_TABLE_COLUMNS.find(
     (column) => visibleColumns.has(column.key) && column.sortKey,
   )?.sortKey;
@@ -242,9 +189,9 @@ export function DexTable({
   const primaryDexes = dexes.filter((dex) => dex.tableRole === "primary");
   const volumeRanks = new Map(
     [...primaryDexes]
-      .filter((dex) => dex.volume24hUsd != null)
+      .filter((dex) => dex.volume7dUsd != null)
       .sort((left, right) =>
-        (right.volume24hUsd || 0) - (left.volume24hUsd || 0) ||
+        (right.volume7dUsd || 0) - (left.volume7dUsd || 0) ||
         left.name.localeCompare(right.name),
       )
       .map((dex, index) => [dex.id, index + 1]),
@@ -284,7 +231,7 @@ export function DexTable({
   };
 
   const applyVisibleColumns = (next: Set<DexTableColumnKey>) => {
-    writeColumnPreference(next);
+    setVisibleColumns(new Set(next));
     if (activeSortKey === "name" || next.has(activeSortKey as DexTableColumnKey)) {
       if (sortKey !== activeSortKey) setSortKey(activeSortKey);
       return;
@@ -321,7 +268,7 @@ export function DexTable({
         <div>
           <span className="eyebrow">Exchange detail</span>
           <h2>DEX performance table</h2>
-          <p>Individual DEX versions ranked by current volume. Protocol totals stay inside source details.</p>
+          <p>Individual DEX versions ranked by 7-day volume. Protocol totals stay inside source details.</p>
         </div>
         <div className="table-actions">
           <label className="search-field">
@@ -395,9 +342,9 @@ export function DexTable({
         <table style={{ minWidth: `${tableMinWidth}px` }}>
           <thead>
             <tr>
-              <th><SortableHeader label="Rank / DEX" field="name" {...headerProps} /></th>
-              {showColumn("volume24hUsd") ? <th><SortableHeader label="DEX volume · 24h" field="volume24hUsd" {...headerProps} /></th> : null}
-              {showColumn("volume7dUsd") ? <th><SortableHeader label="7d volume" field="volume7dUsd" {...headerProps} /></th> : null}
+              <th><SortableHeader label="7D rank / DEX" field="name" {...headerProps} /></th>
+              {showColumn("volume7dUsd") ? <th><SortableHeader label="DEX volume · 7d" field="volume7dUsd" {...headerProps} /></th> : null}
+              {showColumn("volume24hUsd") ? <th><SortableHeader label="24h volume" field="volume24hUsd" {...headerProps} /></th> : null}
               {showColumn("volume30dUsd") ? <th><SortableHeader label="30d volume" field="volume30dUsd" {...headerProps} /></th> : null}
               {showColumn("previous7dUsd") ? <th><SortableHeader label="Previous 7d" field="previous7dUsd" {...headerProps} /></th> : null}
               {showColumn("weekChangePct") ? <th><SortableHeader label="WoW" field="weekChangePct" {...headerProps} /></th> : null}
@@ -461,8 +408,8 @@ export function DexTable({
                         </div>
                       </div>
                     </td>
-                    {showColumn("volume24hUsd") ? <td>{formatMoney(dex.volume24hUsd, currency, adaPriceUsd)}</td> : null}
                     {showColumn("volume7dUsd") ? <td>{formatMoney(dex.volume7dUsd, currency, adaPriceUsd)}</td> : null}
+                    {showColumn("volume24hUsd") ? <td>{formatMoney(dex.volume24hUsd, currency, adaPriceUsd)}</td> : null}
                     {showColumn("volume30dUsd") ? <td>{formatMoney(dex.volume30dUsd, currency, adaPriceUsd)}</td> : null}
                     {showColumn("previous7dUsd") ? <td>{formatMoney(dex.previous7dUsd, currency, adaPriceUsd)}</td> : null}
                     {showColumn("weekChangePct") ? <td><span className={`trend-text trend-text--${trend}`}>{formatPercent(dex.weekChangePct)}</span></td> : null}

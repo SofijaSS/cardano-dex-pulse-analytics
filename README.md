@@ -25,9 +25,26 @@ npm run build
 
 Set `USE_MOCK_DATA=true` only for local UI development. Mock mode is synthetic, is never enabled by default, and shows a persistent red warning in the interface.
 
+## Optional shared login
+
+The dashboard can use an application-level username/password login that is independent of ChatGPT. Set the hosting access mode to public only after this application login is enabled; public hosting then exposes the login screen, not the protected dashboard.
+
+Configure these values as server-side hosting secrets:
+
+- `DASHBOARD_AUTH_ENABLED=true`
+- `DASHBOARD_AUTH_USERNAME`: the shared account name
+- `DASHBOARD_AUTH_PASSWORD_HASH`: `pbkdf2_sha256$iterations$salt$hash`
+- `DASHBOARD_AUTH_SECRET`: at least 32 random characters used only to sign sessions
+
+Run `npm run auth:generate` locally to generate a strong random password, its PBKDF2 hash, and the signing secret. The command prints the password once for secure handoff; only the hash and signing secret belong in the hosting environment.
+
+Sessions use a signed `HttpOnly`, `Secure`, `SameSite=Lax` cookie and expire after 12 hours. Both `/` and `/api/dashboard` validate the session. Authenticated API responses use private, no-store caching to prevent a shared CDN cache from bypassing access control. Login failures are delayed and limited per serving instance. Keep actual hash and signing-secret values out of source control, client-side code, and `NEXT_PUBLIC_*` variables.
+
+This mode intentionally provides one shared account. Teams that require per-user audit logs, password reset, MFA, or immediate individual revocation should use an identity provider instead of the shared-login mode.
+
 ## Interface preferences
 
-New users start with ADA as the display currency. USD remains available whenever desired, while ADA conversion is disabled when no fresh validated ADA/USD price exists. The header also provides Light, Dark, and Auto themes; Auto follows the operating-system preference. Currency, theme, and visible table-column choices are stored only in the user's browser and are not sent to the dashboard API.
+New users start with ADA as the display currency. USD remains available whenever desired, while ADA conversion is disabled when no fresh validated ADA/USD price exists. The header also provides Light, Dark, and Auto themes; Auto follows the operating-system preference. Currency and theme choices are stored only in the user's browser. Table-column choices are intentionally session-only and reset to all columns on every refresh or new visit.
 
 ## Data policy
 

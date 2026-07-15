@@ -1,8 +1,19 @@
 import { loadLiveDashboardData } from "@/lib/dashboard-data";
 import { buildMockDashboardData } from "@/lib/mock-data";
 import { DATA_CACHE_SECONDS, USE_MOCK_DATA } from "@/lib/source-config";
+import {
+  hasValidDashboardSession,
+  isDashboardAuthEnabled,
+} from "@/lib/auth";
 
 export async function GET() {
+  if (!(await hasValidDashboardSession())) {
+    return Response.json(
+      { error: "Authentication required." },
+      { status: 401, headers: { "cache-control": "private, no-store" } },
+    );
+  }
+
   try {
     const data = USE_MOCK_DATA
       ? buildMockDashboardData()
@@ -10,7 +21,9 @@ export async function GET() {
 
     return Response.json(data, {
       headers: {
-        "cache-control": `public, max-age=60, s-maxage=${DATA_CACHE_SECONDS}, stale-while-revalidate=300`,
+        "cache-control": isDashboardAuthEnabled()
+          ? "private, no-store"
+          : `public, max-age=60, s-maxage=${DATA_CACHE_SECONDS}, stale-while-revalidate=300`,
       },
     });
   } catch (error) {
@@ -19,7 +32,14 @@ export async function GET() {
         error: "Dashboard data could not be loaded.",
         detail: error instanceof Error ? error.message : "Unknown server error",
       },
-      { status: 503 },
+      {
+        status: 503,
+        headers: {
+          "cache-control": isDashboardAuthEnabled()
+            ? "private, no-store"
+            : "no-store",
+        },
+      },
     );
   }
 }

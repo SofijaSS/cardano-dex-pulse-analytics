@@ -5,6 +5,7 @@ import {
   AlertTriangle,
   BarChart3,
   Download,
+  LogOut,
   RefreshCw,
   ShieldCheck,
 } from "lucide-react";
@@ -122,7 +123,7 @@ function LoadingState() {
   );
 }
 
-export function Dashboard() {
+export function Dashboard({ authEnabled = false }: { authEnabled?: boolean }) {
   const [data, setData] = useState<DashboardData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -144,6 +145,10 @@ export function Dashboard() {
       signal: controller.signal,
     })
       .then(async (response) => {
+        if (response.status === 401) {
+          window.location.replace("/login");
+          throw new DOMException("Session expired", "AbortError");
+        }
         if (!response.ok) {
           const payload = await response.json().catch(() => null);
           throw new Error(payload?.detail || payload?.error || `HTTP ${response.status}`);
@@ -355,6 +360,14 @@ export function Dashboard() {
             ))}
           </div>
           <ThemeControl />
+          {authEnabled ? (
+            <form action="/api/auth/logout" method="post">
+              <button className="logout-button" type="submit" title="Sign out">
+                <LogOut size={15} aria-hidden="true" />
+                <span>Sign out</span>
+              </button>
+            </form>
+          ) : null}
         </div>
       </header>
 

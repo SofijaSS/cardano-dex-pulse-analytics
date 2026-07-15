@@ -12,6 +12,7 @@
     "test": "vitest run --config vitest.config.ts",
     "typecheck": "tsc --noEmit",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
+    "auth:generate": "node scripts/generate-auth-secrets.mjs",
     "db:generate": "drizzle-kit generate"
   },
   "dependencies": {
