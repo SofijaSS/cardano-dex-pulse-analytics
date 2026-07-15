@@ -533,7 +533,7 @@ export function buildDexRows({
     const previous7 = native?.previous7dUsd ?? (useParent ? parent.previous7dUsd : null);
     const tvl = native?.tvlUsd ?? (useParent ? parent.tvlUsd : null);
     const inheritedNote = useParent
-      ? "Mapped to the current primary WingRiders V2 deployment. The official API reports one protocol total, so any residual legacy V1 activity cannot be separated."
+      ? `Mapped to ${version.name}, the configured primary deployment. The official API reports one protocol total, so activity from legacy contracts cannot be separated.`
       : null;
 
     return [{
@@ -573,7 +573,7 @@ export function buildDexRows({
       defillamaPrevious7dUsd: useParent ? parent.defillamaPrevious7dUsd : null,
       variance24hPct: useParent ? parent.variance24hPct : null,
       quality: native ? "native-only" : useParent ? parent.quality : "unavailable",
-      sourceLabel: native?.sourceLabel || (useParent ? `${parent.sourceLabel} · primary V2 mapping` : "Version metrics unavailable"),
+      sourceLabel: native?.sourceLabel || (useParent ? `${parent.sourceLabel} · primary ${version.version} mapping` : "Version metrics unavailable"),
       sourceUrl: native?.sourceUrl || parent.sourceUrl,
       periodNote: native?.periodNote || inheritedNote || version.unavailableNote,
       lastDataAt: native?.dataAt || (useParent ? parent.lastDataAt : null),

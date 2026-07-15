@@ -124,6 +124,14 @@ describe("version-aware table configuration", () => {
       DEX_VERSION_REGISTRY.find((version) => version.id === "wingriders-v1")
         ?.useParentMetrics,
     ).not.toBe(true);
+    expect(
+      DEX_VERSION_REGISTRY.find((version) => version.id === "sundaeswap-v3")
+        ?.useParentMetrics,
+    ).toBe(true);
+    expect(
+      DEX_VERSION_REGISTRY.find((version) => version.id === "sundaeswap-v1")
+        ?.useParentMetrics,
+    ).not.toBe(true);
   });
 
   it("keeps the extended Cardano DEX registry visible during source outages", () => {
@@ -197,6 +205,71 @@ describe("version-aware table configuration", () => {
       tableRole: "primary",
       defillamaVolume24hUsd: 7,
     });
+  });
+
+  it("maps verified aggregate SundaeSwap metrics to V3 without populating V1", () => {
+    const nativeSundaeSwap: NativeDexSnapshot = {
+      id: "sundaeswap",
+      volume24hUsd: 200,
+      volume7dUsd: null,
+      volume30dUsd: null,
+      previous7dUsd: null,
+      tvlUsd: null,
+      poolCount: 42,
+      sourceLabel: "SundaeSwap official GraphQL",
+      sourceUrl: "https://api.sundae.fi/graphql",
+      periodNote: "Current aggregate SundaeSwap protocol metric.",
+      dataAt: "2026-07-15T10:00:00.000Z",
+    };
+    const { rows } = buildDexRows({
+      overview: {
+        total24h: 198,
+        total7d: 1_400,
+        total30d: 6_000,
+        total14dto7d: 1_300,
+        total60dto30d: 5_500,
+        protocols: [
+          {
+            name: "SundaeSwap",
+            total24h: 198,
+            total7d: 1_400,
+            total30d: 6_000,
+            total14dto7d: 1_300,
+            total60dto30d: 5_500,
+          },
+        ],
+        totalDataChart: [[1_752_571_200, 198]],
+        totalDataChartBreakdown: [],
+      },
+      protocols: [
+        {
+          name: "SundaeSwap V3",
+          category: "Dexs",
+          chains: ["Cardano"],
+          tvl: 800,
+          chainTvls: { Cardano: 800 },
+          logo: null,
+        },
+      ],
+      nativeSnapshots: new Map([["sundaeswap", nativeSundaeSwap]]),
+      versionSnapshots: new Map(),
+    });
+
+    const v3 = rows.find((row) => row.id === "sundaeswap-v3");
+    const v1 = rows.find((row) => row.id === "sundaeswap-v1");
+    expect(v3).toMatchObject({
+      volume24hUsd: 200,
+      volume7dUsd: 1_400,
+      volume30dUsd: 6_000,
+      previous7dUsd: 1_300,
+      tvlUsd: 800,
+      poolCount: 42,
+      defillamaVolume24hUsd: 198,
+      quality: "aligned",
+    });
+    expect(v3?.sourceLabel).toContain("primary V3 mapping");
+    expect(v1?.volume24hUsd).toBeNull();
+    expect(v1?.volume7dUsd).toBeNull();
   });
 });
 

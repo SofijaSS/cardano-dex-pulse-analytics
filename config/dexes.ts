@@ -39,7 +39,7 @@ export const DEX_REGISTRY: DexConfig[] = [
     id: "sundaeswap",
     name: "SundaeSwap",
     color: "#ef6c47",
-    volumeAliases: ["SundaeSwap V2"],
+    volumeAliases: ["SundaeSwap", "SundaeSwap V2"],
     tvlAliases: ["SundaeSwap V2", "SundaeSwap V3"],
     required: true,
   },
@@ -200,8 +200,9 @@ export const DEX_VERSION_REGISTRY: DexVersionConfig[] = [
     parentId: "sundaeswap",
     name: "SundaeSwap V3",
     version: "V3",
+    useParentMetrics: true,
     showInTable: true,
-    unavailableNote: "SundaeSwap GraphQL confirms V3, but public stats are aggregate and not split by version.",
+    unavailableNote: "SundaeSwap V3 is the primary deployment; its public protocol feed is unavailable.",
   },
   {
     id: "sundaeswap-v1",
@@ -209,7 +210,7 @@ export const DEX_VERSION_REGISTRY: DexVersionConfig[] = [
     name: "SundaeSwap V1",
     version: "V1",
     showInTable: true,
-    unavailableNote: "SundaeSwap GraphQL confirms V1, but public stats are aggregate and not split by version.",
+    unavailableNote: "The public SundaeSwap endpoint does not expose a separate legacy V1 metric.",
   },
 ];
 
