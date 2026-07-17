@@ -25,6 +25,14 @@ npm test
 npm run build
 ```
 
+## Vercel deployment
+
+The existing `npm run build` command remains dedicated to the Sites/Cloudflare deployment. Vercel uses `npm run build:vercel` through `vercel.json`, so adding Vercel does not change or disable the current hosted site.
+
+Import the GitHub repository into Vercel as a Next.js project and configure the shared-login values from **Optional shared login** as encrypted Production, Preview, and Development environment variables. Also set `NEXT_PUBLIC_SITE_URL` to the final HTTPS deployment URL. Do not commit `.env.local`, the password hash, or the session-signing secret.
+
+The Vercel build needs outbound access to Google Fonts because `next/font` downloads Manrope and IBM Plex Mono while compiling. A local build in a network-restricted sandbox can therefore fail at the font-fetch step even when linting, type checking, tests, and the application code are valid.
+
 Set `USE_MOCK_DATA=true` only for local UI development. Mock mode is synthetic, is never enabled by default, and shows a persistent red warning in the interface.
 
 ## Optional shared login
