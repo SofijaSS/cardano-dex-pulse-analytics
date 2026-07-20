@@ -133,7 +133,7 @@ function LoadingState() {
   return (
     <BrandLoader
       label="Reconciling live DEX data"
-      detail="Checking native APIs against the benchmark"
+      detail="One clear pulse of the Cardano DEX ecosystem"
     />
   );
 }
@@ -372,9 +372,9 @@ export function Dashboard({ authEnabled = false }: { authEnabled?: boolean }) {
         </div>
         <nav aria-label="Dashboard sections">
           <a href="#overview">Overview</a>
-          <a href="#charts">Charts</a>
-          <a href="#dex-table">DEXes</a>
           <a href="#weekly-report">Weekly brief</a>
+          <a href="#dex-table">DEXes</a>
+          <a href="#charts">Charts</a>
           <Link href="/tokens">Token charts</Link>
         </nav>
         <div className="topbar-actions">
@@ -453,6 +453,9 @@ export function Dashboard({ authEnabled = false }: { authEnabled?: boolean }) {
         </div>
       </section>
 
+      <WeeklySummary dexes={protocolDexes} currency={currency} adaPriceUsd={adaPrice} generatedAt={data.generatedAt} />
+      <DexTable dexes={tableDexes} currency={currency} adaPriceUsd={adaPrice} onExport={exportTable} />
+
       <section className="analytics-section" id="charts">
         <div className="section-heading analytics-heading">
           <div>
@@ -470,9 +473,6 @@ export function Dashboard({ authEnabled = false }: { authEnabled?: boolean }) {
         </div>
         <DashboardCharts series={chartSeries} dexes={displayedDexes} selected={selectedDexes} currency={currency} adaPriceUsd={adaPrice} />
       </section>
-
-      <WeeklySummary dexes={protocolDexes} currency={currency} adaPriceUsd={adaPrice} generatedAt={data.generatedAt} />
-      <DexTable dexes={tableDexes} currency={currency} adaPriceUsd={adaPrice} onExport={exportTable} />
 
       <footer>
         <div className="footer-brand"><BarChart3 size={18} aria-hidden="true" /><strong>Cardano DEX Pulse</strong></div>

@@ -498,6 +498,13 @@ footer {
   margin-inline: auto;
 }
 
+.metrics-section,
+.analytics-section,
+.table-section,
+.wing-section {
+  scroll-margin-top: 88px;
+}
+
 .hero {
   display: grid;
   grid-template-columns: minmax(0, 1.6fr) minmax(420px, 0.8fr);
@@ -2241,6 +2248,10 @@ footer a { color: var(--blue); font-weight: 700; }
 
 @media (max-width: 760px) {
   body { font-size: 13px; }
+  .metrics-section,
+  .analytics-section,
+  .table-section,
+  .wing-section { scroll-margin-top: 118px; }
   .topbar {
     grid-template-columns: 1fr;
     min-height: 62px;

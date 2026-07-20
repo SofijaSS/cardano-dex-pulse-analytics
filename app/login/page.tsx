@@ -1,6 +1,7 @@
 import { BarChart3, ShieldCheck } from "lucide-react";
 import { redirect } from "next/navigation";
 import { LoginForm } from "@/components/LoginForm";
+import { PreserveTerms } from "@/components/PreserveTerms";
 import {
   hasValidDashboardSession,
   isDashboardAuthConfigured,
@@ -22,7 +23,7 @@ export default async function LoginPage() {
         </div>
         <div className="login-brand-copy">
           <span><ShieldCheck size={16} aria-hidden="true" /> Verified-data workspace</span>
-          <h2>Market intelligence stays with the team.</h2>
+          <h2><PreserveTerms>Cardano DEX insights, all in one place.</PreserveTerms></h2>
           <p>Source-reconciled DEX volume, TVL, weekly comparisons and reporting tools in one protected workspace.</p>
         </div>
         <div className="login-signal" aria-hidden="true">
