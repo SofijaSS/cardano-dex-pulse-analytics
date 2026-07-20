@@ -185,7 +185,10 @@ export function TokenAnalytics({ authEnabled = false }: { authEnabled?: boolean 
           </div>
         </div>
         <nav aria-label="Application pages">
-          <Link href="/">DEX volume</Link>
+          <Link href="/#overview">Overview</Link>
+          <Link href="/#weekly-report">Weekly brief</Link>
+          <Link href="/#dex-table">DEXes</Link>
+          <Link href="/#charts">Charts</Link>
           <Link className="is-active" href="/tokens">Token charts</Link>
         </nav>
         <div className="topbar-actions">
