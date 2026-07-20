@@ -8,11 +8,14 @@ import {
 } from "@/config/dexes";
 import {
   classifySourceQuality,
+  nonNegativeFiniteOrNull,
   safeDivide,
   safePercentChange,
   sumAvailable,
+  validateCumulativeVolumes,
   validateUsdAdaPair,
   variancePct,
+  type CumulativeVolumeIssue,
 } from "@/lib/calculations";
 import { fetchJsonWithRetry } from "@/lib/fetch-json";
 import { SOURCE_ENDPOINTS } from "@/lib/source-config";
@@ -388,6 +391,29 @@ function buildBenchmarkSeries(
   });
 }
 
+function describeCumulativeVolumeIssues(issues: CumulativeVolumeIssue[]) {
+  const descriptions = issues.map((issue) => {
+    switch (issue) {
+      case "invalid-24h":
+        return "24h volume was not a finite non-negative value";
+      case "invalid-7d":
+        return "7d volume was not a finite non-negative value";
+      case "invalid-30d":
+        return "30d volume was not a finite non-negative value";
+      case "7d-below-24h":
+        return "7d volume was lower than 24h volume";
+      case "30d-below-24h":
+        return "30d volume was lower than 24h volume";
+      case "30d-below-7d":
+        return "30d volume was lower than 7d volume";
+    }
+  });
+
+  return descriptions.length
+    ? `Data quality guard: ${descriptions.join("; ")}. The inconsistent value is not displayed.`
+    : null;
+}
+
 export function buildDexRows({
   overview,
   protocols,
@@ -400,33 +426,27 @@ export function buildDexRows({
   versionSnapshots: Map<string, NativeDexSnapshot>;
 }) {
   const configs = [...DEX_REGISTRY, ...addDynamicDexes(protocols, overview)];
+  const periodWarnings: string[] = [];
   const latestBenchmarkAt = overview?.totalDataChart.at(-1)?.[0]
     ? new Date((overview.totalDataChart.at(-1)?.[0] || 0) * 1000).toISOString()
     : null;
 
   const rows = configs.map<DexMetric>((config) => {
     const native = nativeSnapshots.get(config.id) || null;
-    const benchmark24 = getDefillamaMetric(
-      overview,
-      config.volumeAliases,
-      "total24h",
+    const benchmark24 = nonNegativeFiniteOrNull(
+      getDefillamaMetric(overview, config.volumeAliases, "total24h"),
     );
-    const benchmark7 = getDefillamaMetric(
-      overview,
-      config.volumeAliases,
-      "total7d",
+    const benchmark7 = nonNegativeFiniteOrNull(
+      getDefillamaMetric(overview, config.volumeAliases, "total7d"),
     );
-    const benchmark30 = getDefillamaMetric(
-      overview,
-      config.volumeAliases,
-      "total30d",
+    const benchmark30 = nonNegativeFiniteOrNull(
+      getDefillamaMetric(overview, config.volumeAliases, "total30d"),
     );
-    const benchmarkPrevious7 = getDefillamaMetric(
-      overview,
-      config.volumeAliases,
-      "total14dto7d",
+    const benchmarkPrevious7 = nonNegativeFiniteOrNull(
+      getDefillamaMetric(overview, config.volumeAliases, "total14dto7d"),
     );
-    const native24 = native?.volume24hUsd ?? null;
+    const rawNative24 = native?.volume24hUsd ?? null;
+    const native24 = nonNegativeFiniteOrNull(rawNative24);
     const quality: QualityFlag = classifySourceQuality(native24, benchmark24);
     const alignedHistory =
       quality === "aligned" &&
@@ -437,17 +457,33 @@ export function buildDexRows({
         "deltadefi",
         "saturn-swap",
       ].includes(config.id);
-    // DefiLlama's WingRiders adapter reads this same official endpoint. Keep
-    // its rolling history available while the native feed is healthy, but
-    // leave any current-snapshot variance visible instead of calling it aligned.
-    const wingridersLineageHistory =
-      config.id === "wingriders" && native24 != null && benchmark7 != null;
-    const useBenchmarkHistory = alignedHistory || wingridersLineageHistory;
-    const volume7 = native?.volume7dUsd ?? (useBenchmarkHistory ? benchmark7 : null);
-    const volume30 =
+    const useBenchmarkHistory = alignedHistory;
+    const candidate7 =
+      native?.volume7dUsd ?? (useBenchmarkHistory ? benchmark7 : null);
+    const candidate30 =
       native?.volume30dUsd ?? (useBenchmarkHistory ? benchmark30 : null);
-    const previous7 =
-      native?.previous7dUsd ?? (useBenchmarkHistory ? benchmarkPrevious7 : null);
+    const previous7 = nonNegativeFiniteOrNull(
+      native?.previous7dUsd ?? (useBenchmarkHistory ? benchmarkPrevious7 : null),
+    );
+    const validatedPeriods = validateCumulativeVolumes(
+      rawNative24,
+      candidate7,
+      candidate30,
+    );
+    const volume24 = validatedPeriods.volume24h;
+    const volume7 = validatedPeriods.volume7d;
+    const volume30 = validatedPeriods.volume30d;
+    const periodValidationNote = describeCumulativeVolumeIssues(
+      validatedPeriods.issues,
+    );
+    if (periodValidationNote) {
+      periodWarnings.push(`${config.name}: ${periodValidationNote}`);
+    }
+    const benchmarkHistoryUsed =
+      useBenchmarkHistory &&
+      ((native?.volume7dUsd == null && volume7 != null) ||
+        (native?.volume30dUsd == null && volume30 != null) ||
+        (native?.previous7dUsd == null && previous7 != null));
     const tvl = native?.tvlUsd ?? getTvl(protocols, config.tvlAliases);
 
     return {
@@ -463,13 +499,13 @@ export function buildDexRows({
       protocolVersion: null,
       logo: getLogo(protocols, config.tvlAliases),
       color: config.color,
-      volume24hUsd: native24,
+      volume24hUsd: volume24,
       volume7dUsd: volume7,
       volume30dUsd: volume30,
       previous7dUsd: previous7,
       weekChangePct: safePercentChange(volume7, previous7),
       tvlUsd: tvl,
-      volumeToTvl: safeDivide(native24, tvl),
+      volumeToTvl: safeDivide(volume24, tvl),
       marketShare24hPct: null,
       rank7d: null,
       trades24h: native?.trades24h ?? null,
@@ -480,24 +516,25 @@ export function buildDexRows({
       marketCapUsd: native?.marketCapUsd ?? null,
       marketCapToTvl: safeDivide(native?.marketCapUsd ?? null, tvl),
       poolCount: native?.poolCount ?? null,
-      nativeVolume24hUsd: native24,
+      nativeVolume24hUsd: volume24,
       defillamaVolume24hUsd: benchmark24,
       defillamaVolume7dUsd: benchmark7,
       defillamaVolume30dUsd: benchmark30,
       defillamaPrevious7dUsd: benchmarkPrevious7,
-      variance24hPct: variancePct(native24, benchmark24),
+      variance24hPct: variancePct(volume24, benchmark24),
       quality,
       sourceLabel: native
-        ? alignedHistory
+        ? benchmarkHistoryUsed
           ? `${native.sourceLabel} + validated DefiLlama history`
-          : wingridersLineageHistory
-            ? `${native.sourceLabel} + DefiLlama history from the same WingRiders feed`
           : native.sourceLabel
         : benchmark24 != null
           ? "DefiLlama benchmark only"
           : "Data unavailable",
       sourceUrl: native?.sourceUrl || null,
-      periodNote: native?.periodNote || "No public native volume endpoint configured.",
+      periodNote: [
+        native?.periodNote || "No public native volume endpoint configured.",
+        periodValidationNote,
+      ].filter(Boolean).join(" "),
       lastDataAt: native?.dataAt || latestBenchmarkAt,
     };
   });
@@ -521,11 +558,27 @@ export function buildDexRows({
     if (!parent) return [];
     const native = versionSnapshots.get(version.id) || null;
     const useParent = Boolean(version.useParentMetrics && !native);
-    const volume24 = native?.volume24hUsd ?? (useParent ? parent.volume24hUsd : null);
-    const volume7 = native?.volume7dUsd ?? (useParent ? parent.volume7dUsd : null);
-    const volume30 = native?.volume30dUsd ?? (useParent ? parent.volume30dUsd : null);
-    const previous7 = native?.previous7dUsd ?? (useParent ? parent.previous7dUsd : null);
+    const candidate24 = native?.volume24hUsd ?? (useParent ? parent.volume24hUsd : null);
+    const candidate7 = native?.volume7dUsd ?? (useParent ? parent.volume7dUsd : null);
+    const candidate30 = native?.volume30dUsd ?? (useParent ? parent.volume30dUsd : null);
+    const validatedPeriods = validateCumulativeVolumes(
+      candidate24,
+      candidate7,
+      candidate30,
+    );
+    const volume24 = validatedPeriods.volume24h;
+    const volume7 = validatedPeriods.volume7d;
+    const volume30 = validatedPeriods.volume30d;
+    const previous7 = nonNegativeFiniteOrNull(
+      native?.previous7dUsd ?? (useParent ? parent.previous7dUsd : null),
+    );
     const tvl = native?.tvlUsd ?? (useParent ? parent.tvlUsd : null);
+    const periodValidationNote = describeCumulativeVolumeIssues(
+      validatedPeriods.issues,
+    );
+    if (periodValidationNote) {
+      periodWarnings.push(`${version.name}: ${periodValidationNote}`);
+    }
     const inheritedNote = useParent
       ? `Mapped to ${version.name}, the configured primary deployment. The official API reports one protocol total, so activity from legacy contracts cannot be separated.`
       : null;
@@ -569,7 +622,10 @@ export function buildDexRows({
       quality: native ? "native-only" : useParent ? parent.quality : "unavailable",
       sourceLabel: native?.sourceLabel || (useParent ? `${parent.sourceLabel} · primary ${version.version} mapping` : "Version metrics unavailable"),
       sourceUrl: native?.sourceUrl || parent.sourceUrl,
-      periodNote: native?.periodNote || inheritedNote || version.unavailableNote,
+      periodNote: [
+        native?.periodNote || inheritedNote || version.unavailableNote,
+        periodValidationNote,
+      ].filter(Boolean).join(" "),
       lastDataAt: native?.dataAt || (useParent ? parent.lastDataAt : null),
     }];
   });
@@ -583,7 +639,12 @@ export function buildDexRows({
     return b.volume7dUsd - a.volume7dUsd;
   });
 
-  return { rows: [...rows, ...versionRows], protocolRows: rows, configs };
+  return {
+    rows: [...rows, ...versionRows],
+    protocolRows: rows,
+    configs,
+    periodWarnings,
+  };
 }
 
 export async function loadLiveDashboardData(): Promise<DashboardData> {
@@ -1031,7 +1092,7 @@ export async function loadLiveDashboardData(): Promise<DashboardData> {
   }
 
   const protocols = defillamaProtocols.data || [];
-  const { rows, protocolRows, configs } = buildDexRows({
+  const { rows, protocolRows, configs, periodWarnings } = buildDexRows({
     overview: defillamaOverview.data,
     protocols,
     nativeSnapshots,
@@ -1052,14 +1113,13 @@ export async function loadLiveDashboardData(): Promise<DashboardData> {
   );
   const warnings = [
     "Reconciled totals are observed coverage across DEXes with usable public native metrics; they are not represented as complete Cardano market totals.",
+    ...periodWarnings,
   ];
 
   for (const row of protocolRows) {
     if (row.quality === "material-variance") {
       warnings.push(
-        row.id === "wingriders"
-          ? `${row.name}: official and DefiLlama current daily snapshots differ by ${Math.abs(row.variance24hPct || 0).toFixed(1)}%. Official current data remains primary; DefiLlama rolling history remains visible because its WingRiders adapter uses the same official feed.`
-          : `${row.name}: native and DefiLlama 24h volume differ by ${Math.abs(row.variance24hPct || 0).toFixed(1)}%. Native data is primary and DefiLlama history is excluded.`,
+        `${row.name}: native and DefiLlama 24h volume differ by ${Math.abs(row.variance24hPct || 0).toFixed(1)}%. Native data is primary and DefiLlama history is excluded.`,
       );
     }
   }

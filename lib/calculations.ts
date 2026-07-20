@@ -54,6 +54,65 @@ export function finiteOrNull(value: unknown): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+export type CumulativeVolumeIssue =
+  | "invalid-24h"
+  | "invalid-7d"
+  | "invalid-30d"
+  | "7d-below-24h"
+  | "30d-below-24h"
+  | "30d-below-7d";
+
+export function nonNegativeFiniteOrNull(value: number | null | undefined) {
+  return value != null && Number.isFinite(value) && value >= 0 ? value : null;
+}
+
+export function validateCumulativeVolumes(
+  volume24h: number | null | undefined,
+  volume7d: number | null | undefined,
+  volume30d: number | null | undefined,
+) {
+  const issues: CumulativeVolumeIssue[] = [];
+  const validated24h = nonNegativeFiniteOrNull(volume24h);
+  let validated7d = nonNegativeFiniteOrNull(volume7d);
+  let validated30d = nonNegativeFiniteOrNull(volume30d);
+
+  if (volume24h != null && validated24h == null) issues.push("invalid-24h");
+  if (volume7d != null && validated7d == null) issues.push("invalid-7d");
+  if (volume30d != null && validated30d == null) issues.push("invalid-30d");
+
+  if (
+    validated7d != null &&
+    validated24h != null &&
+    validated7d < validated24h
+  ) {
+    validated7d = null;
+    issues.push("7d-below-24h");
+  }
+
+  if (
+    validated30d != null &&
+    validated24h != null &&
+    validated30d < validated24h
+  ) {
+    validated30d = null;
+    issues.push("30d-below-24h");
+  } else if (
+    validated30d != null &&
+    validated7d != null &&
+    validated30d < validated7d
+  ) {
+    validated30d = null;
+    issues.push("30d-below-7d");
+  }
+
+  return {
+    volume24h: validated24h,
+    volume7d: validated7d,
+    volume30d: validated30d,
+    issues,
+  };
+}
+
 export function sumAvailable(values: Array<number | null | undefined>) {
   const available = values.filter(
     (value): value is number => value != null && Number.isFinite(value),
