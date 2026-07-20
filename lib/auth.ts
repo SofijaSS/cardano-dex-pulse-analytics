@@ -7,7 +7,7 @@ import {
 } from "@/lib/auth-core";
 
 export const DASHBOARD_SESSION_COOKIE = "cardano-dex-pulse-session";
-export const DASHBOARD_SESSION_SECONDS = 4 * 60 * 60;
+export const DASHBOARD_SESSION_SECONDS = 12 * 60 * 60;
 
 type AuthConfiguration = {
   passwordHash: string;

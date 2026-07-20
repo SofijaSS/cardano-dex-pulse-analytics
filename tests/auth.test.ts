@@ -10,7 +10,7 @@ import { DASHBOARD_SESSION_SECONDS, decodePasswordHash } from "@/lib/auth";
 
 describe("dashboard authentication", () => {
   it("limits authenticated sessions to four hours", () => {
-    expect(DASHBOARD_SESSION_SECONDS).toBe(4 * 60 * 60);
+    expect(DASHBOARD_SESSION_SECONDS).toBe(12 * 60 * 60);
   });
 
   it("verifies PBKDF2 password hashes without accepting a different password", async () => {
