@@ -52,6 +52,12 @@ const ROOT_QUERY = `
         }
       }
     }
+    baseCurrency: __type(name: "BaseCurrency") {
+      kind
+      enumValues {
+        name
+      }
+    }
     volumeHistoryInput: __type(name: "VolumeHistoryInput") {
       kind
       inputFields {
