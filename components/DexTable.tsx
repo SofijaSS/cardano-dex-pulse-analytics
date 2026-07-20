@@ -332,11 +332,6 @@ export function DexTable({
         </div>
       </div>
 
-      <div className="table-data-note" role="note">
-        <strong>One row per DEX version.</strong>
-        <PreserveTerms>Minswap Stable and duplicate protocol-total rows are hidden. Source details show native and DefiLlama values side by side; they are not averaged because their coverage and period definitions can differ. Primary-deployment mappings are labelled; unavailable legacy splits remain unranked.</PreserveTerms>
-      </div>
-
       <div
         className="table-shell"
         role="region"
