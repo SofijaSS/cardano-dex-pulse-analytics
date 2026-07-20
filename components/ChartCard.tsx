@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { PreserveTerms } from "@/components/PreserveTerms";
 
 export function ChartCard({
   title,
@@ -17,12 +18,12 @@ export function ChartCard({
     <article className={`chart-card ${className}`}>
       <header>
         <div>
-          <span>{eyebrow}</span>
-          <h3>{title}</h3>
+          <span><PreserveTerms>{eyebrow}</PreserveTerms></span>
+          <h3><PreserveTerms>{title}</PreserveTerms></h3>
         </div>
       </header>
       <div className="chart-card__plot notranslate" translate="no">{children}</div>
-      <p className="chart-card__note">{note}</p>
+      <p className="chart-card__note"><PreserveTerms>{note}</PreserveTerms></p>
     </article>
   );
 }

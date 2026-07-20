@@ -18,7 +18,7 @@ import {
   formatRatio,
   type Currency,
 } from "@/lib/format";
-import { PreserveAda } from "@/components/PreserveAda";
+import { PreserveTerms } from "@/components/PreserveTerms";
 import type { DexMetric, QualityFlag } from "@/lib/types";
 
 type SortKey =
@@ -126,7 +126,7 @@ function SortableHeader({
   const Icon = active ? (direction === "asc" ? ArrowUp : ArrowDown) : ArrowUpDown;
   return (
     <button type="button" className={active ? "table-sort is-active" : "table-sort"} onClick={() => onSort(field)}>
-      {label}
+      <PreserveTerms>{label}</PreserveTerms>
       <Icon size={13} aria-hidden="true" />
     </button>
   );
@@ -257,7 +257,7 @@ export function DexTable({
   const tableMinWidth = Math.max(640, 230 + visibleColumnCount * 115);
   const showColumn = (key: DexTableColumnKey) => visibleColumns.has(key);
   const moneyText = (value: number | null) => (
-    <PreserveAda>{formatMoney(value, currency, adaPriceUsd)}</PreserveAda>
+    <PreserveTerms>{formatMoney(value, currency, adaPriceUsd)}</PreserveTerms>
   );
 
   const headerProps = {
@@ -334,7 +334,7 @@ export function DexTable({
 
       <div className="table-data-note" role="note">
         <strong>One row per DEX version.</strong>
-        Minswap Stable and duplicate protocol-total rows are hidden. Source details show native and DefiLlama values side by side; they are not averaged because their coverage and period definitions can differ. Primary-deployment mappings are labelled; unavailable legacy splits remain unranked.
+        <PreserveTerms>Minswap Stable and duplicate protocol-total rows are hidden. Source details show native and DefiLlama values side by side; they are not averaged because their coverage and period definitions can differ. Primary-deployment mappings are labelled; unavailable legacy splits remain unranked.</PreserveTerms>
       </div>
 
       <div
@@ -389,7 +389,7 @@ export function DexTable({
                           <span className="dex-fallback" style={{ background: dex.color }}>{dex.name.slice(0, 1)}</span>
                         )}
                         <div>
-                          <strong>{dex.name}</strong>
+                          <strong><PreserveTerms>{dex.name}</PreserveTerms></strong>
                           <span className={`row-kind row-kind--${dex.rowKind}`}>
                             {dex.rowKind === "version" ? `${dex.protocolVersion} contract` : "DEX protocol"}
                           </span>
@@ -437,7 +437,7 @@ export function DexTable({
                     </td> : null}
                     {showColumn("lastData") ? <td>
                       <time dateTime={dex.lastDataAt || undefined}>{formatDateTime(dex.lastDataAt)}</time>
-                      <small>{dex.sourceLabel}</small>
+                      <small><PreserveTerms>{dex.sourceLabel}</PreserveTerms></small>
                     </td> : null}
                   </tr>
                   {isExpanded && aggregateDetail ? (
@@ -447,7 +447,7 @@ export function DexTable({
                           <article>
                             <span>{dex.rowKind === "version" ? "Version 24h" : "Displayed 24h"}</span>
                             <strong>{moneyText(dex.volume24hUsd)}</strong>
-                            <small>{dex.sourceLabel}</small>
+                            <small><PreserveTerms>{dex.sourceLabel}</PreserveTerms></small>
                           </article>
                           <article>
                             <span>Protocol native total</span>
@@ -455,16 +455,16 @@ export function DexTable({
                             <small>Aggregate context, never assigned to a version.</small>
                           </article>
                           <article>
-                            <span>DefiLlama protocol total</span>
+                            <span><PreserveTerms>DefiLlama protocol total</PreserveTerms></span>
                             <strong>{moneyText(aggregateDetail.defillamaVolume24hUsd)}</strong>
-                            <small>Benchmark coverage can differ from the native API.</small>
+                            <small><PreserveTerms>Benchmark coverage can differ from the native API.</PreserveTerms></small>
                           </article>
                           <article>
                             <span>Protocol source variance</span>
                             <strong>{formatPercent(sourceVariance(aggregateDetail))}</strong>
                             <small>No arithmetic average is used.</small>
                           </article>
-                          <p>{dex.periodNote} {dex.rowKind === "version" ? aggregateDetail.periodNote : ""}</p>
+                          <p><PreserveTerms>{`${dex.periodNote} ${dex.rowKind === "version" ? aggregateDetail.periodNote : ""}`}</PreserveTerms></p>
                         </div>
                       </td>
                     </tr>

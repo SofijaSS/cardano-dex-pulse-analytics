@@ -1,5 +1,5 @@
 import { ArrowDownRight, ArrowUpRight, Minus } from "lucide-react";
-import { PreserveAda } from "@/components/PreserveAda";
+import { PreserveTerms } from "@/components/PreserveTerms";
 
 export function MetricCard({
   label,
@@ -20,7 +20,7 @@ export function MetricCard({
   return (
     <article className={`metric-card ${featured ? "metric-card--featured" : ""}`}>
       <div className="metric-card__top">
-        <span>{label}</span>
+        <span><PreserveTerms>{label}</PreserveTerms></span>
         {change !== undefined ? (
           <span className={`trend trend--${trend}`}>
             <TrendIcon size={14} aria-hidden="true" />
@@ -28,8 +28,8 @@ export function MetricCard({
           </span>
         ) : null}
       </div>
-      <strong><PreserveAda>{value}</PreserveAda></strong>
-      <p>{meta}</p>
+      <strong><PreserveTerms>{value}</PreserveTerms></strong>
+      <p><PreserveTerms>{meta}</PreserveTerms></p>
     </article>
   );
 }

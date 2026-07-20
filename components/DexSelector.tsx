@@ -1,3 +1,4 @@
+import { PreserveTerms } from "@/components/PreserveTerms";
 import type { DexMetric } from "@/lib/types";
 
 export function DexSelector({
@@ -20,7 +21,7 @@ export function DexSelector({
           aria-pressed={selected.has(dex.id)}
         >
           <span style={{ background: dex.color }} />
-          {dex.name}
+          <PreserveTerms>{dex.name}</PreserveTerms>
         </button>
       ))}
     </div>

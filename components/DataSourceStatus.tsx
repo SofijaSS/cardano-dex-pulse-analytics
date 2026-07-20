@@ -1,4 +1,5 @@
 import { AlertTriangle, CheckCircle2, Database, XCircle } from "lucide-react";
+import { PreserveTerms } from "@/components/PreserveTerms";
 import { formatDateTime } from "@/lib/format";
 import type { SourceStatus } from "@/lib/types";
 
@@ -29,8 +30,8 @@ export function DataSourceStatus({
               <article key={source.id} className="source-item">
                 <Icon size={16} aria-hidden="true" />
                 <div>
-                  <strong>{source.label}</strong>
-                  <span>{source.message}</span>
+                  <strong><PreserveTerms>{source.label}</PreserveTerms></strong>
+                  <span><PreserveTerms>{source.message}</PreserveTerms></span>
                   <small>Data: {formatDateTime(source.dataAt)}</small>
                 </div>
               </article>
@@ -40,7 +41,7 @@ export function DataSourceStatus({
         {warnings.length ? (
           <div className="source-warnings">
             <strong>Quality notes</strong>
-            {warnings.map((warning) => <p key={warning}>{warning}</p>)}
+            {warnings.map((warning) => <p key={warning}><PreserveTerms>{warning}</PreserveTerms></p>)}
           </div>
         ) : null}
       </div>
