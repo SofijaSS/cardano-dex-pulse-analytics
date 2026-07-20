@@ -394,7 +394,13 @@ export function DexTable({
                           <div className="dex-copy">
                             <div className="dex-name-line">
                               <strong><PreserveTerms>{dex.name}</PreserveTerms></strong>
-                              <span className={`quality quality--${dex.quality}`}>{qualityLabels[dex.quality]}</span>
+                              <span
+                                className={`quality quality--${dex.quality}`}
+                                title={qualityLabels[dex.quality]}
+                                aria-label={`Source quality: ${qualityLabels[dex.quality]}`}
+                              >
+                                {qualityLabels[dex.quality]}
+                              </span>
                             </div>
                             <div className="dex-meta-line">
                               <span className={`row-kind row-kind--${dex.rowKind}`}>
