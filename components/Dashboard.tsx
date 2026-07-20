@@ -30,6 +30,7 @@ import {
   type Currency,
 } from "@/lib/format";
 import type { DashboardData, DexMetric, VolumeSeriesPoint } from "@/lib/types";
+import { useVisibleRefresh } from "@/lib/use-visible-refresh";
 
 type SourceMode = "reconciled" | "defillama";
 
@@ -140,7 +141,7 @@ function LoadingState() {
 export function Dashboard({ authEnabled = false }: { authEnabled?: boolean }) {
   const [data, setData] = useState<DashboardData | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [refreshKey, setRefreshKey] = useState(0);
+  const [refreshRequest, setRefreshRequest] = useState({ id: 0, force: false });
   const preferredCurrency = useSyncExternalStore(
     currencyStore.subscribe,
     currencyStore.getSnapshot,
@@ -154,7 +155,9 @@ export function Dashboard({ authEnabled = false }: { authEnabled?: boolean }) {
 
   useEffect(() => {
     const controller = new AbortController();
-    fetch(`/api/dashboard?request=${refreshKey}`, {
+    const params = new URLSearchParams({ request: String(refreshRequest.id) });
+    if (refreshRequest.force) params.set("force", "1");
+    fetch(`/api/dashboard?${params}`, {
       cache: "no-store",
       signal: controller.signal,
     })
@@ -170,6 +173,7 @@ export function Dashboard({ authEnabled = false }: { authEnabled?: boolean }) {
         return response.json() as Promise<DashboardData>;
       })
       .then((payload) => {
+        setError(null);
         setData(payload);
         setSelectedDexes((current) => {
           if (current.size) return current;
@@ -194,11 +198,15 @@ export function Dashboard({ authEnabled = false }: { authEnabled?: boolean }) {
         }
       });
     return () => controller.abort();
-  }, [refreshKey]);
+  }, [refreshRequest]);
+
+  useVisibleRefresh(() => {
+    setRefreshRequest({ id: Date.now(), force: false });
+  }, 60 * 60_000);
 
   const refreshData = () => {
     setError(null);
-    setRefreshKey((value) => value + 1);
+    setRefreshRequest({ id: Date.now(), force: true });
   };
 
   if (!data && !error) return <LoadingState />;
@@ -468,7 +476,7 @@ export function Dashboard({ authEnabled = false }: { authEnabled?: boolean }) {
 
       <footer>
         <div className="footer-brand"><BarChart3 size={18} aria-hidden="true" /><strong>Cardano DEX Pulse</strong></div>
-        <p>Decision support, not financial advice. Every unavailable field remains unavailable.</p>
+        <p>Refresh cadence: prices 5m · current DEX data 60m · daily benchmarks 12h.</p>
         <a href="#top">Back to top</a>
       </footer>
     </main>

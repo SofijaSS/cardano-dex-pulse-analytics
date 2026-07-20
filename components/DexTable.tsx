@@ -67,27 +67,28 @@ type ColumnDefinition = {
   label: string;
   group: "Volume" | "Activity" | "Value" | "Reporting";
   sortKey?: SortKey;
+  width: number;
 };
 
 export const DEX_TABLE_COLUMNS: ColumnDefinition[] = [
-  { key: "volume7dUsd", label: "DEX volume · 7d", group: "Volume", sortKey: "volume7dUsd" },
-  { key: "volume24hUsd", label: "24h volume", group: "Volume", sortKey: "volume24hUsd" },
-  { key: "volume30dUsd", label: "30d volume", group: "Volume", sortKey: "volume30dUsd" },
-  { key: "previous7dUsd", label: "Previous 7d", group: "Volume", sortKey: "previous7dUsd" },
-  { key: "weekChangePct", label: "WoW change", group: "Volume", sortKey: "weekChangePct" },
-  { key: "trades24h", label: "Trades · 24h", group: "Activity", sortKey: "trades24h" },
-  { key: "users24h", label: "Users · 24h", group: "Activity", sortKey: "users24h" },
-  { key: "dau24h", label: "DAU · 24h", group: "Activity", sortKey: "dau24h" },
-  { key: "fees24hUsd", label: "Fees · 24h", group: "Activity", sortKey: "fees24hUsd" },
-  { key: "fees7dUsd", label: "Fees · 7d", group: "Activity", sortKey: "fees7dUsd" },
-  { key: "tvlUsd", label: "TVL", group: "Value", sortKey: "tvlUsd" },
-  { key: "volumeToTvl", label: "Volume / TVL", group: "Value", sortKey: "volumeToTvl" },
-  { key: "marketCapUsd", label: "Market cap", group: "Value", sortKey: "marketCapUsd" },
-  { key: "marketCapToTvl", label: "Market cap / TVL", group: "Value", sortKey: "marketCapToTvl" },
-  { key: "poolCount", label: "Pools", group: "Value", sortKey: "poolCount" },
-  { key: "marketShare24hPct", label: "Market share", group: "Reporting", sortKey: "marketShare24hPct" },
-  { key: "variance24hPct", label: "vs DefiLlama", group: "Reporting", sortKey: "variance24hPct" },
-  { key: "lastData", label: "Last data", group: "Reporting" },
+  { key: "volume7dUsd", label: "DEX volume · 7d", group: "Volume", sortKey: "volume7dUsd", width: 112 },
+  { key: "volume24hUsd", label: "24h volume", group: "Volume", sortKey: "volume24hUsd", width: 108 },
+  { key: "volume30dUsd", label: "30d volume", group: "Volume", sortKey: "volume30dUsd", width: 108 },
+  { key: "previous7dUsd", label: "Previous 7d", group: "Volume", sortKey: "previous7dUsd", width: 112 },
+  { key: "weekChangePct", label: "WoW change", group: "Volume", sortKey: "weekChangePct", width: 82 },
+  { key: "trades24h", label: "Trades · 24h", group: "Activity", sortKey: "trades24h", width: 92 },
+  { key: "users24h", label: "Users · 24h", group: "Activity", sortKey: "users24h", width: 90 },
+  { key: "dau24h", label: "DAU · 24h", group: "Activity", sortKey: "dau24h", width: 84 },
+  { key: "fees24hUsd", label: "Fees · 24h", group: "Activity", sortKey: "fees24hUsd", width: 104 },
+  { key: "fees7dUsd", label: "Fees · 7d", group: "Activity", sortKey: "fees7dUsd", width: 102 },
+  { key: "tvlUsd", label: "TVL", group: "Value", sortKey: "tvlUsd", width: 106 },
+  { key: "volumeToTvl", label: "Volume / TVL", group: "Value", sortKey: "volumeToTvl", width: 92 },
+  { key: "marketCapUsd", label: "Market cap", group: "Value", sortKey: "marketCapUsd", width: 108 },
+  { key: "marketCapToTvl", label: "Market cap / TVL", group: "Value", sortKey: "marketCapToTvl", width: 104 },
+  { key: "poolCount", label: "Pools", group: "Value", sortKey: "poolCount", width: 72 },
+  { key: "marketShare24hPct", label: "Market share", group: "Reporting", sortKey: "marketShare24hPct", width: 86 },
+  { key: "variance24hPct", label: "vs DefiLlama", group: "Reporting", sortKey: "variance24hPct", width: 98 },
+  { key: "lastData", label: "Last data", group: "Reporting", width: 128 },
 ];
 
 const ALL_COLUMN_KEYS = DEX_TABLE_COLUMNS.map((column) => column.key);
@@ -254,7 +255,13 @@ export function DexTable({
 
   const visibleColumnKeys = ALL_COLUMN_KEYS.filter((key) => visibleColumns.has(key));
   const visibleColumnCount = visibleColumnKeys.length;
-  const tableMinWidth = Math.max(640, 230 + visibleColumnCount * 115);
+  const tableMinWidth = Math.max(
+    640,
+    218 + DEX_TABLE_COLUMNS.reduce(
+      (width, column) => width + (visibleColumns.has(column.key) ? column.width : 0),
+      0,
+    ),
+  );
   const showColumn = (key: DexTableColumnKey) => visibleColumns.has(key);
   const moneyText = (value: number | null) => (
     <PreserveTerms>{formatMoney(value, currency, adaPriceUsd)}</PreserveTerms>
@@ -341,7 +348,7 @@ export function DexTable({
         <table style={{ minWidth: `${tableMinWidth}px` }}>
           <thead>
             <tr>
-              <th><SortableHeader label="7D rank / DEX" field="name" {...headerProps} /></th>
+              <th><SortableHeader label="7D rank / DEX" field="volume7dUsd" {...headerProps} /></th>
               {showColumn("volume7dUsd") ? <th><SortableHeader label="DEX volume · 7d" field="volume7dUsd" {...headerProps} /></th> : null}
               {showColumn("volume24hUsd") ? <th><SortableHeader label="24h volume" field="volume24hUsd" {...headerProps} /></th> : null}
               {showColumn("volume30dUsd") ? <th><SortableHeader label="30d volume" field="volume30dUsd" {...headerProps} /></th> : null}
@@ -375,37 +382,38 @@ export function DexTable({
                     <td>
                       <div className="dex-cell">
                         <span className="rank">{volumeRanks.has(dex.id) ? `#${volumeRanks.get(dex.id)}` : "–"}</span>
-                        {dex.logo ? (
-                          <span className={`dex-logo-frame${dex.logo.endsWith("/wingriders-v2.png") ? " dex-logo-frame--wingriders" : ""}`}>
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={dex.logo} alt="" width={30} height={30} loading="lazy" />
-                          </span>
-                        ) : (
-                          <span className="dex-fallback" style={{ background: dex.color }}>{dex.name.slice(0, 1)}</span>
-                        )}
-                        <div>
-                          <strong><PreserveTerms>{dex.name}</PreserveTerms></strong>
-                          <span className={`row-kind row-kind--${dex.rowKind}`}>
-                            {dex.rowKind === "version" ? `${dex.protocolVersion} contract` : "DEX protocol"}
-                          </span>
-                          <span className="quality-stack">
-                            <span className={`quality quality--${dex.quality}`}>{qualityLabels[dex.quality]}</span>
-                            {aggregateDetail && aggregateDetail.id !== dex.id && aggregateDetail.quality !== dex.quality ? (
-                              <span className={`quality quality--${aggregateDetail.quality}`}>Protocol {qualityLabels[aggregateDetail.quality]}</span>
-                            ) : null}
-                          </span>
-                          {canExpand ? (
-                            <button
-                              type="button"
-                              className="source-detail-toggle"
-                              aria-expanded={isExpanded}
-                              aria-controls={`source-detail-${dex.id}`}
-                              onClick={() => toggleDetails(dex.id)}
-                            >
-                              {isExpanded ? <ChevronDown size={12} aria-hidden="true" /> : <ChevronRight size={12} aria-hidden="true" />}
-                              Source details
-                            </button>
-                          ) : null}
+                        <div className="dex-identity">
+                          {dex.logo ? (
+                            <span className={`dex-logo-frame${dex.logo.endsWith("/wingriders-v2.png") ? " dex-logo-frame--wingriders" : ""}`}>
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src={dex.logo} alt="" width={28} height={28} loading="lazy" />
+                            </span>
+                          ) : (
+                            <span className="dex-fallback" style={{ background: dex.color }}>{dex.name.slice(0, 1)}</span>
+                          )}
+                          <div className="dex-copy">
+                            <div className="dex-name-line">
+                              <strong><PreserveTerms>{dex.name}</PreserveTerms></strong>
+                              <span className={`quality quality--${dex.quality}`}>{qualityLabels[dex.quality]}</span>
+                            </div>
+                            <div className="dex-meta-line">
+                              <span className={`row-kind row-kind--${dex.rowKind}`}>
+                                {dex.rowKind === "version" ? `${dex.protocolVersion} contract` : "DEX protocol"}
+                              </span>
+                              {canExpand ? (
+                                <button
+                                  type="button"
+                                  className="source-detail-toggle"
+                                  aria-expanded={isExpanded}
+                                  aria-controls={`source-detail-${dex.id}`}
+                                  onClick={() => toggleDetails(dex.id)}
+                                >
+                                  {isExpanded ? <ChevronDown size={11} aria-hidden="true" /> : <ChevronRight size={11} aria-hidden="true" />}
+                                  Details
+                                </button>
+                              ) : null}
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </td>

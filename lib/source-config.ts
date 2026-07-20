@@ -74,7 +74,15 @@ export const SOURCE_ENDPOINTS = {
 
 export const DATA_CACHE_SECONDS = boundedNumber("DATA_CACHE_SECONDS", 300, 30, 3_600);
 export const DATA_STALE_SECONDS = boundedNumber("DATA_STALE_SECONDS", 1_800, 60, 86_400);
-export const TOKEN_CACHE_SECONDS = boundedNumber("TOKEN_CACHE_SECONDS", 60, 15, 600);
+export const TOKEN_CACHE_SECONDS = boundedNumber("TOKEN_CACHE_SECONDS", 300, 60, 3_600);
+export const PRICE_REFRESH_SECONDS = boundedNumber("PRICE_REFRESH_SECONDS", 300, 60, 3_600);
+export const DEX_REFRESH_SECONDS = boundedNumber("DEX_REFRESH_SECONDS", 3_600, 300, 21_600);
+export const BENCHMARK_REFRESH_SECONDS = boundedNumber(
+  "BENCHMARK_REFRESH_SECONDS",
+  43_200,
+  3_600,
+  86_400,
+);
 export const SOURCE_FETCH_TIMEOUT_MS = boundedNumber("SOURCE_FETCH_TIMEOUT_MS", 7_000, 2_000, 20_000);
 export const SOURCE_FETCH_ATTEMPTS = Math.floor(
   boundedNumber("SOURCE_FETCH_ATTEMPTS", 2, 1, 4),

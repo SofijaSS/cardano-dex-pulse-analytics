@@ -1,8 +1,10 @@
+import { revalidateTag, unstable_cache } from "next/cache";
 import { getDexToken } from "@/config/tokens";
 import { serverDataCache } from "@/lib/async-data-cache";
 import { hasValidDashboardSession, isDashboardAuthEnabled } from "@/lib/auth";
 import { loadTokenAnalytics, TOKEN_RANGE_CONFIG } from "@/lib/token-data";
 import { DATA_STALE_SECONDS, TOKEN_CACHE_SECONDS } from "@/lib/source-config";
+import { TOKEN_SOURCE_CACHE_TAG, tokenCacheTag } from "@/lib/source-snapshot-cache";
 import type { TokenChartRange } from "@/lib/token-types";
 
 export async function GET(request: Request) {
@@ -27,11 +29,18 @@ export async function GET(request: Request) {
   }
 
   try {
-    const requestId = url.searchParams.get("request");
-    const force = requestId != null && requestId !== "0";
+    const force = url.searchParams.get("force") === "1";
+    if (force) revalidateTag(tokenCacheTag(token.id), { expire: 0 });
     const cached = await serverDataCache.get(
-      `token:${token.id}:${range}`,
-      () => loadTokenAnalytics(token, range),
+      `token:${token.id}:${range}:v2`,
+      () => unstable_cache(
+        () => loadTokenAnalytics(token, range),
+        ["cardano-token-source-v2", token.id, range],
+        {
+          revalidate: TOKEN_CACHE_SECONDS,
+          tags: [TOKEN_SOURCE_CACHE_TAG, tokenCacheTag(token.id)],
+        },
+      )(),
       {
         force,
         ttlMs: TOKEN_CACHE_SECONDS * 1_000,

@@ -1,11 +1,7 @@
-import { loadLiveDashboardData } from "@/lib/dashboard-data";
-import { buildMockDashboardData } from "@/lib/mock-data";
-import { serverDataCache } from "@/lib/async-data-cache";
-import {
-  DATA_CACHE_SECONDS,
-  DATA_STALE_SECONDS,
-  USE_MOCK_DATA,
-} from "@/lib/source-config";
+import { revalidateTag } from "next/cache";
+import { loadDashboardSnapshot } from "@/lib/dashboard-snapshot";
+import { DATA_CACHE_SECONDS } from "@/lib/source-config";
+import { DASHBOARD_SOURCE_CACHE_TAG } from "@/lib/source-snapshot-cache";
 import {
   hasValidDashboardSession,
   isDashboardAuthEnabled,
@@ -21,17 +17,9 @@ export async function GET(request: Request) {
 
   try {
     const url = new URL(request.url);
-    const requestId = url.searchParams.get("request");
-    const force = requestId != null && requestId !== "0";
-    const cached = await serverDataCache.get(
-      USE_MOCK_DATA ? "dashboard:mock" : "dashboard:live",
-      async () => USE_MOCK_DATA ? buildMockDashboardData() : loadLiveDashboardData(),
-      {
-        force,
-        ttlMs: DATA_CACHE_SECONDS * 1_000,
-        staleForMs: DATA_STALE_SECONDS * 1_000,
-      },
-    );
+    const force = url.searchParams.get("force") === "1";
+    if (force) revalidateTag(DASHBOARD_SOURCE_CACHE_TAG, { expire: 0 });
+    const cached = await loadDashboardSnapshot({ force });
 
     return Response.json(cached.value, {
       headers: {

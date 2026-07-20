@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { IBM_Plex_Mono, Manrope } from "next/font/google";
 import { headers } from "next/headers";
 import "./globals.css";
 
@@ -70,17 +69,6 @@ const browserCompatibilityScript = `
   })();
 `;
 
-const manrope = Manrope({
-  variable: "--font-manrope",
-  subsets: ["latin"],
-});
-
-const plexMono = IBM_Plex_Mono({
-  variable: "--font-plex-mono",
-  subsets: ["latin"],
-  weight: ["400", "500", "600"],
-});
-
 export async function generateMetadata(): Promise<Metadata> {
   const requestHeaders = await headers();
   const host =
@@ -128,7 +116,7 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: browserCompatibilityScript }} />
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
-      <body className={`${manrope.variable} ${plexMono.variable}`}>{children}</body>
+      <body>{children}</body>
     </html>
   );
 }
