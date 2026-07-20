@@ -91,7 +91,7 @@ The independent production-grade upgrade path is a Cardano chain indexer such as
 
 ## Source inventory
 
-Research and comparison were last reviewed on **2026-07-20**. Values below are a point-in-time validation snapshot, not fixtures used by the application.
+Research and comparison were last reviewed on **2026-07-21**. Values below are a point-in-time validation snapshot, not fixtures used by the application.
 
 | Source | Endpoint and field mapping | Expected update | Known limitation |
 | --- | --- | --- | --- |
@@ -122,7 +122,7 @@ The supplied reference image matches TapTools' [Market Overview / Protocols](htt
 | Dashboard column | Production mapping |
 | --- | --- |
 | 24h / 7d / 30d volume, previous 7d, WoW, TVL, volume/TVL, share, rank | Existing native-first reconciliation described above. Version rows never enter aggregate totals, market ranks, weekly summaries, or charts. |
-| Fees 24h / 7d | Minswap `trading_fee_24h` / `trading_fee_7d`; aggregate WingRiders `dailyFees` for 24h. Other DEXes show `Data unavailable`. |
+| Fees 24h / 7d | Minswap `trading_fee_24h` / `trading_fee_7d`; aggregate WingRiders `dailyFees` for 24h; PoolFlow period fees only for WingRiders V1. Other DEXes show `Data unavailable`. |
 | Trades, Users, DAU | PoolFlow's exact 24h `WingRiders` row supplies these fields only for WingRiders V1. Other rows remain `Data unavailable` until a documented public DEX endpoint or configured licensed indexer supplies a period-aligned value. SundaeSwap's unlabeled order counters are intentionally not presented as 24h trades. |
 | Market Cap, MCap/TVL | `Data unavailable`. A token market cap is not assumed to equal protocol market cap, and values from the screenshot are not copied. MCap/TVL is calculated only when both verified inputs exist. |
 | Pools | Number of Minswap rows in the top-100 24h response by version; SundaeSwap aggregate `stats.poolCount`. The column is labelled as observed coverage and is not assumed complete across providers. |
