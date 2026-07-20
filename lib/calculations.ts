@@ -66,6 +66,16 @@ export function nonNegativeFiniteOrNull(value: number | null | undefined) {
   return value != null && Number.isFinite(value) && value >= 0 ? value : null;
 }
 
+export function derivePreviousRollingPeriod(
+  combinedPeriod: number | null | undefined,
+  currentPeriod: number | null | undefined,
+) {
+  const combined = nonNegativeFiniteOrNull(combinedPeriod);
+  const current = nonNegativeFiniteOrNull(currentPeriod);
+  if (combined == null || current == null || combined < current) return null;
+  return combined - current;
+}
+
 export function validateCumulativeVolumes(
   volume24h: number | null | undefined,
   volume7d: number | null | undefined,

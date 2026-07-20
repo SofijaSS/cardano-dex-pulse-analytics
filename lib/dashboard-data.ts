@@ -8,6 +8,7 @@ import {
 } from "@/config/dexes";
 import {
   classifySourceQuality,
+  derivePreviousRollingPeriod,
   nonNegativeFiniteOrNull,
   safeDivide,
   safePercentChange,
@@ -113,8 +114,36 @@ const wingridersSchema = z.object({
   dailyFees: wingridersMetricSchema,
 });
 
+const wingridersGraphqlSchema = z.object({
+  data: z.object({
+    volume24h: wingridersMetricSchema,
+    volume7d: wingridersMetricSchema,
+    volume14d: wingridersMetricSchema,
+    volume30d: wingridersMetricSchema,
+    tvl: wingridersMetricSchema,
+    poolsCount: z.number().int().nonnegative(),
+    currentTime: z.string().datetime(),
+  }),
+});
+
+const WINGRIDERS_METRICS_QUERY = `
+  query DashboardVolume {
+    volume24h: volume(input: { lastNHours: 24, baseCurrency: ADA })
+    volume7d: volume(input: { lastNHours: 168, baseCurrency: ADA })
+    volume14d: volume(input: { lastNHours: 336, baseCurrency: ADA })
+    volume30d: volume(input: { lastNHours: 720, baseCurrency: ADA })
+    tvl
+    poolsCount
+    currentTime
+  }
+`;
+
 export function parseWingRidersPayload(payload: unknown) {
   return wingridersSchema.parse(payload);
+}
+
+export function parseWingRidersGraphqlPayload(payload: unknown) {
+  return wingridersGraphqlSchema.parse(payload);
 }
 
 const sundaeswapSchema = z.object({
@@ -685,6 +714,7 @@ export async function loadLiveDashboardData(): Promise<DashboardData> {
     coinbase,
     minswap,
     wingriders,
+    wingridersFees,
     sundaeswap,
     splash,
     muesli,
@@ -767,7 +797,22 @@ export async function loadLiveDashboardData(): Promise<DashboardData> {
     }),
     capture({
       id: "wingriders-native",
-      label: "WingRiders official API",
+      label: "WingRiders official GraphQL",
+      endpoint: SOURCE_ENDPOINTS.wingridersGraphql,
+      expectedUpdateMinutes: 120,
+      load: async () =>
+        parseWingRidersGraphqlPayload(
+          await fetchJsonWithRetry(SOURCE_ENDPOINTS.wingridersGraphql, {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ query: WINGRIDERS_METRICS_QUERY }),
+          }),
+        ),
+      dataAt: (data) => data.data.currentTime,
+    }),
+    capture({
+      id: "wingriders-fees",
+      label: "WingRiders official daily fees",
       endpoint: SOURCE_ENDPOINTS.wingriders,
       expectedUpdateMinutes: 120,
       load: async () =>
@@ -965,19 +1010,36 @@ export async function loadLiveDashboardData(): Promise<DashboardData> {
     }
   }
 
-  if (wingriders.data) {
+  if (wingriders.data || wingridersFees.data) {
+    const metrics = wingriders.data?.data;
+    const fallback = wingridersFees.data;
+    const previous7dAda = metrics
+      ? derivePreviousRollingPeriod(metrics.volume14d, metrics.volume7d)
+      : null;
     nativeSnapshots.set("wingriders", {
       id: "wingriders",
-      volume24hUsd: adaToUsd(wingriders.data.dailyVolume, adaUsd),
-      volume7dUsd: null,
-      volume30dUsd: null,
-      previous7dUsd: null,
-      tvlUsd: null,
-      fees24hUsd: adaToUsd(wingriders.data.dailyFees, adaUsd),
-      sourceLabel: "WingRiders official API",
-      sourceUrl: SOURCE_ENDPOINTS.wingriders,
-      periodNote: "Current daily volume and daily fees supplied by WingRiders in ADA. The endpoint does not split V1 and V2.",
-      dataAt: wingriders.status.fetchedAt,
+      volume24hUsd: adaToUsd(
+        metrics?.volume24h ?? fallback?.dailyVolume ?? null,
+        adaUsd,
+      ),
+      volume7dUsd: adaToUsd(metrics?.volume7d ?? null, adaUsd),
+      volume30dUsd: adaToUsd(metrics?.volume30d ?? null, adaUsd),
+      previous7dUsd: adaToUsd(previous7dAda, adaUsd),
+      tvlUsd: adaToUsd(metrics?.tvl ?? null, adaUsd),
+      fees24hUsd: adaToUsd(fallback?.dailyFees ?? null, adaUsd),
+      poolCount: metrics?.poolsCount ?? null,
+      sourceLabel: metrics
+        ? "WingRiders official GraphQL"
+        : "WingRiders official daily API fallback",
+      sourceUrl: metrics
+        ? SOURCE_ENDPOINTS.wingridersGraphql
+        : SOURCE_ENDPOINTS.wingriders,
+      periodNote: metrics
+        ? "Rolling 24h, 7d, 14d and 30d protocol metrics supplied by WingRiders in ADA. Previous 7d equals the validated 14d total minus the current 7d total. The protocol API does not split V1 and V2."
+        : "Current daily volume supplied by the WingRiders fallback endpoint in ADA. Period history and TVL are unavailable while GraphQL is offline.",
+      dataAt: metrics
+        ? wingriders.status.dataAt
+        : wingridersFees.status.fetchedAt,
     });
   }
 
@@ -1149,6 +1211,7 @@ export async function loadLiveDashboardData(): Promise<DashboardData> {
     coinbase.status,
     minswap.status,
     wingriders.status,
+    wingridersFees.status,
     sundaeswap.status,
     splash.status,
     muesli.status,

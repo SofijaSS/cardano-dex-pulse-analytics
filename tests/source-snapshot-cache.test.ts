@@ -15,6 +15,7 @@ describe("source snapshot refresh policy", () => {
   it("refreshes active DEX and TVL providers hourly by default", () => {
     expect(sourceRefreshSeconds("minswap-native")).toBe(DEX_REFRESH_SECONDS);
     expect(sourceRefreshSeconds("wingriders-native")).toBe(DEX_REFRESH_SECONDS);
+    expect(sourceRefreshSeconds("wingriders-fees")).toBe(DEX_REFRESH_SECONDS);
     expect(sourceRefreshSeconds("defillama-tvl")).toBe(DEX_REFRESH_SECONDS);
   });
 
