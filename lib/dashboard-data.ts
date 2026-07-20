@@ -16,6 +16,7 @@ import {
 } from "@/lib/calculations";
 import { fetchJsonWithRetry } from "@/lib/fetch-json";
 import { SOURCE_ENDPOINTS } from "@/lib/source-config";
+import { loadCachedSource } from "@/lib/source-snapshot-cache";
 import { summarizeMinswapVersion } from "@/lib/protocol-versions";
 import type {
   DashboardData,
@@ -178,11 +179,21 @@ async function capture<T>({
   load: () => Promise<T>;
   dataAt?: (data: T) => string | null;
 }): Promise<Captured<T>> {
-  const fetchedAt = new Date().toISOString();
-
   try {
-    const data = await load();
-    const observedAt = dataAt?.(data) || fetchedAt;
+    const snapshot = await loadCachedSource({
+      sourceId: id,
+      endpoint,
+      load: async () => {
+        const fetchedAt = new Date().toISOString();
+        const data = await load();
+        return {
+          data,
+          fetchedAt,
+          observedAt: dataAt?.(data) || fetchedAt,
+        };
+      },
+    });
+    const { data, fetchedAt, observedAt } = snapshot;
     const age = Date.now() - new Date(observedAt).getTime();
     const stale = age > expectedUpdateMinutes * 60_000;
 
@@ -202,6 +213,7 @@ async function capture<T>({
       },
     };
   } catch (error) {
+    const fetchedAt = new Date().toISOString();
     return {
       data: null,
       status: {

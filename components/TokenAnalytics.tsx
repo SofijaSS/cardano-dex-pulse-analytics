@@ -21,6 +21,7 @@ import { DEX_TOKEN_REGISTRY, type DexTokenId } from "@/config/tokens";
 import { ThemeControl } from "@/components/ThemeControl";
 import { TokenCandleChart, TokenDepthChart } from "@/components/TokenCandleChart";
 import { formatDateTime } from "@/lib/format";
+import { useVisibleRefresh } from "@/lib/use-visible-refresh";
 import type {
   TokenAnalyticsData,
   TokenChartRange,
@@ -109,21 +110,24 @@ export function TokenAnalytics({ authEnabled = false }: { authEnabled?: boolean 
   const [data, setData] = useState<TokenAnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [refreshKey, setRefreshKey] = useState(0);
+  const [refreshRequest, setRefreshRequest] = useState({ id: 0, force: false });
   const [clock, setClock] = useState<number | null>(null);
 
-  useEffect(() => {
-    const interval = window.setInterval(() => {
-      setRefreshKey((current) => current + 1);
-      setClock(Date.now());
-    }, 60_000);
-    return () => window.clearInterval(interval);
-  }, []);
+  useVisibleRefresh(() => {
+    setClock(Date.now());
+    setRefreshRequest({ id: Date.now(), force: false });
+  }, 5 * 60_000);
 
   useEffect(() => {
     const controller = new AbortController();
     let active = true;
-    fetch(`/api/tokens?token=${selectedToken}&range=${range}&request=${refreshKey}`, {
+    const params = new URLSearchParams({
+      token: selectedToken,
+      range,
+      request: String(refreshRequest.id),
+    });
+    if (refreshRequest.force) params.set("force", "1");
+    fetch(`/api/tokens?${params}`, {
       cache: "no-store",
       signal: controller.signal,
     })
@@ -139,7 +143,11 @@ export function TokenAnalytics({ authEnabled = false }: { authEnabled?: boolean 
         return response.json() as Promise<TokenAnalyticsData>;
       })
       .then((payload) => {
-        if (active) setData(payload);
+        if (active) {
+          setData(payload);
+          setClock(Date.now());
+          setError(null);
+        }
       })
       .catch((fetchError) => {
         if (active && !(fetchError instanceof Error && fetchError.name === "AbortError")) {
@@ -153,7 +161,7 @@ export function TokenAnalytics({ authEnabled = false }: { authEnabled?: boolean 
       active = false;
       controller.abort();
     };
-  }, [range, refreshKey, selectedToken]);
+  }, [range, refreshRequest, selectedToken]);
 
   const token = data?.token || DEX_TOKEN_REGISTRY.find((entry) => entry.id === selectedToken)!;
   const change24h = data?.changes["24h"] ?? null;
@@ -205,7 +213,7 @@ export function TokenAnalytics({ authEnabled = false }: { authEnabled?: boolean 
           <button type="button" onClick={() => {
             setLoading(true);
             setError(null);
-            setRefreshKey((current) => current + 1);
+            setRefreshRequest({ id: Date.now(), force: true });
           }} aria-label="Refresh token data"><RefreshCw size={16} /></button>
         </div>
       </section>
@@ -238,12 +246,12 @@ export function TokenAnalytics({ authEnabled = false }: { authEnabled?: boolean 
           <button type="button" className="button button--primary" onClick={() => {
             setLoading(true);
             setError(null);
-            setRefreshKey((current) => current + 1);
+            setRefreshRequest({ id: Date.now(), force: true });
           }}><RefreshCw size={15} /> Retry</button>
         </section>
       ) : null}
 
-      {!data ? <TokenLoading /> : (
+      {!data && !error ? <TokenLoading /> : data ? (
         <>
           <section className="token-market-header">
             <div className="token-identity">
@@ -345,7 +353,7 @@ export function TokenAnalytics({ authEnabled = false }: { authEnabled?: boolean 
           </section>
 
         </>
-      )}
+      ) : null}
 
       <footer className="token-footer">
         <div className="footer-brand"><BarChart3 size={18} aria-hidden="true" /><strong><PreserveTerms>Cardano DEX Pulse</PreserveTerms></strong></div>

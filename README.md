@@ -29,9 +29,11 @@ npm run build
 
 The existing `npm run build` command remains dedicated to the Sites/Cloudflare deployment. Vercel uses `npm run build:vercel` through `vercel.json`, so adding Vercel does not change or disable the current hosted site.
 
-Import the GitHub repository into Vercel as a Next.js project and configure the shared-login values from **Optional shared login** as encrypted Production, Preview, and Development environment variables. Also set `NEXT_PUBLIC_SITE_URL` to the final HTTPS deployment URL. Do not commit `.env.local`, the password hash, or the session-signing secret.
+Import the GitHub repository into Vercel as a Next.js project and configure the shared-login values from **Optional shared login** as encrypted Production, Preview, and Development environment variables. Also set `NEXT_PUBLIC_SITE_URL` to the final HTTPS deployment URL and add a random `CRON_SECRET` of at least 16 characters. Do not commit `.env.local`, the password hash, the cron secret, or the session-signing secret.
 
-The Vercel build needs outbound access to Google Fonts because `next/font` downloads Manrope and IBM Plex Mono while compiling. A local build in a network-restricted sandbox can therefore fail at the font-fetch step even when linting, type checking, tests, and the application code are valid.
+`vercel.json` registers one daily cache warm-up at `07:15 UTC`. It calls `/api/cron/refresh-dashboard`, never bypasses dashboard authentication for a user, and returns only cache metadata. Vercel automatically supplies `Authorization: Bearer <CRON_SECRET>` when that environment variable exists. The source-level cache still follows its own 5-minute, hourly, and 12-hour policies between warm-ups, so dashboard freshness does not depend on the cron running at the exact minute.
+
+The interface uses a local-first `Avenir Next`/`SFMono` font stack with cross-platform fallbacks. Production builds do not download font assets and therefore remain reproducible in network-restricted CI environments.
 
 Set `USE_MOCK_DATA=true` only for local UI development. Mock mode is synthetic, is never enabled by default, and shows a persistent red warning in the interface.
 
@@ -64,12 +66,12 @@ The production client targets Safari/iOS 14 and newer. A small inline compatibil
 
 The authenticated `/tokens` page tracks governance/utility tokens in this configured order: WingRiders (`WRT`), Minswap (`MIN`), SundaeSwap (`SUNDAE`), Splash (`SPLASH`), VyFinance (`VYFI`), and CSWAP (`CSWAP`). Token policy IDs live in `config/tokens.ts`; adding another token does not require changing the page component.
 
-The browser refreshes the selected token every 60 seconds through the protected, no-store `/api/tokens` route. All third-party calls run server-side. Minswap requires no key for the endpoints used here. DEX logos reuse the same protocol icon mapping as the DEX performance table; WingRiders V2 uses the supplied yellow PNG stored locally at `public/dex-logos/wingriders-v2.png`.
+The browser refreshes the selected token every 5 minutes through the protected, no-store `/api/tokens` route. Polling pauses while the tab is hidden and resumes when the user returns after the interval has elapsed. The Next/Vercel Data Cache shares the validated token snapshot across sessions and deployments, so individual browsers do not independently fan out to Minswap. All third-party calls run server-side. Minswap requires no key for the endpoints used here. DEX logos reuse the same protocol icon mapping as the DEX performance table; WingRiders V2 uses the supplied yellow PNG stored locally at `public/dex-logos/wingriders-v2.png`.
 
 | Token source | Endpoint and field mapping | Expected update | Known limitation |
 | --- | --- | --- | --- |
-| Minswap asset metrics | `GET https://api-mainnet-prod.minswap.org/v1/assets/{tokenId}/metrics`; map `price`, `price_change_1h`, `price_change_24h`, `price_change_7d`, `volume_24h`, `liquidity`, and `market_cap` | Requested every 60s; app stale threshold 10m | Currency is omitted, which Minswap documents as ADA. Metrics describe Minswap-tracked markets, not all Cardano DEX venues. The response has no authoritative publish timestamp, so server fetch time is displayed. |
-| Minswap asset OHLCV | `GET /v1/assets/{tokenId}/price/candlestick?start_time=...&end_time=...&limit=500&interval=...`; map `timestamp`, `open`, `high`, `low`, `close`, `volume` | Requested every 60s and whenever a 15m/1h/4h/24h/7d/30d/90d/1y control is selected | Intervals are 1m, 5m, 15m, 15m, 1h, 4h, 1d, and 1d respectively. Sparse trading can produce fewer or zero candles. Invalid OHLC relationships, non-positive prices, negative volume, and duplicate timestamps are rejected. |
+| Minswap asset metrics | `GET https://api-mainnet-prod.minswap.org/v1/assets/{tokenId}/metrics`; map `price`, `price_change_1h`, `price_change_24h`, `price_change_7d`, `volume_24h`, `liquidity`, and `market_cap` | Shared snapshot every 5m while requested; app stale threshold 10m | Currency is omitted, which Minswap documents as ADA. Metrics describe Minswap-tracked markets, not all Cardano DEX venues. The response has no authoritative publish timestamp, so server fetch time is displayed. |
+| Minswap asset OHLCV | `GET /v1/assets/{tokenId}/price/candlestick?start_time=...&end_time=...&limit=500&interval=...`; map `timestamp`, `open`, `high`, `low`, `close`, `volume` | Shared snapshot every 5m for each selected token/range | Intervals are 1m, 5m, 15m, 15m, 1h, 4h, 1d, and 1d respectively. Sparse trading can produce fewer or zero candles. Invalid OHLC relationships, non-positive prices, negative volume, and duplicate timestamps are rejected. |
 | ADA/USD | CoinGecko `cardano.usd` and `last_updated_at`; Coinbase `data.amount` fallback | Requested with every token refresh | CoinGecko is rejected after 4h. Coinbase has no provider timestamp, so fetch time is used. |
 
 `ADA / token` is the zero-protected inverse of the primary Minswap `token / ADA` value. `token / USD` is calculated only when both verified inputs exist: `token / ADA * ADA / USD`. No historical USD candle conversion is performed.
@@ -97,7 +99,7 @@ Research and comparison were last reviewed on **2026-07-15**. Values below are a
 | DefiLlama TVL | `GET https://api.llama.fi/protocols`; filter `category="Dexs"` and Cardano, map `chainTvls.Cardano`, fallback `tvl` | DefiLlama documents hourly TVL updates. App stale threshold: 2h. | Used as TVL fallback when a compatible native metric is unavailable. A protocol can expose multiple versions. |
 | CoinGecko | `GET /api/v3/simple/price?ids=cardano&vs_currencies=usd&include_last_updated_at=true`; `cardano.usd`, `last_updated_at` | Near-real-time. App rejects price older than 4h. | Primary ADA/USD display price. No implicit conversion occurs without a fresh primary or fallback price. |
 | Coinbase | `GET https://api.coinbase.com/v2/prices/ADA-USD/spot`; `data.amount` | Requested with each cached refresh; app stale threshold: 1h. | Used only when CoinGecko fails or is stale. The public response has no provider timestamp, so the server fetch time is displayed. |
-| Minswap token API | `GET /v1/assets/{tokenId}/metrics` and `GET /v1/assets/{tokenId}/price/candlestick`; detailed mappings are listed in **Token charts** above | Token page requests every 60s; app stale threshold: 10m | Public and keyless. Values cover Minswap-tracked token markets rather than all Cardano DEX venues. Sparse markets can produce discontinuous candles. |
+| Minswap token API | `GET /v1/assets/{tokenId}/metrics` and `GET /v1/assets/{tokenId}/price/candlestick`; detailed mappings are listed in **Token charts** above | Shared 5m snapshot; app stale threshold: 10m | Public and keyless. Values cover Minswap-tracked token markets rather than all Cardano DEX venues. Sparse markets can produce discontinuous candles. |
 | Minswap | `POST https://api-mainnet-prod.minswap.org/v1/pools/metrics`; sum `pool_metrics[].volume_24h`, `volume_7d`, `trading_fee_24h`, `trading_fee_7d`, and `liquidity_currency` with `currency="usd"`. `pool_metrics[].type` maps `Minswap` to V1, `MinswapV2` to V2, and `MinswapStable` to Stable. A parallel no-currency 24h request returns ADA and validates the implied ADA/USD rate. | Rolling/current; app stale threshold: 2h. | Minswap documents that omitted `currency` means ADA and `currency="usd"` means USD. Each request uses `limit=100`, so version volume, fees, TVL/liquidity and pool count are lower bounds from independently ranked pool cohorts. Native 30d and previous 7d are unavailable. |
 | WingRiders | `GET https://api.mainnet.wingriders.com/v1/defillama`; `dailyVolume` and `dailyFees` in ADA, accepted as finite numeric JSON values or numeric strings and converted with the timestamped ADA/USD price | Current daily metric; app stale threshold: 2h. | WingRiders identifies its current product as AMM DEX V2, so the verified protocol feed is displayed on the primary `WingRiders V2` row. The endpoint does not expose a V1/V2 split; any residual V1 activity cannot be separated. V1 therefore remains `Data unavailable`. DefiLlama's WingRiders adapter calls this same endpoint, so its rolling 7d/30d aggregation is displayed while the official feed is healthy; current snapshot variance is still shown and never relabeled as aligned. |
 | SundaeSwap | `POST https://api.sundae.fi/graphql`; `stats.volume.quantity` for lovelace, `stats.poolCount`, and `protocols[].version` | Current protocol metric; app stale threshold: 2h. | GraphQL confirms V1, V3 and Stableswaps, but public `stats` are aggregate rather than version-scoped. The verified aggregate is displayed on the primary `SundaeSwap V3` row with an explicit mapping note; legacy V1 remains `Data unavailable` because residual V1 activity cannot be separated. The volume window is not labelled as clearly as desired; live aggregate volume is checked against DefiLlama before benchmark history is accepted. Native `stats.tvl` is intentionally excluded because its semantics did not reconcile with protocol TVL. |
@@ -108,7 +110,9 @@ Research and comparison were last reviewed on **2026-07-15**. Values below are a
 | DeltaDeFi | `GET .../public/volume/daily?timestamp=...`; `volume_usd` | Latest complete UTC day; app stale threshold: 50h from the period-start timestamp. | Daily endpoint. DefiLlama history is accepted only after live agreement passes. |
 | Saturn Swap | `GET .../v1/defillama/volume?timestamp=...`; `volume.volume` USD | Latest complete UTC day; app stale threshold: 50h from the period-start timestamp. | A real zero remains zero; it is not converted to unavailable. Historical fallback still requires live agreement. |
 
-Dashboard and token source responses use structural validation, a configurable 7-second timeout, and two attempts with exponential backoff. Non-retryable 4xx responses fail immediately. Each source reports `healthy`, `stale`, or `error`. Auth is checked before every API response; after that check, public market payloads use an in-memory server cache with single-flight request deduplication. Dashboard data is fresh for `DATA_CACHE_SECONDS` (default 5 minutes), token data for `TOKEN_CACHE_SECONDS` (default 60 seconds), and a recent cached payload may be served only when a provider refresh fails. Browser responses remain private and `no-store` while login protection is enabled.
+Dashboard and token source responses use structural validation, a configurable 7-second timeout, and two attempts with exponential backoff. Non-retryable 4xx responses fail immediately. Each source reports `healthy`, `stale`, or `error`. Auth is checked before every API response; browser responses remain private and `no-store` while login protection is enabled.
+
+Provider payloads are cached separately in Next's persistent Data Cache, which Vercel shares across requests and deployments. ADA/USD providers refresh every `PRICE_REFRESH_SECONDS` (default 5 minutes); current native DEX and TVL providers refresh every `DEX_REFRESH_SECONDS` (default 60 minutes); daily and historical benchmark providers refresh every `BENCHMARK_REFRESH_SECONDS` (default 12 hours). The normalized API response has an additional 5-minute in-memory single-flight cache. Failed background revalidation keeps the last successful persistent snapshot available, while its original source timestamp allows the UI to mark it stale instead of presenting it as new.
 
 ### Reference-table field audit
 
@@ -171,23 +175,28 @@ Add or rename exchanges in `config/dexes.ts`; the dashboard components do not ne
 ```text
 Browser
   -> GET /api/dashboard
-     -> concurrent native DEX fetches
-     -> CoinGecko ADA/USD freshness validation
-     -> DefiLlama benchmark + TVL fetches
+     -> 5m final normalized snapshot
+     -> persistent provider snapshots
+        -> ADA/USD sources: 5m
+        -> current native DEX + TVL sources: 60m
+        -> daily + historical benchmark sources: 12h
      -> Zod validation, retry, stale detection
      -> native-first reconciliation and normalized DashboardData
   -> responsive React dashboard
      -> metric cards, filters, charts, table, WingRiders report
      -> CSV exports, clipboard summary, print/save-PDF
   -> GET /api/tokens?token=wrt&range=30d
-     -> fresh ADA/USD validation
-     -> server-side Minswap public metrics + OHLCV requests
+     -> shared 5m ADA/USD + Minswap metrics/OHLCV snapshot
      -> no secondary market-data fallback
      -> validated TokenAnalyticsData or explicit unavailable fields
   -> protected token charts workspace
+
+Vercel Cron (07:15 UTC daily)
+  -> GET /api/cron/refresh-dashboard
+     -> warm any provider snapshot whose own interval has elapsed
 ```
 
-The browser never calls third-party analytics APIs directly and does not receive private environment variables. CSV exports are generated from the currently displayed rows or selected historical benchmark range. The weekly PDF is a print-optimized report using the browser's Save as PDF flow.
+The browser never calls third-party analytics APIs directly and does not receive private environment variables. The dashboard checks for a refreshed normalized snapshot every hour only while its tab is visible; token prices check every 5 minutes under the same visibility rule. CSV exports are generated from the currently displayed rows or selected historical benchmark range. The weekly PDF is a print-optimized report using the browser's Save as PDF flow.
 
 The weekly performance brief is interactive: its three cards are the current top three DEXes by available 7-day volume. Selecting a card updates every metric, the verified-data summary, clipboard text, and print/PDF report. WingRiders is the initial selection while it remains in the top three; otherwise the highest-ranked available DEX is selected.
 
@@ -208,10 +217,12 @@ The weekly performance brief is interactive: its three cards are the current top
 ```text
 app/api/dashboard/route.ts   server-side data endpoint
 app/api/tokens/route.ts      protected token-market endpoint
+app/api/cron/                scheduled dashboard cache warm-up
 components/                 reusable dashboard UI
 config/dexes.ts             configurable DEX registry
 config/tokens.ts            configurable token registry and policy IDs
 lib/dashboard-data.ts       provider adapters and reconciliation
+lib/source-snapshot-cache.ts provider-specific persistent cache policy
 lib/token-data.ts           public token-source adapters and validation
 lib/calculations.ts         guarded calculations
 lib/mock-data.ts            explicit development-only fixture
