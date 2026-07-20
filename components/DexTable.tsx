@@ -76,13 +76,13 @@ export const DEX_TABLE_COLUMNS: ColumnDefinition[] = [
   { key: "volume30dUsd", label: "30d volume", group: "Volume", sortKey: "volume30dUsd", width: 108 },
   { key: "previous7dUsd", label: "Previous 7d", group: "Volume", sortKey: "previous7dUsd", width: 112 },
   { key: "weekChangePct", label: "WoW change", group: "Volume", sortKey: "weekChangePct", width: 82 },
+  { key: "tvlUsd", label: "TVL", group: "Value", sortKey: "tvlUsd", width: 106 },
+  { key: "volumeToTvl", label: "Volume / TVL", group: "Value", sortKey: "volumeToTvl", width: 92 },
   { key: "trades24h", label: "Trades · 24h", group: "Activity", sortKey: "trades24h", width: 92 },
   { key: "users24h", label: "Users · 24h", group: "Activity", sortKey: "users24h", width: 90 },
   { key: "dau24h", label: "DAU · 24h", group: "Activity", sortKey: "dau24h", width: 84 },
   { key: "fees24hUsd", label: "Fees · 24h", group: "Activity", sortKey: "fees24hUsd", width: 104 },
   { key: "fees7dUsd", label: "Fees · 7d", group: "Activity", sortKey: "fees7dUsd", width: 102 },
-  { key: "tvlUsd", label: "TVL", group: "Value", sortKey: "tvlUsd", width: 106 },
-  { key: "volumeToTvl", label: "Volume / TVL", group: "Value", sortKey: "volumeToTvl", width: 92 },
   { key: "marketCapUsd", label: "Market cap", group: "Value", sortKey: "marketCapUsd", width: 108 },
   { key: "marketCapToTvl", label: "Market cap / TVL", group: "Value", sortKey: "marketCapToTvl", width: 104 },
   { key: "poolCount", label: "Pools", group: "Value", sortKey: "poolCount", width: 72 },
@@ -354,13 +354,13 @@ export function DexTable({
               {showColumn("volume30dUsd") ? <th><SortableHeader label="30d volume" field="volume30dUsd" {...headerProps} /></th> : null}
               {showColumn("previous7dUsd") ? <th><SortableHeader label="Previous 7d" field="previous7dUsd" {...headerProps} /></th> : null}
               {showColumn("weekChangePct") ? <th><SortableHeader label="WoW" field="weekChangePct" {...headerProps} /></th> : null}
+              {showColumn("tvlUsd") ? <th><SortableHeader label="TVL" field="tvlUsd" {...headerProps} /></th> : null}
+              {showColumn("volumeToTvl") ? <th><SortableHeader label="Vol / TVL" field="volumeToTvl" {...headerProps} /></th> : null}
               {showColumn("trades24h") ? <th><SortableHeader label="Trades · 24h" field="trades24h" {...headerProps} /></th> : null}
               {showColumn("users24h") ? <th><SortableHeader label="Users · 24h" field="users24h" {...headerProps} /></th> : null}
               {showColumn("dau24h") ? <th><SortableHeader label="DAU · 24h" field="dau24h" {...headerProps} /></th> : null}
               {showColumn("fees24hUsd") ? <th><SortableHeader label="Fees · 24h" field="fees24hUsd" {...headerProps} /></th> : null}
               {showColumn("fees7dUsd") ? <th><SortableHeader label="Fees · 7d" field="fees7dUsd" {...headerProps} /></th> : null}
-              {showColumn("tvlUsd") ? <th><SortableHeader label="TVL" field="tvlUsd" {...headerProps} /></th> : null}
-              {showColumn("volumeToTvl") ? <th><SortableHeader label="Vol / TVL" field="volumeToTvl" {...headerProps} /></th> : null}
               {showColumn("marketCapUsd") ? <th><SortableHeader label="Market cap" field="marketCapUsd" {...headerProps} /></th> : null}
               {showColumn("marketCapToTvl") ? <th><SortableHeader label="MCap / TVL" field="marketCapToTvl" {...headerProps} /></th> : null}
               {showColumn("poolCount") ? <th><SortableHeader label="Pools" field="poolCount" {...headerProps} /></th> : null}
@@ -428,13 +428,13 @@ export function DexTable({
                     {showColumn("volume30dUsd") ? <td>{moneyText(dex.volume30dUsd)}</td> : null}
                     {showColumn("previous7dUsd") ? <td>{moneyText(dex.previous7dUsd)}</td> : null}
                     {showColumn("weekChangePct") ? <td><span className={`trend-text trend-text--${trend}`}>{formatPercent(dex.weekChangePct)}</span></td> : null}
+                    {showColumn("tvlUsd") ? <td>{moneyText(dex.tvlUsd)}</td> : null}
+                    {showColumn("volumeToTvl") ? <td>{formatRatio(dex.volumeToTvl)}</td> : null}
                     {showColumn("trades24h") ? <td>{formatCount(dex.trades24h)}</td> : null}
                     {showColumn("users24h") ? <td>{formatCount(dex.users24h)}</td> : null}
                     {showColumn("dau24h") ? <td>{formatCount(dex.dau24h)}</td> : null}
                     {showColumn("fees24hUsd") ? <td>{moneyText(dex.fees24hUsd)}</td> : null}
                     {showColumn("fees7dUsd") ? <td>{moneyText(dex.fees7dUsd)}</td> : null}
-                    {showColumn("tvlUsd") ? <td>{moneyText(dex.tvlUsd)}</td> : null}
-                    {showColumn("volumeToTvl") ? <td>{formatRatio(dex.volumeToTvl)}</td> : null}
                     {showColumn("marketCapUsd") ? <td>{moneyText(dex.marketCapUsd)}</td> : null}
                     {showColumn("marketCapToTvl") ? <td>{formatRatio(dex.marketCapToTvl)}</td> : null}
                     {showColumn("poolCount") ? <td>{formatCount(dex.poolCount)}</td> : null}
