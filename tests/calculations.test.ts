@@ -10,7 +10,7 @@ import {
 import { formatDateTime, formatMoney } from "../lib/format";
 import { summarizeMinswapVersion } from "../lib/protocol-versions";
 import { DEX_REGISTRY, DEX_VERSION_REGISTRY } from "../config/dexes";
-import { buildDexRows } from "../lib/dashboard-data";
+import { buildDexRows, parseWingRidersPayload } from "../lib/dashboard-data";
 import { buildWeeklyReportModel } from "../lib/weekly-report";
 import type { DexMetric, NativeDexSnapshot } from "../lib/types";
 
@@ -210,6 +210,60 @@ describe("version-aware table configuration", () => {
       tableRole: "primary",
       defillamaVolume24hUsd: 7,
     });
+  });
+
+  it("accepts numeric and string WingRiders metrics without coercing missing values", () => {
+    expect(parseWingRidersPayload({ dailyVolume: 123.5, dailyFees: "4.25" })).toEqual({
+      dailyVolume: 123.5,
+      dailyFees: 4.25,
+    });
+    expect(() => parseWingRidersPayload({ dailyVolume: null, dailyFees: "4.25" })).toThrow();
+  });
+
+  it("keeps WingRiders history on V2 when same-lineage daily snapshots differ", () => {
+    const nativeWingRiders: NativeDexSnapshot = {
+      id: "wingriders",
+      volume24hUsd: 100,
+      volume7dUsd: null,
+      volume30dUsd: null,
+      previous7dUsd: null,
+      tvlUsd: 400,
+      sourceLabel: "WingRiders official API",
+      sourceUrl: "https://api.mainnet.wingriders.com/v1/defillama",
+      periodNote: "Current WingRiders protocol metric.",
+      dataAt: "2026-07-15T10:00:00.000Z",
+    };
+    const { rows } = buildDexRows({
+      overview: {
+        total24h: 300,
+        total7d: 2_100,
+        total30d: 9_000,
+        total14dto7d: 1_800,
+        total60dto30d: 8_000,
+        protocols: [{
+          name: "WingRiders",
+          total24h: 300,
+          total7d: 2_100,
+          total30d: 9_000,
+          total14dto7d: 1_800,
+          total60dto30d: 8_000,
+        }],
+        totalDataChart: [[1_752_571_200, 300]],
+        totalDataChartBreakdown: [],
+      },
+      protocols: [],
+      nativeSnapshots: new Map([["wingriders", nativeWingRiders]]),
+      versionSnapshots: new Map(),
+    });
+
+    expect(rows.find((row) => row.id === "wingriders-v2")).toMatchObject({
+      volume24hUsd: 100,
+      volume7dUsd: 2_100,
+      volume30dUsd: 9_000,
+      previous7dUsd: 1_800,
+      quality: "material-variance",
+    });
+    expect(rows.find((row) => row.id === "wingriders-v1")?.volume7dUsd).toBeNull();
   });
 
   it("maps verified aggregate SundaeSwap metrics to V3 without populating V1", () => {

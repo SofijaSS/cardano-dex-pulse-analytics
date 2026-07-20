@@ -194,19 +194,42 @@ a {
   min-width: 0;
 }
 
-.mobile-page-link {
+.mobile-page-switcher {
   display: none;
+  grid-template-columns: 1fr 1fr;
+  min-width: 224px;
+  margin-left: 18px;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: var(--control-bg);
+  box-shadow: 0 7px 20px rgba(20, 38, 54, 0.06);
+}
+
+.mobile-page-switcher a {
+  display: inline-flex;
   align-items: center;
-  gap: 6px;
-  min-height: 32px;
-  margin-left: 14px;
-  padding: 0 10px 0 14px;
-  border-left: 1px solid var(--line);
-  color: var(--blue);
+  justify-content: center;
+  gap: 5px;
+  min-height: 34px;
+  padding: 0 11px;
+  border-radius: 7px;
+  color: var(--muted);
   font-family: var(--font-plex-mono), monospace;
   font-size: 9px;
   font-weight: 600;
   white-space: nowrap;
+  transition: background-color 180ms ease, color 180ms ease, transform 180ms ease, box-shadow 180ms ease;
+}
+
+.mobile-page-switcher a.is-active {
+  background: var(--ink);
+  color: var(--surface);
+  box-shadow: 0 4px 12px rgba(20, 38, 54, 0.16);
+}
+
+.mobile-page-switcher a:not(.is-active):active {
+  transform: scale(0.97);
 }
 
 .brand {
@@ -2203,7 +2226,7 @@ footer a { color: var(--blue); font-weight: 700; }
 @media (max-width: 1180px) {
   .topbar { grid-template-columns: 1fr auto; padding-inline: 24px; }
   .topbar nav { display: none; }
-  .mobile-page-link { display: inline-flex; }
+  .mobile-page-switcher { display: grid; }
   .hero { grid-template-columns: 1fr; gap: 30px; padding-top: 54px; }
   .hero-side { display: grid; grid-template-columns: 1fr 1fr; }
   .hero-source-status { grid-column: 1 / -1; }
@@ -2233,7 +2256,19 @@ footer a { color: var(--blue); font-weight: 700; }
     min-height: 62px;
     padding-inline: 16px;
   }
-  .topbar-start { min-height: 58px; }
+  .topbar-start {
+    min-height: 58px;
+    justify-content: space-between;
+  }
+  .mobile-page-switcher {
+    width: min(232px, calc(100vw - 78px));
+    min-width: 0;
+    margin-left: 10px;
+  }
+  .mobile-page-switcher a {
+    min-height: 36px;
+    padding-inline: 7px;
+  }
   .topbar-actions {
     width: 100%;
     min-height: 44px;

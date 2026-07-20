@@ -168,9 +168,12 @@ export function TokenAnalytics({ authEnabled = false }: { authEnabled?: boolean 
             <span className="brand-mark"><i /><i /><i /></span>
             <span><strong>Cardano DEX</strong><small>Pulse / Analytics</small></span>
           </Link>
-          <Link className="mobile-page-link" href="/">
-            <BarChart3 size={14} aria-hidden="true" /> DEX volume
-          </Link>
+          <div className="mobile-page-switcher" aria-label="Application pages">
+            <Link href="/">DEX volume</Link>
+            <Link className="is-active" href="/tokens" aria-current="page">
+              <BarChart3 size={13} aria-hidden="true" /> Token charts
+            </Link>
+          </div>
         </div>
         <nav aria-label="Application pages">
           <Link href="/">DEX volume</Link>

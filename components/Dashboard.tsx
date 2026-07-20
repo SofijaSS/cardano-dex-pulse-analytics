@@ -146,7 +146,7 @@ export function Dashboard({ authEnabled = false }: { authEnabled?: boolean }) {
     currencyStore.getServerSnapshot,
   );
   const [sourceMode, setSourceMode] = useState<SourceMode>("reconciled");
-  const [preset, setPreset] = useState<DatePreset>("30d");
+  const [preset, setPreset] = useState<DatePreset>("7d");
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
   const [selectedDexes, setSelectedDexes] = useState<Set<string>>(new Set());
@@ -184,7 +184,7 @@ export function Dashboard({ authEnabled = false }: { authEnabled?: boolean }) {
         const latest = payload.benchmarkSeries[payload.benchmarkSeries.length - 1]?.timestamp;
         if (latest) {
           setCustomEnd(toDateInput(latest));
-          setCustomStart(toDateInput(latest - 29 * 86_400));
+          setCustomStart(toDateInput(latest - 6 * 86_400));
         }
       })
       .catch((fetchError) => {
@@ -352,9 +352,14 @@ export function Dashboard({ authEnabled = false }: { authEnabled?: boolean }) {
             <span className="brand-mark"><i /><i /><i /></span>
             <span><strong>Cardano DEX</strong><small>Pulse / Analytics</small></span>
           </Link>
-          <Link className="mobile-page-link" href="/tokens">
-            <BarChart3 size={14} aria-hidden="true" /> Token charts
-          </Link>
+          <div className="mobile-page-switcher" aria-label="Application pages">
+            <Link className="is-active" href="/" aria-current="page">
+              DEX volume
+            </Link>
+            <Link href="/tokens">
+              <BarChart3 size={13} aria-hidden="true" /> Token charts
+            </Link>
+          </div>
         </div>
         <nav aria-label="Dashboard sections">
           <a href="#overview">Overview</a>

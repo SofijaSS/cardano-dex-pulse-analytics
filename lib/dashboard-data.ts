@@ -97,10 +97,21 @@ const coinbaseSchema = z.object({
   }),
 });
 
+const wingridersMetricSchema = z
+  .union([z.number(), z.string().trim().min(1)])
+  .transform((value) => Number(value))
+  .refine((value) => Number.isFinite(value) && value >= 0, {
+    message: "WingRiders metric must be a finite non-negative number.",
+  });
+
 const wingridersSchema = z.object({
-  dailyVolume: z.string(),
-  dailyFees: z.string(),
+  dailyVolume: wingridersMetricSchema,
+  dailyFees: wingridersMetricSchema,
 });
+
+export function parseWingRidersPayload(payload: unknown) {
+  return wingridersSchema.parse(payload);
+}
 
 const sundaeswapSchema = z.object({
   data: z.object({
@@ -405,7 +416,7 @@ export function buildDexRows({
     );
     const native24 = native?.volume24hUsd ?? null;
     const quality: QualityFlag = classifySourceQuality(native24, benchmark24);
-    const validatedHistory =
+    const alignedHistory =
       quality === "aligned" &&
       [
         "wingriders",
@@ -414,11 +425,17 @@ export function buildDexRows({
         "deltadefi",
         "saturn-swap",
       ].includes(config.id);
-    const volume7 = native?.volume7dUsd ?? (validatedHistory ? benchmark7 : null);
+    // DefiLlama's WingRiders adapter reads this same official endpoint. Keep
+    // its rolling history available while the native feed is healthy, but
+    // leave any current-snapshot variance visible instead of calling it aligned.
+    const wingridersLineageHistory =
+      config.id === "wingriders" && native24 != null && benchmark7 != null;
+    const useBenchmarkHistory = alignedHistory || wingridersLineageHistory;
+    const volume7 = native?.volume7dUsd ?? (useBenchmarkHistory ? benchmark7 : null);
     const volume30 =
-      native?.volume30dUsd ?? (validatedHistory ? benchmark30 : null);
+      native?.volume30dUsd ?? (useBenchmarkHistory ? benchmark30 : null);
     const previous7 =
-      native?.previous7dUsd ?? (validatedHistory ? benchmarkPrevious7 : null);
+      native?.previous7dUsd ?? (useBenchmarkHistory ? benchmarkPrevious7 : null);
     const tvl = native?.tvlUsd ?? getTvl(protocols, config.tvlAliases);
 
     return {
@@ -459,8 +476,10 @@ export function buildDexRows({
       variance24hPct: variancePct(native24, benchmark24),
       quality,
       sourceLabel: native
-        ? validatedHistory
+        ? alignedHistory
           ? `${native.sourceLabel} + validated DefiLlama history`
+          : wingridersLineageHistory
+            ? `${native.sourceLabel} + DefiLlama history from the same WingRiders feed`
           : native.sourceLabel
         : benchmark24 != null
           ? "DefiLlama benchmark only"
@@ -661,7 +680,7 @@ export async function loadLiveDashboardData(): Promise<DashboardData> {
       endpoint: SOURCE_ENDPOINTS.wingriders,
       expectedUpdateMinutes: 120,
       load: async () =>
-        wingridersSchema.parse(await fetchJsonWithRetry(SOURCE_ENDPOINTS.wingriders)),
+        parseWingRidersPayload(await fetchJsonWithRetry(SOURCE_ENDPOINTS.wingriders)),
     }),
     capture({
       id: "sundaeswap-native",
@@ -858,12 +877,12 @@ export async function loadLiveDashboardData(): Promise<DashboardData> {
   if (wingriders.data) {
     nativeSnapshots.set("wingriders", {
       id: "wingriders",
-      volume24hUsd: adaToUsd(Number(wingriders.data.dailyVolume), adaUsd),
+      volume24hUsd: adaToUsd(wingriders.data.dailyVolume, adaUsd),
       volume7dUsd: null,
       volume30dUsd: null,
       previous7dUsd: null,
       tvlUsd: null,
-      fees24hUsd: adaToUsd(Number(wingriders.data.dailyFees), adaUsd),
+      fees24hUsd: adaToUsd(wingriders.data.dailyFees, adaUsd),
       sourceLabel: "WingRiders official API",
       sourceUrl: SOURCE_ENDPOINTS.wingriders,
       periodNote: "Current daily volume and daily fees supplied by WingRiders in ADA. The endpoint does not split V1 and V2.",
@@ -1026,7 +1045,9 @@ export async function loadLiveDashboardData(): Promise<DashboardData> {
   for (const row of protocolRows) {
     if (row.quality === "material-variance") {
       warnings.push(
-        `${row.name}: native and DefiLlama 24h volume differ by ${Math.abs(row.variance24hPct || 0).toFixed(1)}%. Native data is primary and DefiLlama history is excluded.`,
+        row.id === "wingriders"
+          ? `${row.name}: official and DefiLlama current daily snapshots differ by ${Math.abs(row.variance24hPct || 0).toFixed(1)}%. Official current data remains primary; DefiLlama rolling history remains visible because its WingRiders adapter uses the same official feed.`
+          : `${row.name}: native and DefiLlama 24h volume differ by ${Math.abs(row.variance24hPct || 0).toFixed(1)}%. Native data is primary and DefiLlama history is excluded.`,
       );
     }
   }
