@@ -1,4 +1,5 @@
 import { ArrowDownRight, ArrowUpRight, Minus } from "lucide-react";
+import { PreserveAda } from "@/components/PreserveAda";
 
 export function MetricCard({
   label,
@@ -27,7 +28,7 @@ export function MetricCard({
           </span>
         ) : null}
       </div>
-      <strong>{value}</strong>
+      <strong><PreserveAda>{value}</PreserveAda></strong>
       <p>{meta}</p>
     </article>
   );

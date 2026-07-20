@@ -8,8 +8,6 @@ import {
   CartesianGrid,
   Cell,
   Legend,
-  Line,
-  LineChart,
   Pie,
   PieChart,
   ResponsiveContainer,
@@ -18,6 +16,7 @@ import {
   YAxis,
 } from "recharts";
 import { ChartCard } from "@/components/ChartCard";
+import { safePercentageShares } from "@/lib/calculations";
 import { CENTRAL_EUROPE_TIME_ZONE, convertUsd, formatMoney, type Currency } from "@/lib/format";
 import type { DexMetric, VolumeSeriesPoint } from "@/lib/types";
 
@@ -59,20 +58,27 @@ export function DashboardCharts({
         convertUsd(point.byDex[dex.id] || 0, currency, adaPriceUsd) || 0,
       ]),
     ),
-    wingriders:
-      convertUsd(point.byDex.wingriders || 0, currency, adaPriceUsd) || 0,
   }));
   const unitFormatter = (value: unknown) =>
     formatMoney(Number(value), currency, currency === "USD" ? null : 1, true);
   const tooltipFormatter = (value: unknown) => unitFormatter(value);
-  const pieData = dexes
+  const shareRows = dexes
     .filter((dex) => (dex.volume24hUsd || 0) > 0)
-    .slice(0, 8)
+    .sort((a, b) => (b.volume24hUsd || 0) - (a.volume24hUsd || 0));
+  const sharePercentages = safePercentageShares(
+    shareRows.map((dex) => dex.volume24hUsd),
+  );
+  const pieData = shareRows
     .map((dex) => ({
       name: dex.name,
       value: convertUsd(dex.volume24hUsd, currency, adaPriceUsd) || 0,
       color: dex.color,
     }));
+  const marketShareData = shareRows.map((dex, index) => ({
+    name: dex.name,
+    value: sharePercentages[index] || 0,
+    color: dex.color,
+  }));
   const weeklyData = dexes
     .filter((dex) => dex.volume7dUsd != null && dex.previous7dUsd != null)
     .slice(0, 8)
@@ -85,17 +91,14 @@ export function DashboardCharts({
     .filter((dex) => dex.volumeToTvl != null)
     .slice(0, 9)
     .map((dex) => ({ name: dex.name, value: dex.volumeToTvl, color: dex.color }));
-  const comparisonData = dexes
-    .filter(
-      (dex) =>
-        dex.nativeVolume24hUsd != null || dex.defillamaVolume24hUsd != null,
-    )
+  const tvlData = dexes
+    .filter((dex) => dex.tvlUsd != null && dex.tvlUsd > 0)
+    .sort((a, b) => (b.tvlUsd || 0) - (a.tvlUsd || 0))
     .slice(0, 9)
     .map((dex) => ({
       name: dex.name,
-      native: convertUsd(dex.nativeVolume24hUsd, currency, adaPriceUsd) || 0,
-      benchmark:
-        convertUsd(dex.defillamaVolume24hUsd, currency, adaPriceUsd) || 0,
+      value: convertUsd(dex.tvlUsd, currency, adaPriceUsd) || 0,
+      color: dex.color,
     }));
 
   return (
@@ -153,8 +156,30 @@ export function DashboardCharts({
 
       <ChartCard
         eyebrow="Reconciled snapshot"
+        title="Current market share in %"
+        note="Percentage of current 24h volume across DEXes with positive available data in the active view. The displayed shares sum to 100% within this available cohort."
+      >
+        {!marketShareData.length ? (
+          <EmptyChart message="Current market share percentage data unavailable." />
+        ) : (
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={marketShareData} layout="vertical" margin={{ top: 4, right: 24, left: 12, bottom: 0 }}>
+              <CartesianGrid stroke={gridColor} horizontal={false} />
+              <XAxis type="number" domain={[0, 100]} tickFormatter={(value) => `${Number(value).toFixed(0)}%`} tick={{ fill: axisColor, fontSize: 11 }} axisLine={false} tickLine={false} />
+              <YAxis type="category" dataKey="name" width={86} tick={{ fill: axisColor, fontSize: 10 }} axisLine={false} tickLine={false} />
+              <Tooltip formatter={(value) => `${Number(value).toFixed(1)}%`} />
+              <Bar dataKey="value" name="Observed 24h share" radius={[0, 6, 6, 0]}>
+                {marketShareData.map((entry) => <Cell key={entry.name} fill={entry.color} />)}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        )}
+      </ChartCard>
+
+      <ChartCard
+        eyebrow="Reconciled snapshot"
         title="Current market share"
-        note="Share of observed 24h volume across DEXes with usable native metrics. This is not presented as complete Cardano market coverage."
+        note="Current 24h volume distribution across DEXes with available data in the active view. This is not presented as complete Cardano market coverage."
       >
         {!pieData.length ? (
           <EmptyChart message="Current market share data unavailable." />
@@ -216,45 +241,23 @@ export function DashboardCharts({
       </ChartCard>
 
       <ChartCard
-        eyebrow="WingRiders focus"
-        title="WingRiders vs Cardano benchmark"
-        note="Both lines use the same DefiLlama daily benchmark series; WingRiders current native value is separately reconciled in the focus section."
-      >
-        {!convertedSeries.length ? (
-          <EmptyChart message="WingRiders benchmark history unavailable." />
-        ) : (
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={convertedSeries} margin={{ top: 12, right: 12, left: 0, bottom: 0 }}>
-              <CartesianGrid stroke={gridColor} vertical={false} />
-              <XAxis dataKey="timestamp" tickFormatter={dateLabel} tick={{ fill: axisColor, fontSize: 11 }} axisLine={false} tickLine={false} minTickGap={28} />
-              <YAxis tickFormatter={(value) => unitFormatter(value)} tick={{ fill: axisColor, fontSize: 11 }} axisLine={false} tickLine={false} width={78} />
-              <Tooltip formatter={tooltipFormatter} labelFormatter={(value) => dateLabel(Number(value))} />
-              <Legend />
-              <Line type="monotone" dataKey="total" name="Cardano benchmark" stroke="#97a6b0" strokeWidth={2} dot={false} />
-              <Line type="monotone" dataKey="wingriders" name="WingRiders" stroke="#1b5cff" strokeWidth={2.5} dot={false} />
-            </LineChart>
-          </ResponsiveContainer>
-        )}
-      </ChartCard>
-
-      <ChartCard
         className="chart-card--wide"
-        eyebrow="Source reconciliation"
-        title="Native API vs DefiLlama, current period"
-        note="Material variance is shown, not averaged away. Different rolling and UTC-day semantics can contribute to the gap."
+        eyebrow="Capital distribution"
+        title="Tracked TVL by DEX"
+        note="Current TVL for DEXes with an available value, using the active reconciled or benchmark view. Missing TVL is excluded rather than estimated."
       >
-        {!comparisonData.length ? (
-          <EmptyChart message="Source comparison data unavailable." />
+        {!tvlData.length ? (
+          <EmptyChart message="Tracked TVL data unavailable." />
         ) : (
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={comparisonData} margin={{ top: 10, right: 8, left: 0, bottom: 46 }}>
-              <CartesianGrid stroke={gridColor} vertical={false} />
-              <XAxis dataKey="name" angle={-25} textAnchor="end" interval={0} tick={{ fill: axisColor, fontSize: 10 }} axisLine={false} tickLine={false} />
-              <YAxis tickFormatter={(value) => unitFormatter(value)} tick={{ fill: axisColor, fontSize: 11 }} axisLine={false} tickLine={false} width={78} />
+            <BarChart data={tvlData} layout="vertical" margin={{ top: 4, right: 20, left: 12, bottom: 0 }}>
+              <CartesianGrid stroke={gridColor} horizontal={false} />
+              <XAxis type="number" tickFormatter={(value) => unitFormatter(value)} tick={{ fill: axisColor, fontSize: 11 }} axisLine={false} tickLine={false} />
+              <YAxis type="category" dataKey="name" width={94} tick={{ fill: axisColor, fontSize: 10 }} axisLine={false} tickLine={false} />
               <Tooltip formatter={tooltipFormatter} />
-              <Legend />
-              <Bar dataKey="native" name="Native / reconciled" fill="#1b5cff" radius={[5, 5, 0, 0]} />
-              <Bar dataKey="benchmark" name="DefiLlama" fill="#ef6c47" radius={[5, 5, 0, 0]} />
+              <Bar dataKey="value" name="Tracked TVL" radius={[0, 6, 6, 0]}>
+                {tvlData.map((entry) => <Cell key={entry.name} fill={entry.color} />)}
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         )}

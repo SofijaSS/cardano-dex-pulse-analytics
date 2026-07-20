@@ -18,6 +18,7 @@ import {
   formatRatio,
   type Currency,
 } from "@/lib/format";
+import { PreserveAda } from "@/components/PreserveAda";
 import type { DexMetric, QualityFlag } from "@/lib/types";
 
 type SortKey =
@@ -255,6 +256,9 @@ export function DexTable({
   const visibleColumnCount = visibleColumnKeys.length;
   const tableMinWidth = Math.max(640, 230 + visibleColumnCount * 115);
   const showColumn = (key: DexTableColumnKey) => visibleColumns.has(key);
+  const moneyText = (value: number | null) => (
+    <PreserveAda>{formatMoney(value, currency, adaPriceUsd)}</PreserveAda>
+  );
 
   const headerProps = {
     sortKey: activeSortKey,
@@ -382,96 +386,4 @@ export function DexTable({
                             <img src={dex.logo} alt="" width={30} height={30} loading="lazy" />
                           </span>
                         ) : (
-                          <span className="dex-fallback" style={{ background: dex.color }}>{dex.name.slice(0, 1)}</span>
-                        )}
-                        <div>
-                          <strong>{dex.name}</strong>
-                          <span className={`row-kind row-kind--${dex.rowKind}`}>
-                            {dex.rowKind === "version" ? `${dex.protocolVersion} contract` : "DEX protocol"}
-                          </span>
-                          <span className="quality-stack">
-                            <span className={`quality quality--${dex.quality}`}>{qualityLabels[dex.quality]}</span>
-                            {aggregateDetail && aggregateDetail.id !== dex.id && aggregateDetail.quality !== dex.quality ? (
-                              <span className={`quality quality--${aggregateDetail.quality}`}>Protocol {qualityLabels[aggregateDetail.quality]}</span>
-                            ) : null}
-                          </span>
-                          {canExpand ? (
-                            <button
-                              type="button"
-                              className="source-detail-toggle"
-                              aria-expanded={isExpanded}
-                              aria-controls={`source-detail-${dex.id}`}
-                              onClick={() => toggleDetails(dex.id)}
-                            >
-                              {isExpanded ? <ChevronDown size={12} aria-hidden="true" /> : <ChevronRight size={12} aria-hidden="true" />}
-                              Source details
-                            </button>
-                          ) : null}
-                        </div>
-                      </div>
-                    </td>
-                    {showColumn("volume7dUsd") ? <td>{formatMoney(dex.volume7dUsd, currency, adaPriceUsd)}</td> : null}
-                    {showColumn("volume24hUsd") ? <td>{formatMoney(dex.volume24hUsd, currency, adaPriceUsd)}</td> : null}
-                    {showColumn("volume30dUsd") ? <td>{formatMoney(dex.volume30dUsd, currency, adaPriceUsd)}</td> : null}
-                    {showColumn("previous7dUsd") ? <td>{formatMoney(dex.previous7dUsd, currency, adaPriceUsd)}</td> : null}
-                    {showColumn("weekChangePct") ? <td><span className={`trend-text trend-text--${trend}`}>{formatPercent(dex.weekChangePct)}</span></td> : null}
-                    {showColumn("trades24h") ? <td>{formatCount(dex.trades24h)}</td> : null}
-                    {showColumn("users24h") ? <td>{formatCount(dex.users24h)}</td> : null}
-                    {showColumn("dau24h") ? <td>{formatCount(dex.dau24h)}</td> : null}
-                    {showColumn("fees24hUsd") ? <td>{formatMoney(dex.fees24hUsd, currency, adaPriceUsd)}</td> : null}
-                    {showColumn("fees7dUsd") ? <td>{formatMoney(dex.fees7dUsd, currency, adaPriceUsd)}</td> : null}
-                    {showColumn("tvlUsd") ? <td>{formatMoney(dex.tvlUsd, currency, adaPriceUsd)}</td> : null}
-                    {showColumn("volumeToTvl") ? <td>{formatRatio(dex.volumeToTvl)}</td> : null}
-                    {showColumn("marketCapUsd") ? <td>{formatMoney(dex.marketCapUsd, currency, adaPriceUsd)}</td> : null}
-                    {showColumn("marketCapToTvl") ? <td>{formatRatio(dex.marketCapToTvl)}</td> : null}
-                    {showColumn("poolCount") ? <td>{formatCount(dex.poolCount)}</td> : null}
-                    {showColumn("marketShare24hPct") ? <td>{formatPercent(dex.marketShare24hPct, false)}</td> : null}
-                    {showColumn("variance24hPct") ? <td>
-                      <span className={`variance variance--${dex.quality}`} title={`${dex.sourceLabel}. ${dex.periodNote}`}>
-                        {formatPercent(dex.variance24hPct)}
-                      </span>
-                    </td> : null}
-                    {showColumn("lastData") ? <td>
-                      <time dateTime={dex.lastDataAt || undefined}>{formatDateTime(dex.lastDataAt)}</time>
-                      <small>{dex.sourceLabel}</small>
-                    </td> : null}
-                  </tr>
-                  {isExpanded && aggregateDetail ? (
-                    <tr className="source-detail-row" id={`source-detail-${dex.id}`}>
-                      <td colSpan={visibleColumnCount + 1}>
-                        <div className="source-detail-panel">
-                          <article>
-                            <span>{dex.rowKind === "version" ? "Version 24h" : "Displayed 24h"}</span>
-                            <strong>{formatMoney(dex.volume24hUsd, currency, adaPriceUsd)}</strong>
-                            <small>{dex.sourceLabel}</small>
-                          </article>
-                          <article>
-                            <span>Protocol native total</span>
-                            <strong>{formatMoney(aggregateDetail.nativeVolume24hUsd, currency, adaPriceUsd)}</strong>
-                            <small>Aggregate context, never assigned to a version.</small>
-                          </article>
-                          <article>
-                            <span>DefiLlama protocol total</span>
-                            <strong>{formatMoney(aggregateDetail.defillamaVolume24hUsd, currency, adaPriceUsd)}</strong>
-                            <small>Benchmark coverage can differ from the native API.</small>
-                          </article>
-                          <article>
-                            <span>Protocol source variance</span>
-                            <strong>{formatPercent(sourceVariance(aggregateDetail))}</strong>
-                            <small>No arithmetic average is used.</small>
-                          </article>
-                          <p>{dex.periodNote} {dex.rowKind === "version" ? aggregateDetail.periodNote : ""}</p>
-                        </div>
-                      </td>
-                    </tr>
-                  ) : null}
-                </Fragment>
-              );
-            })}
-          </tbody>
-        </table>
-        {!filtered.length ? <div className="table-empty">No DEXes match the current filters.</div> : null}
-      </div>
-    </section>
-  );
-}
+                        
