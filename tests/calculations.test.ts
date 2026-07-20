@@ -5,6 +5,7 @@ import {
   safePercentageShares,
   safePercentChange,
   sumAvailable,
+  validateCumulativeVolumes,
   validateUsdAdaPair,
   variancePct,
 } from "../lib/calculations";
@@ -88,6 +89,36 @@ describe("sumAvailable", () => {
     expect(sumAvailable([null, undefined])).toBeNull();
     expect(sumAvailable([0, null])).toBe(0);
     expect(sumAvailable([10, null, 5])).toBe(15);
+  });
+});
+
+describe("cumulative volume validation", () => {
+  it("suppresses a 7d value that is lower than the available 24h value", () => {
+    expect(validateCumulativeVolumes(100, 90, 500)).toEqual({
+      volume24h: 100,
+      volume7d: null,
+      volume30d: 500,
+      issues: ["7d-below-24h"],
+    });
+  });
+
+  it("suppresses a 30d value that is lower than a valid 7d value", () => {
+    expect(validateCumulativeVolumes(100, 700, 650)).toEqual({
+      volume24h: 100,
+      volume7d: 700,
+      volume30d: null,
+      issues: ["30d-below-7d"],
+    });
+  });
+
+  it("keeps consistent cumulative periods and rejects invalid numbers", () => {
+    expect(validateCumulativeVolumes(100, 700, 3_000).issues).toEqual([]);
+    expect(validateCumulativeVolumes(-1, Number.NaN, 3_000)).toEqual({
+      volume24h: null,
+      volume7d: null,
+      volume30d: 3_000,
+      issues: ["invalid-24h", "invalid-7d"],
+    });
   });
 });
 
@@ -240,7 +271,7 @@ describe("version-aware table configuration", () => {
     expect(() => parseWingRidersPayload({ dailyVolume: null, dailyFees: "4.25" })).toThrow();
   });
 
-  it("keeps WingRiders history on V2 when same-lineage daily snapshots differ", () => {
+  it("excludes WingRiders benchmark history when live daily snapshots differ", () => {
     const nativeWingRiders: NativeDexSnapshot = {
       id: "wingriders",
       volume24hUsd: 100,
@@ -278,12 +309,61 @@ describe("version-aware table configuration", () => {
 
     expect(rows.find((row) => row.id === "wingriders-v2")).toMatchObject({
       volume24hUsd: 100,
-      volume7dUsd: 2_100,
-      volume30dUsd: 9_000,
-      previous7dUsd: 1_800,
+      volume7dUsd: null,
+      volume30dUsd: null,
+      previous7dUsd: null,
       quality: "material-variance",
+      sourceLabel: expect.not.stringContaining("DefiLlama history"),
     });
     expect(rows.find((row) => row.id === "wingriders-v1")?.volume7dUsd).toBeNull();
+  });
+
+  it("suppresses contradictory benchmark periods even after live alignment", () => {
+    const nativeWingRiders: NativeDexSnapshot = {
+      id: "wingriders",
+      volume24hUsd: 100,
+      volume7dUsd: null,
+      volume30dUsd: null,
+      previous7dUsd: null,
+      tvlUsd: 400,
+      sourceLabel: "WingRiders official API",
+      sourceUrl: "https://api.mainnet.wingriders.com/v1/defillama",
+      periodNote: "Current WingRiders protocol metric.",
+      dataAt: "2026-07-15T10:00:00.000Z",
+    };
+    const result = buildDexRows({
+      overview: {
+        total24h: 98,
+        total7d: 90,
+        total30d: 3_000,
+        total14dto7d: 80,
+        total60dto30d: 2_900,
+        protocols: [{
+          name: "WingRiders",
+          total24h: 98,
+          total7d: 90,
+          total30d: 3_000,
+          total14dto7d: 80,
+          total60dto30d: 2_900,
+        }],
+        totalDataChart: [[1_752_571_200, 98]],
+        totalDataChartBreakdown: [],
+      },
+      protocols: [],
+      nativeSnapshots: new Map([["wingriders", nativeWingRiders]]),
+      versionSnapshots: new Map(),
+    });
+
+    expect(result.rows.find((row) => row.id === "wingriders-v2")).toMatchObject({
+      volume24hUsd: 100,
+      volume7dUsd: null,
+      volume30dUsd: 3_000,
+      previous7dUsd: 80,
+      weekChangePct: null,
+    });
+    expect(result.periodWarnings).toContainEqual(
+      expect.stringContaining("7d volume was lower than 24h volume"),
+    );
   });
 
   it("maps verified aggregate SundaeSwap metrics to V3 without populating V1", () => {

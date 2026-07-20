@@ -82,7 +82,7 @@ The Minswap public API does not expose a verified buy/sell split, order book, to
 
 The dashboard offers two explicit views:
 
-- **Reconciled / native-first:** current native DEX data is primary. DefiLlama historical values are used for SundaeSwap, Dano Finance, DeltaDeFi, and Saturn Swap only when the live 24-hour comparison differs by no more than 20%. WingRiders is treated separately because DefiLlama's public WingRiders adapter reads the same official WingRiders endpoint: rolling 7d/30d history remains visible while that official feed is healthy, and any current-snapshot variance remains explicitly flagged.
+- **Reconciled / native-first:** current native DEX data is primary. DefiLlama historical values are used for WingRiders, SundaeSwap, Dano Finance, DeltaDeFi, and Saturn Swap only when the live 24-hour comparison differs by no more than 20%. Every displayed cumulative series must also satisfy `7d >= 24h` and `30d >= 7d`; a conflicting period is suppressed rather than relabelled or estimated.
 - **DefiLlama benchmark:** values are displayed exactly as supplied by DefiLlama. They are not presented as independently verified.
 
 The reconciled total is labelled **Observed** because public native APIs do not provide one complete, semantically aligned Cardano market series. Coverage counts accompany 24-hour, 7-day, and 30-day totals. Missing DEX periods are not extrapolated.
@@ -91,7 +91,7 @@ The independent production-grade upgrade path is a Cardano chain indexer such as
 
 ## Source inventory
 
-Research and comparison were last reviewed on **2026-07-15**. Values below are a point-in-time validation snapshot, not fixtures used by the application.
+Research and comparison were last reviewed on **2026-07-20**. Values below are a point-in-time validation snapshot, not fixtures used by the application.
 
 | Source | Endpoint and field mapping | Expected update | Known limitation |
 | --- | --- | --- | --- |
@@ -101,7 +101,7 @@ Research and comparison were last reviewed on **2026-07-15**. Values below are a
 | Coinbase | `GET https://api.coinbase.com/v2/prices/ADA-USD/spot`; `data.amount` | Requested with each cached refresh; app stale threshold: 1h. | Used only when CoinGecko fails or is stale. The public response has no provider timestamp, so the server fetch time is displayed. |
 | Minswap token API | `GET /v1/assets/{tokenId}/metrics` and `GET /v1/assets/{tokenId}/price/candlestick`; detailed mappings are listed in **Token charts** above | Shared 5m snapshot; app stale threshold: 10m | Public and keyless. Values cover Minswap-tracked token markets rather than all Cardano DEX venues. Sparse markets can produce discontinuous candles. |
 | Minswap | `POST https://api-mainnet-prod.minswap.org/v1/pools/metrics`; sum `pool_metrics[].volume_24h`, `volume_7d`, `trading_fee_24h`, `trading_fee_7d`, and `liquidity_currency` with `currency="usd"`. `pool_metrics[].type` maps `Minswap` to V1, `MinswapV2` to V2, and `MinswapStable` to Stable. A parallel no-currency 24h request returns ADA and validates the implied ADA/USD rate. | Rolling/current; app stale threshold: 2h. | Minswap documents that omitted `currency` means ADA and `currency="usd"` means USD. Each request uses `limit=100`, so version volume, fees, TVL/liquidity and pool count are lower bounds from independently ranked pool cohorts. Native 30d and previous 7d are unavailable. |
-| WingRiders | `GET https://api.mainnet.wingriders.com/v1/defillama`; `dailyVolume` and `dailyFees` in ADA, accepted as finite numeric JSON values or numeric strings and converted with the timestamped ADA/USD price | Current daily metric; app stale threshold: 2h. | WingRiders identifies its current product as AMM DEX V2, so the verified protocol feed is displayed on the primary `WingRiders V2` row. The endpoint does not expose a V1/V2 split; any residual V1 activity cannot be separated. V1 therefore remains `Data unavailable`. DefiLlama's WingRiders adapter calls this same endpoint, so its rolling 7d/30d aggregation is displayed while the official feed is healthy; current snapshot variance is still shown and never relabeled as aligned. |
+| WingRiders | `GET https://api.mainnet.wingriders.com/v1/defillama`; `dailyVolume` and `dailyFees` in ADA, accepted as finite numeric JSON values or numeric strings and converted with the timestamped ADA/USD price | Current daily metric; app stale threshold: 2h. | WingRiders identifies its current product as AMM DEX V2, so the verified protocol feed is displayed on the primary `WingRiders V2` row. The endpoint does not expose a V1/V2 split; any residual V1 activity cannot be separated. V1 therefore remains `Data unavailable`. The official home page also displays 7D and 1M totals through its application GraphQL service, but that query has no documented public contract and 1M is not silently assumed to mean exactly 30 days. DefiLlama 7d/30d history is shown only after both live agreement and cumulative-period checks pass. |
 | SundaeSwap | `POST https://api.sundae.fi/graphql`; `stats.volume.quantity` for lovelace, `stats.poolCount`, and `protocols[].version` | Current protocol metric; app stale threshold: 2h. | GraphQL confirms V1, V3 and Stableswaps, but public `stats` are aggregate rather than version-scoped. The verified aggregate is displayed on the primary `SundaeSwap V3` row with an explicit mapping note; legacy V1 remains `Data unavailable` because residual V1 activity cannot be separated. The volume window is not labelled as clearly as desired; live aggregate volume is checked against DefiLlama before benchmark history is accepted. Native `stats.tvl` is intentionally excluded because its semantics did not reconcile with protocol TVL. |
 | Splash | `GET https://analytics.splash.trade/platform-api/v1/platform/stats`; `volumeUsd / 1e6`, `tvlUsd / 1e6` | Rolling/current; app stale threshold: 2h. | DefiLlama volume history is excluded when the live variance exceeds 20%. |
 | MuesliSwap | `GET .../muesli-protocol-volume?interval=day&days=60`; timestamp-to-ADA daily map. `GET .../muesli-tvl?days=2`; latest `tvl / 1e6` ADA | Daily; app stale threshold: 26h. | Missing days in the returned interval are treated as zero. DefiLlama has no current volume; TVL definitions materially differ. |
@@ -130,6 +130,8 @@ The main table shows one canonical row per independently tracked DEX version. `M
 
 The table defaults to descending 7-day DEX volume and recalculates visible rank from those canonical rows. When a version-level public value is unavailable, the row remains unranked. Native and DefiLlama protocol totals are shown side by side in the disclosure panel; the app does not average them because differing pool coverage and rolling/calendar windows would make the midpoint a new, unsupported metric.
 
+As a 2026-07-20 source cross-check, the official WingRiders home page displayed approximately 7.06M ADA for 24H, 9.77M ADA for 7D, and 36.31M ADA for 1M. These UI values are not hard-coded or scraped into production. They exposed an invalid mixed-source result where the dashboard's historical 7d value was below the official 24h value; the cumulative-period guard now prevents that class of output for every DEX.
+
 ## Comparison snapshot
 
 The 2026-07-15 research run found these approximate 24-hour comparisons after converting ADA at the same CoinGecko timestamp:
@@ -151,6 +153,7 @@ Minswap's native 7-day aggregate was approximately $10.8m versus DefiLlama's $2.
 - If current/previous is unavailable, non-finite, or previous is zero, change is `N/A`.
 - Volume-to-TVL: `24h volume / current TVL`; missing, zero, or negative TVL returns `N/A`.
 - Source variance uses the same safe percentage formula with native as current and DefiLlama as previous.
+- Cumulative volume validation requires finite non-negative values, `7d >= 24h`, and `30d >= 7d` whenever the shorter period is available. A failing period becomes `Data unavailable`, is excluded from ranks and aggregates, and creates a data-quality warning.
 - Minswap's USD response is accepted only when its ratio to the parallel ADA response is within 5% of the fresh ADA/USD reference price. A mismatch removes Minswap from observed totals and raises a source error.
 - `aligned` means absolute live variance is at most 20%; `material-variance` means it exceeds 20%.
 - Market share is share of the displayed observed cohort, never silently described as complete Cardano market share.
