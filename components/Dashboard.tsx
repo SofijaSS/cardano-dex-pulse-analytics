@@ -17,7 +17,7 @@ import { DateRangeSelector, type DatePreset } from "@/components/DateRangeSelect
 import { DexSelector } from "@/components/DexSelector";
 import { DexTable, type DexTableColumnKey } from "@/components/DexTable";
 import { MetricCard } from "@/components/MetricCard";
-import { PreserveAda } from "@/components/PreserveAda";
+import { PreserveTerms } from "@/components/PreserveTerms";
 import { ThemeControl } from "@/components/ThemeControl";
 import { WeeklySummary } from "@/components/WeeklySummary";
 import { createBrowserPreferenceStore } from "@/lib/browser-preference";
@@ -349,7 +349,7 @@ export function Dashboard({ authEnabled = false }: { authEnabled?: boolean }) {
 
       <header className="topbar">
         <div className="topbar-start">
-          <Link className="brand" href="/" aria-label="Cardano DEX Pulse home">
+          <Link className="brand notranslate" translate="no" href="/" aria-label="Cardano DEX Pulse home">
             <span className="brand-mark"><i /><i /><i /></span>
             <span><strong>Cardano DEX</strong><small>Pulse / Analytics</small></span>
           </Link>
@@ -380,7 +380,7 @@ export function Dashboard({ authEnabled = false }: { authEnabled?: boolean }) {
                 onClick={() => currencyStore.set(option)}
                 aria-pressed={currency === option}
               >
-                {option === "ADA" ? <PreserveAda>{option}</PreserveAda> : option}
+                <PreserveTerms>{option}</PreserveTerms>
               </button>
             ))}
           </div>
@@ -400,7 +400,7 @@ export function Dashboard({ authEnabled = false }: { authEnabled?: boolean }) {
         <div className="hero-copy">
           <span className="eyebrow"><ShieldCheck size={14} aria-hidden="true" /> Source-reconciled intelligence</span>
           <h1>Cardano DEX volume, with the disagreement left visible.</h1>
-          <p>Native exchange APIs lead. DefiLlama is retained as a transparent benchmark and historical fallback only after a live agreement check.</p>
+          <p><PreserveTerms>Native exchange APIs lead. DefiLlama is retained as a transparent benchmark and historical fallback only after a live agreement check.</PreserveTerms></p>
         </div>
         <div className="hero-side">
           <div className="hero-source-status">
@@ -413,7 +413,7 @@ export function Dashboard({ authEnabled = false }: { authEnabled?: boolean }) {
             </button>
             <button type="button" className={sourceMode === "defillama" ? "is-active" : ""} onClick={() => startTransition(() => setSourceMode("defillama"))} aria-pressed={sourceMode === "defillama"}>
               Benchmark
-              <small>DefiLlama</small>
+              <small><PreserveTerms>DefiLlama</PreserveTerms></small>
             </button>
           </div>
           <div className="update-stamp">
@@ -422,7 +422,7 @@ export function Dashboard({ authEnabled = false }: { authEnabled?: boolean }) {
             <button type="button" onClick={refreshData} aria-label="Refresh all data sources"><RefreshCw size={15} /></button>
           </div>
           <div className="price-stamp">
-            <span><PreserveAda>ADA / USD</PreserveAda></span>
+            <span><PreserveTerms>ADA / USD</PreserveTerms></span>
             <strong>{adaPrice ? `$${adaPrice.toFixed(4)}` : "Data unavailable"}</strong>
             <small>{data.price.source} · {formatDateTime(data.price.timestamp)}</small>
           </div>
@@ -431,8 +431,8 @@ export function Dashboard({ authEnabled = false }: { authEnabled?: boolean }) {
 
       <section className="metrics-section" id="overview">
         <div className="section-kicker">
-          <span>{sourceLabel}</span>
-          <p>{sourceMode === "reconciled" ? "Observed coverage is shown with explicit DEX counts; unavailable periods are not extrapolated." : "Complete only within DefiLlama's own listed Cardano DEX coverage."}</p>
+          <span><PreserveTerms>{sourceLabel}</PreserveTerms></span>
+          <p><PreserveTerms>{sourceMode === "reconciled" ? "Observed coverage is shown with explicit DEX counts; unavailable periods are not extrapolated." : "Complete only within DefiLlama's own listed Cardano DEX coverage."}</PreserveTerms></p>
         </div>
         <div className="metrics-grid">
           <MetricCard featured label={sourceMode === "reconciled" ? "Observed volume · 24h" : "Total volume · 24h"} value={formatMoney(metric24, currency, adaPrice)} meta={sourceMode === "reconciled" ? `${aggregates.coverage24h}/${aggregates.trackedDexes} tracked DEXes report 24h data` : "DefiLlama Cardano DEX benchmark"} />

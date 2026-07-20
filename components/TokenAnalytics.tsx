@@ -16,7 +16,7 @@ import {
   Users,
 } from "lucide-react";
 import { BrandLoader } from "@/components/BrandLoader";
-import { PreserveAda } from "@/components/PreserveAda";
+import { PreserveTerms } from "@/components/PreserveTerms";
 import { DEX_TOKEN_REGISTRY, type DexTokenId } from "@/config/tokens";
 import { ThemeControl } from "@/components/ThemeControl";
 import { TokenCandleChart, TokenDepthChart } from "@/components/TokenCandleChart";
@@ -98,7 +98,7 @@ function SourcePill({ data }: { data: TokenAnalyticsData }) {
   return (
     <span className={`token-source-pill token-source-pill--${data.source.health}`} title={data.source.message}>
       <i />
-      {data.source.health === "healthy" ? "Minswap token data live" : "Minswap token data degraded"}
+      <PreserveTerms>{data.source.health === "healthy" ? "Minswap token data live" : "Minswap token data degraded"}</PreserveTerms>
     </span>
   );
 }
@@ -165,7 +165,7 @@ export function TokenAnalytics({ authEnabled = false }: { authEnabled?: boolean 
     <main className="dashboard token-dashboard">
       <header className="topbar token-topbar">
         <div className="topbar-start">
-          <Link className="brand" href="/" aria-label="Cardano DEX Pulse home">
+          <Link className="brand notranslate" translate="no" href="/" aria-label="Cardano DEX Pulse home">
             <span className="brand-mark"><i /><i /><i /></span>
             <span><strong>Cardano DEX</strong><small>Pulse / Analytics</small></span>
           </Link>
@@ -197,7 +197,7 @@ export function TokenAnalytics({ authEnabled = false }: { authEnabled?: boolean 
         <div>
           <span className="eyebrow"><ShieldCheck size={14} aria-hidden="true" /> Verified token intelligence</span>
           <h1>Cardano DEX token charts</h1>
-          <p>Minswap-only public token metrics and OHLCV, with missing fields kept visible and no secondary market-data fallback.</p>
+          <p><PreserveTerms>Minswap-only public token metrics and OHLCV, with missing fields kept visible and no secondary market-data fallback.</PreserveTerms></p>
         </div>
         <div className="token-live-stamp">
           <span className={isStale ? "is-stale" : ""} />
@@ -225,7 +225,7 @@ export function TokenAnalytics({ authEnabled = false }: { authEnabled?: boolean 
             aria-pressed={selectedToken === entry.id}
           >
             <DexLogo logo={entry.logo} name={entry.dexName} />
-            <span><strong>{entry.dexName}</strong><small>{entry.ticker}</small></span>
+            <span><strong><PreserveTerms>{entry.dexName}</PreserveTerms></strong><small><PreserveTerms>{entry.ticker}</PreserveTerms></small></span>
           </button>
         ))}
       </section>
@@ -248,29 +248,29 @@ export function TokenAnalytics({ authEnabled = false }: { authEnabled?: boolean 
           <section className="token-market-header">
             <div className="token-identity">
               <DexLogo logo={token.logo} name={token.dexName} large />
-              <div><span>{token.dexName}</span><h2><PreserveAda>{`${token.ticker} / ADA`}</PreserveAda></h2><p>{token.tokenName}</p></div>
+              <div><span><PreserveTerms>{token.dexName}</PreserveTerms></span><h2><PreserveTerms>{`${token.ticker} / ADA`}</PreserveTerms></h2><p><PreserveTerms>{token.tokenName}</PreserveTerms></p></div>
             </div>
             <div className="token-current-price">
-              <span>Current Minswap price</span>
+              <span><PreserveTerms>Current Minswap price</PreserveTerms></span>
               <strong>{formatPrice(data.price.tokenAda)}</strong>
               <small className={change24h == null ? "" : change24h >= 0 ? "positive" : "negative"}>{formatPercent(change24h)} · 24H</small>
             </div>
-            <article><span>Market cap</span><strong><PreserveAda>{formatCompact(data.market.marketCapAda, " ADA")}</PreserveAda></strong><small>Minswap asset metrics</small></article>
-            <article><span>Liquidity</span><strong><PreserveAda>{formatCompact(data.market.liquidityAda, " ADA")}</PreserveAda></strong><small>Minswap-tracked liquidity</small></article>
-            <article><span>24H volume</span><strong><PreserveAda>{formatCompact(data.market.volume24hAda, " ADA")}</PreserveAda></strong><small>Minswap-tracked volume</small></article>
+            <article><span>Market cap</span><strong><PreserveTerms>{formatCompact(data.market.marketCapAda, " ADA")}</PreserveTerms></strong><small><PreserveTerms>Minswap asset metrics</PreserveTerms></small></article>
+            <article><span>Liquidity</span><strong><PreserveTerms>{formatCompact(data.market.liquidityAda, " ADA")}</PreserveTerms></strong><small><PreserveTerms>Minswap-tracked liquidity</PreserveTerms></small></article>
+            <article><span>24H volume</span><strong><PreserveTerms>{formatCompact(data.market.volume24hAda, " ADA")}</PreserveTerms></strong><small><PreserveTerms>Minswap-tracked volume</PreserveTerms></small></article>
           </section>
 
           <section className="token-price-strip">
-            <article><span><PreserveAda>ADA / USD</PreserveAda></span><strong>{data.price.adaUsd == null ? "Data unavailable" : `$${formatPrice(data.price.adaUsd)}`}</strong><small>{data.price.adaUsdSource} · {formatDateTime(data.price.adaUsdAt)}</small></article>
-            <article><span><PreserveAda>{`${token.ticker} / ADA`}</PreserveAda></span><strong><PreserveAda>{`${formatPrice(data.price.tokenAda)}${data.price.tokenAda != null ? " ADA" : ""}`}</PreserveAda></strong><small>Minswap public asset price</small></article>
-            <article><span><PreserveAda>{`ADA / ${token.ticker}`}</PreserveAda></span><strong>{formatPrice(data.price.tokenPerAda)}{data.price.tokenPerAda != null ? ` ${token.ticker}` : ""}</strong><small>Calculated inverse; zero protected</small></article>
-            <article><span>{token.ticker} / USD</span><strong>{data.price.tokenUsd == null ? "Data unavailable" : `$${formatPrice(data.price.tokenUsd)}`}</strong><small><PreserveAda>Token/ADA × fresh ADA/USD</PreserveAda></small></article>
+            <article><span><PreserveTerms>ADA / USD</PreserveTerms></span><strong>{data.price.adaUsd == null ? "Data unavailable" : `$${formatPrice(data.price.adaUsd)}`}</strong><small><PreserveTerms>{`${data.price.adaUsdSource} · ${formatDateTime(data.price.adaUsdAt)}`}</PreserveTerms></small></article>
+            <article><span><PreserveTerms>{`${token.ticker} / ADA`}</PreserveTerms></span><strong><PreserveTerms>{`${formatPrice(data.price.tokenAda)}${data.price.tokenAda != null ? " ADA" : ""}`}</PreserveTerms></strong><small><PreserveTerms>Minswap public asset price</PreserveTerms></small></article>
+            <article><span><PreserveTerms>{`ADA / ${token.ticker}`}</PreserveTerms></span><strong><PreserveTerms>{`${formatPrice(data.price.tokenPerAda)}${data.price.tokenPerAda != null ? ` ${token.ticker}` : ""}`}</PreserveTerms></strong><small>Calculated inverse; zero protected</small></article>
+            <article><span><PreserveTerms>{`${token.ticker} / USD`}</PreserveTerms></span><strong>{data.price.tokenUsd == null ? "Data unavailable" : `$${formatPrice(data.price.tokenUsd)}`}</strong><small><PreserveTerms>Token/ADA × fresh ADA/USD</PreserveTerms></small></article>
           </section>
 
           <section className="token-workspace">
             <div className="token-chart-panel">
               <header>
-                <div><span className="eyebrow">Minswap public OHLCV</span><h2><PreserveAda>{`${token.ticker}_ADA market`}</PreserveAda></h2><p><PreserveAda>ADA-denominated candles and Minswap-tracked volume. Hover a candle for exact OHLCV values.</PreserveAda></p></div>
+                <div><span className="eyebrow"><PreserveTerms>Minswap public OHLCV</PreserveTerms></span><h2><PreserveTerms>{`${token.ticker}_ADA market`}</PreserveTerms></h2><p><PreserveTerms>ADA-denominated candles and Minswap-tracked volume. Hover a candle for exact OHLCV values.</PreserveTerms></p></div>
               </header>
               <div className="token-range-control" aria-label="Chart date range">
                 {CHART_RANGES.map((option) => (
@@ -283,7 +283,7 @@ export function TokenAnalytics({ authEnabled = false }: { authEnabled?: boolean 
                 <span>{loading ? "Refreshing…" : `${data.candles.length} verified candles · ${range.toUpperCase()}`}</span>
               </div>
               <TokenCandleChart candles={data.candles} ticker={token.ticker} />
-              <p className="token-chart-note">Source: Minswap public asset candlestick API. Candle periods are selected automatically for the active range. This is Minswap-tracked activity, not an all-DEX aggregate; the provider response has no publish timestamp, so server fetch time is shown.</p>
+              <p className="token-chart-note"><PreserveTerms>Source: Minswap public asset candlestick API. Candle periods are selected automatically for the active range. This is Minswap-tracked activity, not an all-DEX aggregate; the provider response has no publish timestamp, so server fetch time is shown.</PreserveTerms></p>
             </div>
 
             <aside className="token-side-panel">
@@ -317,7 +317,7 @@ export function TokenAnalytics({ authEnabled = false }: { authEnabled?: boolean 
                 <div className="token-panel-title"><span>Buy vs sell · 24H</span><i /></div>
                 <div className="trade-unavailable">
                   <strong>Data unavailable</strong>
-                  <p>Minswap&apos;s public asset API does not expose a verified buy/sell split.</p>
+                  <p><PreserveTerms>Minswap&apos;s public asset API does not expose a verified buy/sell split.</PreserveTerms></p>
                 </div>
               </section>
             </aside>
@@ -348,8 +348,8 @@ export function TokenAnalytics({ authEnabled = false }: { authEnabled?: boolean 
       )}
 
       <footer className="token-footer">
-        <div className="footer-brand"><BarChart3 size={18} aria-hidden="true" /><strong>Cardano DEX Pulse</strong></div>
-        <p className="token-footer-source">Token chart source: <strong>Minswap public API</strong> · <PreserveAda>ADA/USD source shown with each quote.</PreserveAda></p>
+        <div className="footer-brand"><BarChart3 size={18} aria-hidden="true" /><strong><PreserveTerms>Cardano DEX Pulse</PreserveTerms></strong></div>
+        <p className="token-footer-source">Token chart source: <strong><PreserveTerms>Minswap public API</PreserveTerms></strong> · <PreserveTerms>ADA/USD source shown with each quote.</PreserveTerms></p>
         <p>Token analytics are decision support, not financial advice.</p>
         <Link href="/">Return to DEX volume</Link>
       </footer>

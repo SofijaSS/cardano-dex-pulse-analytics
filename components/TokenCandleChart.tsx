@@ -1,5 +1,6 @@
 "use client";
 
+import { PreserveTerms } from "@/components/PreserveTerms";
 import { CENTRAL_EUROPE_TIME_ZONE, formatDateTime } from "@/lib/format";
 import type { TokenCandle, TokenOrderbook } from "@/lib/token-types";
 
@@ -29,7 +30,7 @@ export function TokenCandleChart({
     return (
       <div className="token-chart-empty">
         <strong>OHLCV data unavailable</strong>
-        <span>Minswap did not return verified candle data for this token and range.</span>
+        <span><PreserveTerms>Minswap did not return verified candle data for this token and range.</PreserveTerms></span>
       </div>
     );
   }

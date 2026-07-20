@@ -1,3 +1,5 @@
+import { PreserveTerms } from "@/components/PreserveTerms";
+
 export function BrandLoader({
   label,
   detail,
@@ -20,8 +22,8 @@ export function BrandLoader({
           <span className="brand-mark brand-loader__mark"><i /><i /><i /></span>
         </div>
         <div className="brand-loader__copy">
-          <strong>{label}</strong>
-          {detail ? <span>{detail}</span> : null}
+          <strong><PreserveTerms>{label}</PreserveTerms></strong>
+          {detail ? <span><PreserveTerms>{detail}</PreserveTerms></span> : null}
           <span className="brand-loader__dots" aria-hidden="true"><i /><i /><i /></span>
         </div>
       </div>
