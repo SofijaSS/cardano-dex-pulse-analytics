@@ -45,6 +45,10 @@ export const SOURCE_ENDPOINTS = {
     "WINGRIDERS_GRAPHQL_URL",
     "https://api.mainnet.wingriders.com/graphql",
   ),
+  poolflowMarkets: env(
+    "POOLFLOW_MARKETS_URL",
+    "https://api.poolflow.net/api/own/market-overview",
+  ),
   sundaeswap: env("SUNDAESWAP_GRAPHQL_URL", "https://api.sundae.fi/graphql"),
   splash: env(
     "SPLASH_STATS_URL",
