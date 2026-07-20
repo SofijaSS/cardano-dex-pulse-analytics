@@ -471,11 +471,29 @@ export function buildDexRows({
       candidate30,
     );
     const volume24 = validatedPeriods.volume24h;
-    const volume7 = validatedPeriods.volume7d;
-    const volume30 = validatedPeriods.volume30d;
-    const periodValidationNote = describeCumulativeVolumeIssues(
+    const benchmarkHistoryRejected =
+      useBenchmarkHistory && validatedPeriods.issues.length > 0;
+    const volume7 =
+      benchmarkHistoryRejected && native?.volume7dUsd == null
+        ? null
+        : validatedPeriods.volume7d;
+    const volume30 =
+      benchmarkHistoryRejected && native?.volume30dUsd == null
+        ? null
+        : validatedPeriods.volume30d;
+    const validatedPrevious7 =
+      benchmarkHistoryRejected && native?.previous7dUsd == null
+        ? null
+        : previous7;
+    const validationIssueNote = describeCumulativeVolumeIssues(
       validatedPeriods.issues,
     );
+    const periodValidationNote = [
+      validationIssueNote,
+      benchmarkHistoryRejected
+        ? "The complete DefiLlama history set was excluded because its periods did not reconcile."
+        : null,
+    ].filter(Boolean).join(" ") || null;
     if (periodValidationNote) {
       periodWarnings.push(`${config.name}: ${periodValidationNote}`);
     }
@@ -483,7 +501,7 @@ export function buildDexRows({
       useBenchmarkHistory &&
       ((native?.volume7dUsd == null && volume7 != null) ||
         (native?.volume30dUsd == null && volume30 != null) ||
-        (native?.previous7dUsd == null && previous7 != null));
+        (native?.previous7dUsd == null && validatedPrevious7 != null));
     const tvl = native?.tvlUsd ?? getTvl(protocols, config.tvlAliases);
 
     return {
@@ -502,8 +520,8 @@ export function buildDexRows({
       volume24hUsd: volume24,
       volume7dUsd: volume7,
       volume30dUsd: volume30,
-      previous7dUsd: previous7,
-      weekChangePct: safePercentChange(volume7, previous7),
+      previous7dUsd: validatedPrevious7,
+      weekChangePct: safePercentChange(volume7, validatedPrevious7),
       tvlUsd: tvl,
       volumeToTvl: safeDivide(volume24, tvl),
       marketShare24hPct: null,

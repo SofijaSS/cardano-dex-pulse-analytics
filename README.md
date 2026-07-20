@@ -82,7 +82,7 @@ The Minswap public API does not expose a verified buy/sell split, order book, to
 
 The dashboard offers two explicit views:
 
-- **Reconciled / native-first:** current native DEX data is primary. DefiLlama historical values are used for WingRiders, SundaeSwap, Dano Finance, DeltaDeFi, and Saturn Swap only when the live 24-hour comparison differs by no more than 20%. Every displayed cumulative series must also satisfy `7d >= 24h` and `30d >= 7d`; a conflicting period is suppressed rather than relabelled or estimated.
+- **Reconciled / native-first:** current native DEX data is primary. DefiLlama historical values are used for WingRiders, SundaeSwap, Dano Finance, DeltaDeFi, and Saturn Swap only when the live 24-hour comparison differs by no more than 20%. Every displayed cumulative series must also satisfy `7d >= 24h` and `30d >= 7d`; if an aggregator-derived period fails, that DEX's complete benchmark history set is excluded rather than partially retained, relabelled, or estimated.
 - **DefiLlama benchmark:** values are displayed exactly as supplied by DefiLlama. They are not presented as independently verified.
 
 The reconciled total is labelled **Observed** because public native APIs do not provide one complete, semantically aligned Cardano market series. Coverage counts accompany 24-hour, 7-day, and 30-day totals. Missing DEX periods are not extrapolated.
@@ -153,7 +153,7 @@ Minswap's native 7-day aggregate was approximately $10.8m versus DefiLlama's $2.
 - If current/previous is unavailable, non-finite, or previous is zero, change is `N/A`.
 - Volume-to-TVL: `24h volume / current TVL`; missing, zero, or negative TVL returns `N/A`.
 - Source variance uses the same safe percentage formula with native as current and DefiLlama as previous.
-- Cumulative volume validation requires finite non-negative values, `7d >= 24h`, and `30d >= 7d` whenever the shorter period is available. A failing period becomes `Data unavailable`, is excluded from ranks and aggregates, and creates a data-quality warning.
+- Cumulative volume validation requires finite non-negative values, `7d >= 24h`, and `30d >= 7d` whenever the shorter period is available. A failing native period becomes `Data unavailable`; if the failure involves aggregator-derived history, that DEX's complete benchmark history set is excluded. Suppressed values are removed from ranks and aggregates and create a data-quality warning.
 - Minswap's USD response is accepted only when its ratio to the parallel ADA response is within 5% of the fresh ADA/USD reference price. A mismatch removes Minswap from observed totals and raises a source error.
 - `aligned` means absolute live variance is at most 20%; `material-variance` means it exceeds 20%.
 - Market share is share of the displayed observed cohort, never silently described as complete Cardano market share.

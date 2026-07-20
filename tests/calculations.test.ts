@@ -357,12 +357,13 @@ describe("version-aware table configuration", () => {
     expect(result.rows.find((row) => row.id === "wingriders-v2")).toMatchObject({
       volume24hUsd: 100,
       volume7dUsd: null,
-      volume30dUsd: 3_000,
-      previous7dUsd: 80,
+      volume30dUsd: null,
+      previous7dUsd: null,
       weekChangePct: null,
+      sourceLabel: expect.not.stringContaining("DefiLlama history"),
     });
     expect(result.periodWarnings).toContainEqual(
-      expect.stringContaining("7d volume was lower than 24h volume"),
+      expect.stringContaining("complete DefiLlama history set was excluded"),
     );
   });
 
