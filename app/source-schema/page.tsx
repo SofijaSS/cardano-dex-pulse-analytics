@@ -33,6 +33,93 @@ const ROOT_QUERY = `
         }
       }
     }
+    volumeInput: __type(name: "VolumeInput") {
+      kind
+      inputFields {
+        name
+        defaultValue
+        type {
+          kind
+          name
+          ofType {
+            kind
+            name
+            ofType {
+              kind
+              name
+            }
+          }
+        }
+      }
+    }
+    volumeHistoryInput: __type(name: "VolumeHistoryInput") {
+      kind
+      inputFields {
+        name
+        defaultValue
+        type {
+          kind
+          name
+          ofType {
+            kind
+            name
+            ofType {
+              kind
+              name
+            }
+          }
+        }
+      }
+    }
+    dateIntervalInput: __type(name: "DateIntervalInput") {
+      kind
+      inputFields {
+        name
+        defaultValue
+        type {
+          kind
+          name
+          ofType {
+            kind
+            name
+          }
+        }
+      }
+    }
+    protocolStats: __type(name: "ProtocolStats") {
+      kind
+      fields {
+        name
+        args {
+          name
+          defaultValue
+          type {
+            kind
+            name
+            ofType {
+              kind
+              name
+              ofType {
+                kind
+                name
+              }
+            }
+          }
+        }
+        type {
+          kind
+          name
+          ofType {
+            kind
+            name
+            ofType {
+              kind
+              name
+            }
+          }
+        }
+      }
+    }
   }
 `;
 
