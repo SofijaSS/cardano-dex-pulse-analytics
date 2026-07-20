@@ -399,8 +399,8 @@ export function Dashboard({ authEnabled = false }: { authEnabled?: boolean }) {
       <section className="hero" id="top">
         <div className="hero-copy">
           <span className="eyebrow"><ShieldCheck size={14} aria-hidden="true" /> Source-reconciled intelligence</span>
-          <h1>Cardano DEX volume, with the disagreement left visible.</h1>
-          <p><PreserveTerms>Native exchange APIs lead. DefiLlama is retained as a transparent benchmark and historical fallback only after a live agreement check.</PreserveTerms></p>
+          <h1>Explore the Cardano DEX ecosystem in one clear view.</h1>
+          <p><PreserveTerms>Track trading volume, liquidity, market share and weekly trends across Cardano DEXes. Public data is presented with clear source context for community insights and reporting.</PreserveTerms></p>
         </div>
         <div className="hero-side">
           <div className="hero-source-status">
