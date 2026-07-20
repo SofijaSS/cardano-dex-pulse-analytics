@@ -394,6 +394,8 @@ export function DexTable({
                           <div className="dex-copy">
                             <div className="dex-name-line">
                               <strong><PreserveTerms>{dex.name}</PreserveTerms></strong>
+                            </div>
+                            <div className="dex-meta-line">
                               <span
                                 className={`quality quality--${dex.quality}`}
                                 title={qualityLabels[dex.quality]}
@@ -401,10 +403,8 @@ export function DexTable({
                               >
                                 {qualityLabels[dex.quality]}
                               </span>
-                            </div>
-                            <div className="dex-meta-line">
                               <span className={`row-kind row-kind--${dex.rowKind}`}>
-                                {dex.rowKind === "version" ? `${dex.protocolVersion} contract` : "DEX protocol"}
+                                {dex.rowKind === "version" ? dex.protocolVersion : "DEX"}
                               </span>
                               {canExpand ? (
                                 <button

@@ -2329,7 +2329,7 @@ footer a { color: var(--blue); font-weight: 700; }
   .dex-logo-frame,
   .dex-fallback { width: 26px; height: 26px; }
   .dex-name-line strong { font-size: 11px; }
-  .dex-name-line .quality {
+  .dex-meta-line .quality {
     flex: 0 0 auto;
     width: 7px;
     height: 7px;
