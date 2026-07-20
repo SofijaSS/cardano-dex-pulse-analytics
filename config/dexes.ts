@@ -195,7 +195,7 @@ export const DEX_VERSION_REGISTRY: DexVersionConfig[] = [
     name: "WingRiders",
     version: "V1",
     showInTable: true,
-    unavailableNote: "The public WingRiders endpoint does not expose a separate legacy V1 metric.",
+    unavailableNote: "The isolated PoolFlow WingRiders V1 market row is currently unavailable.",
   },
   {
     id: "sundaeswap-v3",

@@ -19,6 +19,7 @@ import {
   type CumulativeVolumeIssue,
 } from "@/lib/calculations";
 import { fetchJsonWithRetry } from "@/lib/fetch-json";
+import { parsePoolFlowWingRidersV1 } from "@/lib/poolflow";
 import { SOURCE_ENDPOINTS } from "@/lib/source-config";
 import { loadCachedSource } from "@/lib/source-snapshot-cache";
 import { summarizeMinswapVersion } from "@/lib/protocol-versions";
@@ -269,6 +270,12 @@ function latestCompleteDayStart(now = Date.now()) {
 function timestampParam(url: string, timestamp: number) {
   const separator = url.includes("?") ? "&" : "?";
   return `${url}${separator}timestamp=${Math.floor(timestamp / 1000)}`;
+}
+
+function periodParam(url: string, days: 1 | 7 | 30) {
+  const parsed = new URL(url);
+  parsed.searchParams.set("days", String(days));
+  return parsed.toString();
 }
 
 function sumField(
@@ -715,6 +722,7 @@ export async function loadLiveDashboardData(): Promise<DashboardData> {
     minswap,
     wingriders,
     wingridersFees,
+    poolflowWingridersV1,
     sundaeswap,
     splash,
     muesli,
@@ -817,6 +825,24 @@ export async function loadLiveDashboardData(): Promise<DashboardData> {
       expectedUpdateMinutes: 120,
       load: async () =>
         parseWingRidersPayload(await fetchJsonWithRetry(SOURCE_ENDPOINTS.wingriders)),
+    }),
+    capture({
+      id: "poolflow-wingriders-v1",
+      label: "PoolFlow WingRiders V1 market row",
+      endpoint: SOURCE_ENDPOINTS.poolflowMarkets,
+      expectedUpdateMinutes: 120,
+      load: async () => {
+        const [day, week, month] = await Promise.all(
+          ([1, 7, 30] as const).map(async (days) =>
+            parsePoolFlowWingRidersV1(
+              await fetchJsonWithRetry(
+                periodParam(SOURCE_ENDPOINTS.poolflowMarkets, days),
+              ),
+            ),
+          ),
+        );
+        return { day, week, month };
+      },
     }),
     capture({
       id: "sundaeswap-native",
@@ -1043,6 +1069,27 @@ export async function loadLiveDashboardData(): Promise<DashboardData> {
     });
   }
 
+  if (poolflowWingridersV1.data) {
+    const { day, week, month } = poolflowWingridersV1.data;
+    versionSnapshots.set("wingriders-v1", {
+      id: "wingriders-v1",
+      volume24hUsd: adaToUsd(day.volumeAda, adaUsd),
+      volume7dUsd: adaToUsd(week.volumeAda, adaUsd),
+      volume30dUsd: adaToUsd(month.volumeAda, adaUsd),
+      previous7dUsd: null,
+      tvlUsd: adaToUsd(day.tvlAda, adaUsd),
+      trades24h: day.trades,
+      users24h: day.users,
+      dau24h: day.dau,
+      fees24hUsd: adaToUsd(day.feesAda, adaUsd),
+      fees7dUsd: adaToUsd(week.feesAda, adaUsd),
+      sourceLabel: "PoolFlow public market overview · WingRiders V1 only",
+      sourceUrl: periodParam(SOURCE_ENDPOINTS.poolflowMarkets, 1),
+      periodNote: "PoolFlow's exact WingRiders row is used only for the legacy V1 table row. Values are ADA-denominated period totals for 24h, 7d and 30d. The endpoint has no published schema, provider timestamp or SLA; structural and cumulative checks fail closed. Previous 7d and TVL remain unavailable unless explicitly returned.",
+      dataAt: poolflowWingridersV1.status.fetchedAt,
+    });
+  }
+
   if (sundaeswap.data) {
     const volume = sundaeswap.data.data.stats.volume;
     const ada = Number(volume.quantity) / 1_000_000;
@@ -1212,6 +1259,7 @@ export async function loadLiveDashboardData(): Promise<DashboardData> {
     minswap.status,
     wingriders.status,
     wingridersFees.status,
+    poolflowWingridersV1.status,
     sundaeswap.status,
     splash.status,
     muesli.status,

@@ -18,6 +18,7 @@ import {
   parseWingRidersGraphqlPayload,
   parseWingRidersPayload,
 } from "../lib/dashboard-data";
+import { parsePoolFlowWingRidersV1 } from "../lib/poolflow";
 import { buildWeeklyReportModel } from "../lib/weekly-report";
 import type { DexMetric, NativeDexSnapshot } from "../lib/types";
 
@@ -282,6 +283,42 @@ describe("version-aware table configuration", () => {
       dailyFees: 4.25,
     });
     expect(() => parseWingRidersPayload({ dailyVolume: null, dailyFees: "4.25" })).toThrow();
+  });
+
+  it("selects only the PoolFlow WingRiders V1 row and maps its period metrics", () => {
+    expect(parsePoolFlowWingRidersV1({
+      data: {
+        protocols: [
+          {
+            name: "WingRiders (V2)",
+            dex_volume: 5_799_965,
+            trades: 2_520,
+          },
+          {
+            name: "WingRiders",
+            dex_volume: 150_677,
+            trades: 220,
+            users: 54,
+            dau: 54,
+            fees: 440,
+            tvl: null,
+          },
+        ],
+      },
+    })).toEqual({
+      volumeAda: 150_677,
+      trades: 220,
+      users: 54,
+      dau: 54,
+      feesAda: 440,
+      tvlAda: null,
+    });
+  });
+
+  it("fails closed when PoolFlow does not expose an exact WingRiders V1 row", () => {
+    expect(() => parsePoolFlowWingRidersV1({
+      protocols: [{ name: "WingRiders (V2)", dexVolume: 5_799_965 }],
+    })).toThrow(/WingRiders V1/);
   });
 
   it("validates WingRiders rolling GraphQL periods and provider time", () => {
