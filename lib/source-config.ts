@@ -41,6 +41,10 @@ export const SOURCE_ENDPOINTS = {
     "WINGRIDERS_STATS_URL",
     "https://api.mainnet.wingriders.com/v1/defillama",
   ),
+  wingridersGraphql: env(
+    "WINGRIDERS_GRAPHQL_URL",
+    "https://api.mainnet.wingriders.com/graphql",
+  ),
   sundaeswap: env("SUNDAESWAP_GRAPHQL_URL", "https://api.sundae.fi/graphql"),
   splash: env(
     "SPLASH_STATS_URL",

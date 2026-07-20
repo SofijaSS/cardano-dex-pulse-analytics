@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   classifySourceQuality,
+  derivePreviousRollingPeriod,
   safeDivide,
   safePercentageShares,
   safePercentChange,
@@ -12,7 +13,11 @@ import {
 import { formatDateTime, formatMoney } from "../lib/format";
 import { summarizeMinswapVersion } from "../lib/protocol-versions";
 import { DEX_REGISTRY, DEX_VERSION_REGISTRY } from "../config/dexes";
-import { buildDexRows, parseWingRidersPayload } from "../lib/dashboard-data";
+import {
+  buildDexRows,
+  parseWingRidersGraphqlPayload,
+  parseWingRidersPayload,
+} from "../lib/dashboard-data";
 import { buildWeeklyReportModel } from "../lib/weekly-report";
 import type { DexMetric, NativeDexSnapshot } from "../lib/types";
 
@@ -89,6 +94,14 @@ describe("sumAvailable", () => {
     expect(sumAvailable([null, undefined])).toBeNull();
     expect(sumAvailable([0, null])).toBe(0);
     expect(sumAvailable([10, null, 5])).toBe(15);
+  });
+});
+
+describe("derivePreviousRollingPeriod", () => {
+  it("subtracts the current window only when cumulative inputs are valid", () => {
+    expect(derivePreviousRollingPeriod(1_500, 1_000)).toBe(500);
+    expect(derivePreviousRollingPeriod(900, 1_000)).toBeNull();
+    expect(derivePreviousRollingPeriod(null, 1_000)).toBeNull();
   });
 });
 
@@ -269,6 +282,71 @@ describe("version-aware table configuration", () => {
       dailyFees: 4.25,
     });
     expect(() => parseWingRidersPayload({ dailyVolume: null, dailyFees: "4.25" })).toThrow();
+  });
+
+  it("validates WingRiders rolling GraphQL periods and provider time", () => {
+    expect(parseWingRidersGraphqlPayload({
+      data: {
+        volume24h: "7775224.779",
+        volume7d: "10458483.086",
+        volume14d: "15516154.382",
+        volume30d: "37030932.192",
+        tvl: "14830209.842",
+        poolsCount: 676,
+        currentTime: "2026-07-20T22:59:37.072Z",
+      },
+    }).data).toMatchObject({
+      volume24h: 7_775_224.779,
+      volume7d: 10_458_483.086,
+      volume30d: 37_030_932.192,
+      poolsCount: 676,
+    });
+  });
+
+  it("prefers verified WingRiders rolling periods over conflicting benchmark history", () => {
+    const nativeWingRiders: NativeDexSnapshot = {
+      id: "wingriders",
+      volume24hUsd: 7_000_000,
+      volume7dUsd: 9_670_000,
+      volume30dUsd: 36_210_000,
+      previous7dUsd: 5_000_000,
+      tvlUsd: 14_760_000,
+      sourceLabel: "WingRiders official GraphQL",
+      sourceUrl: "https://api.mainnet.wingriders.com/graphql",
+      periodNote: "Official rolling periods.",
+      dataAt: "2026-07-20T22:59:37.072Z",
+    };
+    const { rows } = buildDexRows({
+      overview: {
+        total24h: 1,
+        total7d: 7,
+        total30d: 30,
+        total14dto7d: 7,
+        total60dto30d: 30,
+        protocols: [{
+          name: "WingRiders",
+          total24h: 1,
+          total7d: 7,
+          total30d: 30,
+          total14dto7d: 7,
+          total60dto30d: 30,
+        }],
+        totalDataChart: [[1_752_571_200, 1]],
+        totalDataChartBreakdown: [],
+      },
+      protocols: [],
+      nativeSnapshots: new Map([["wingriders", nativeWingRiders]]),
+      versionSnapshots: new Map(),
+    });
+
+    expect(rows.find((row) => row.id === "wingriders-v2")).toMatchObject({
+      volume24hUsd: 7_000_000,
+      volume7dUsd: 9_670_000,
+      volume30dUsd: 36_210_000,
+      previous7dUsd: 5_000_000,
+      tvlUsd: 14_760_000,
+      sourceLabel: expect.stringContaining("WingRiders official GraphQL"),
+    });
   });
 
   it("excludes WingRiders benchmark history when live daily snapshots differ", () => {
