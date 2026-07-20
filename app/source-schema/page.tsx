@@ -129,6 +129,19 @@ const ROOT_QUERY = `
   }
 `;
 
+const WINGRIDERS_METRICS_QUERY = `
+  query DashboardVolume {
+    volume24h: volume(input: { lastNHours: 24, baseCurrency: ADA })
+    volume7d: volume(input: { lastNHours: 168, baseCurrency: ADA })
+    volume14d: volume(input: { lastNHours: 336, baseCurrency: ADA })
+    volume30d: volume(input: { lastNHours: 720, baseCurrency: ADA })
+    volume60d: volume(input: { lastNHours: 1440, baseCurrency: ADA })
+    tvl
+    poolsCount
+    currentTime
+  }
+`;
+
 async function inspect(endpoint: string) {
   try {
     return await fetchJsonWithRetry(endpoint, {
@@ -144,15 +157,22 @@ async function inspect(endpoint: string) {
 export default async function SourceSchemaPage() {
   if (!(await hasValidDashboardSession())) redirect("/login");
 
-  const [wingriders, sundaeswap] = await Promise.all([
+  const [wingriders, sundaeswap, wingridersMetrics] = await Promise.all([
     inspect("https://api.mainnet.wingriders.com/graphql"),
     inspect(SOURCE_ENDPOINTS.sundaeswap),
+    fetchJsonWithRetry("https://api.mainnet.wingriders.com/graphql", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ query: WINGRIDERS_METRICS_QUERY }),
+    }).catch((error) => ({
+      error: error instanceof Error ? error.message : "Failed",
+    })),
   ]);
 
   return (
     <main style={{ padding: 24 }}>
       <pre style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
-        {JSON.stringify({ wingriders, sundaeswap }, null, 2)}
+        {JSON.stringify({ wingriders, sundaeswap, wingridersMetrics }, null, 2)}
       </pre>
     </main>
   );
