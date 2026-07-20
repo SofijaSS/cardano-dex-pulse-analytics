@@ -118,4 +118,103 @@ The supplied reference image matches TapTools' [Market Overview / Protocols](htt
 | --- | --- |
 | 24h / 7d / 30d volume, previous 7d, WoW, TVL, volume/TVL, share, rank | Existing native-first reconciliation described above. Version rows never enter aggregate totals, market ranks, weekly summaries, or charts. |
 | Fees 24h / 7d | Minswap `trading_fee_24h` / `trading_fee_7d`; aggregate WingRiders `dailyFees` for 24h. Other DEXes show `Data unavailable`. |
-| Trades, Users, DAU | `Data unavailable` until a documented public DEX endpoint or configured licensed indexer supplies a period-aligned value. SundaeSwap's unlabeled order counters are intentionally n
+| Trades, Users, DAU | `Data unavailable` until a documented public DEX endpoint or configured licensed indexer supplies a period-aligned value. SundaeSwap's unlabeled order counters are intentionally not presented as 24h trades. |
+| Market Cap, MCap/TVL | `Data unavailable`. A token market cap is not assumed to equal protocol market cap, and values from the screenshot are not copied. MCap/TVL is calculated only when both verified inputs exist. |
+| Pools | Number of Minswap rows in the top-100 24h response by version; SundaeSwap aggregate `stats.poolCount`. The column is labelled as observed coverage and is not assumed complete across providers. |
+
+The main table shows one canonical row per independently tracked DEX version. `Minswap` means the original V1 contract, while `Minswap V2` is the current V2 contract. `WingRiders` is the legacy V1 row and `WingRiders V2` is the primary current deployment; the verified protocol feed is mapped to V2 with an explicit source note. `SundaeSwap V1` is the legacy row and `SundaeSwap V3` is the primary current deployment; its verified aggregate feed is mapped to V3 with the same disclosure. Both family totals are still counted only once in aggregate cards and charts. Minswap Stable and duplicate family-total rows are not shown. Family totals remain available in each row's expandable source details without being counted twice.
+
+The table defaults to descending 7-day DEX volume and recalculates visible rank from those canonical rows. When a version-level public value is unavailable, the row remains unranked. Native and DefiLlama protocol totals are shown side by side in the disclosure panel; the app does not average them because differing pool coverage and rolling/calendar windows would make the midpoint a new, unsupported metric.
+
+## Comparison snapshot
+
+The 2026-07-15 research run found these approximate 24-hour comparisons after converting ADA at the same CoinGecko timestamp:
+
+| DEX | Native | DefiLlama | Decision |
+| --- | ---: | ---: | --- |
+| Minswap | $992.7k | $254.7k | About +290%; native top-100 lower bound is primary, DefiLlama history excluded. |
+| WingRiders | $84.1k | $81.4k | About +3.4%; live comparison aligned. |
+| SundaeSwap | $531.9k | $534.0k | About -0.4%; live comparison aligned. |
+| Splash | $59.9k | $11.4k | About +425%; native current value is primary, DefiLlama history excluded. |
+| VyFinance | $5.2k | Unavailable | Native only. |
+| MuesliSwap | $0.1k latest complete day | Unavailable | Native daily series only. |
+
+Minswap's native 7-day aggregate was approximately $10.8m versus DefiLlama's $2.8m. The app recomputes live comparisons on every refresh; it does not hard-code these research values.
+
+## Calculations and validation
+
+- Percentage change: `((current - previous) / previous) * 100`.
+- If current/previous is unavailable, non-finite, or previous is zero, change is `N/A`.
+- Volume-to-TVL: `24h volume / current TVL`; missing, zero, or negative TVL returns `N/A`.
+- Source variance uses the same safe percentage formula with native as current and DefiLlama as previous.
+- Minswap's USD response is accepted only when its ratio to the parallel ADA response is within 5% of the fresh ADA/USD reference price. A mismatch removes Minswap from observed totals and raises a source error.
+- `aligned` means absolute live variance is at most 20%; `material-variance` means it exceeds 20%.
+- Market share is share of the displayed observed cohort, never silently described as complete Cardano market share.
+- Reconciled week-over-week compares only DEXes that have both periods from native or runtime-validated sources.
+- Reconciled month-over-month remains unavailable because aligned native previous-30-day coverage is insufficient.
+
+## Data model
+
+`DashboardData` in `lib/types.ts` is the API contract:
+
+- `price`: ADA/USD value, provider, endpoint, and timestamp.
+- `aggregates`: observed totals, benchmark totals, comparable changes, and coverage counts.
+- `dexes[]`: normalized protocol and version rows with current/period volumes, fees, operational fields, TVL, market-cap fields, pool count, rank, share, native and DefiLlama comparison fields, quality flag, source, period note, and timestamp. `rowKind`, `tableRole`, `parentId`, and `protocolVersion` separate primary table rows from expandable family totals and hidden adapter-only versions while preventing double counting.
+- `benchmarkSeries[]`: daily DefiLlama total plus normalized per-DEX breakdown for historical charts.
+- `sources[]`: endpoint health, fetch timestamp, data timestamp, expected update interval, and status message.
+- `warnings[]`: material variances, failed sources, and coverage cautions rendered in the UI.
+
+Add or rename exchanges in `config/dexes.ts`; the dashboard components do not need changes. Any additional DefiLlama Cardano protocol with category `Dexs` is discovered dynamically and added as a row. It remains `Data unavailable` for volume until a native loader or benchmark alias is configured.
+
+## Architecture
+
+```text
+Browser
+  -> GET /api/dashboard
+     -> concurrent native DEX fetches
+     -> CoinGecko ADA/USD freshness validation
+     -> DefiLlama benchmark + TVL fetches
+     -> Zod validation, retry, stale detection
+     -> native-first reconciliation and normalized DashboardData
+  -> responsive React dashboard
+     -> metric cards, filters, charts, table, WingRiders report
+     -> CSV exports, clipboard summary, print/save-PDF
+  -> GET /api/tokens?token=wrt&range=30d
+     -> fresh ADA/USD validation
+     -> server-side Minswap public metrics + OHLCV requests
+     -> no secondary market-data fallback
+     -> validated TokenAnalyticsData or explicit unavailable fields
+  -> protected token charts workspace
+```
+
+The browser never calls third-party analytics APIs directly and does not receive private environment variables. CSV exports are generated from the currently displayed rows or selected historical benchmark range. The weekly PDF is a print-optimized report using the browser's Save as PDF flow.
+
+The weekly performance brief is interactive: its three cards are the current top three DEXes by available 7-day volume. Selecting a card updates every metric, the verified-data summary, clipboard text, and print/PDF report. WingRiders is the initial selection while it remains in the top three; otherwise the highest-ranked available DEX is selected.
+
+## Assumptions and limitations
+
+- Public provider endpoints can change without versioning or an SLA. Failed/changed schemas surface as source errors instead of being coerced.
+- DEXes do not use one shared definition for rolling 24h, latest UTC day, aggregator-routed trades, or protocol versions.
+- WingRiders V1/V2 and SundaeSwap V1/V3 are explicitly represented. Each current verified protocol metric is mapped to its configured primary row (WingRiders V2 or SundaeSwap V3), with a warning that residual legacy activity cannot be separated; both V1 rows stay unavailable.
+- Trades, unique users, DAU and protocol market cap require a consistent on-chain index or a licensed provider endpoint. These columns are included for schema and reporting continuity but remain unavailable when no verified source exists.
+- Minswap's top-100 request is deliberately a lower bound, despite currently exceeding DefiLlama materially.
+- Historical charts are clearly labelled DefiLlama benchmark because native endpoints do not expose one aligned, complete Cardano series.
+- TVL definitions can include different assets, farms, versions, or pricing methods. Native TVL is used only when its units and semantics are compatible.
+- The normalized internal model is USD. Selecting ADA divides every displayed USD value by one fresh, timestamped ADA/USD price, including both Minswap and DefiLlama, so providers are never compared in mixed units. ADA display is disabled without a fresh price. This is a display conversion, not historical daily FX conversion.
+- This dashboard is decision support for reporting, not trading or financial advice.
+
+## Project structure
+
+```text
+app/api/dashboard/route.ts   server-side data endpoint
+app/api/tokens/route.ts      protected token-market endpoint
+components/                 reusable dashboard UI
+config/dexes.ts             configurable DEX registry
+config/tokens.ts            configurable token registry and policy IDs
+lib/dashboard-data.ts       provider adapters and reconciliation
+lib/token-data.ts           public token-source adapters and validation
+lib/calculations.ts         guarded calculations
+lib/mock-data.ts            explicit development-only fixture
+lib/types.ts                normalized API data model
+tests/                      calculation and reconciliation tests
+```
