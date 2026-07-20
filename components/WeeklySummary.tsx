@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Check, Copy, Printer } from "lucide-react";
+import { PreserveAda } from "@/components/PreserveAda";
 import {
   formatDateTime,
   formatMoney,
@@ -81,20 +82,20 @@ export function WeeklySummary({
 
       <div className="wing-grid">
         <div className="wing-metrics">
-          <article><span>24h volume</span><strong>{formatMoney(selectedDex?.volume24hUsd, currency, adaPriceUsd)}</strong></article>
-          <article><span>7d volume</span><strong>{formatMoney(selectedDex?.volume7dUsd, currency, adaPriceUsd)}</strong></article>
-          <article><span>30d volume</span><strong>{formatMoney(selectedDex?.volume30dUsd, currency, adaPriceUsd)}</strong></article>
+          <article><span>24h volume</span><strong><PreserveAda>{formatMoney(selectedDex?.volume24hUsd, currency, adaPriceUsd)}</PreserveAda></strong></article>
+          <article><span>7d volume</span><strong><PreserveAda>{formatMoney(selectedDex?.volume7dUsd, currency, adaPriceUsd)}</PreserveAda></strong></article>
+          <article><span>30d volume</span><strong><PreserveAda>{formatMoney(selectedDex?.volume30dUsd, currency, adaPriceUsd)}</PreserveAda></strong></article>
           <article><span>Week change</span><strong className={changeClass}>{formatPercent(selectedDex?.weekChangePct)}</strong></article>
           <article><span>Comparable 7d share</span><strong>{formatPercent(share7d, false)}</strong></article>
           <article><span>Rank by 7d volume</span><strong>{rank ? `#${rank}` : "N/A"}</strong></article>
-          <article><span>TVL</span><strong>{formatMoney(selectedDex?.tvlUsd, currency, adaPriceUsd)}</strong></article>
+          <article><span>TVL</span><strong><PreserveAda>{formatMoney(selectedDex?.tvlUsd, currency, adaPriceUsd)}</PreserveAda></strong></article>
           <article><span>24h volume / TVL</span><strong>{formatRatio(selectedDex?.volumeToTvl)}</strong></article>
-          <article><span>vs previous week</span><strong>{formatMoney(difference, currency, adaPriceUsd)}</strong></article>
+          <article><span>vs previous week</span><strong><PreserveAda>{formatMoney(difference, currency, adaPriceUsd)}</PreserveAda></strong></article>
         </div>
 
         <div className="weekly-copy" aria-live="polite">
           <span>Auto-generated weekly summary</span>
-          <blockquote>{summary}</blockquote>
+          <blockquote><PreserveAda>{summary}</PreserveAda></blockquote>
           <small>Generated {formatDateTime(generatedAt)}. Share is based only on DEXes with comparable 7-day values.</small>
         </div>
       </div>
@@ -116,7 +117,7 @@ export function WeeklySummary({
               <span>#{index + 1}</span>
               <i style={{ background: dex.color }} />
               <strong>{dex.name}</strong>
-              <small>{formatMoney(dex.volume7dUsd, currency, adaPriceUsd)}</small>
+              <small><PreserveAda>{formatMoney(dex.volume7dUsd, currency, adaPriceUsd)}</PreserveAda></small>
             </button>
           ))}
         </div>

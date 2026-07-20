@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   classifySourceQuality,
   safeDivide,
+  safePercentageShares,
   safePercentChange,
   sumAvailable,
   validateUsdAdaPair,
@@ -32,6 +33,25 @@ describe("safeDivide", () => {
     expect(safeDivide(50, 100)).toBe(0.5);
     expect(safeDivide(50, 0)).toBeNull();
     expect(safeDivide(50, null)).toBeNull();
+  });
+});
+
+describe("safePercentageShares", () => {
+  it("calculates percentage shares only from positive available values", () => {
+    const shares = safePercentageShares([60, 30, 10, null, 0]);
+
+    expect(shares).toEqual([60, 30, 10, null, null]);
+    expect(
+      shares.reduce<number>((sum, value) => sum + (value ?? 0), 0),
+    ).toBeCloseTo(100);
+  });
+
+  it("returns unavailable shares when the observed total is zero", () => {
+    expect(safePercentageShares([0, null, undefined])).toEqual([
+      null,
+      null,
+      null,
+    ]);
   });
 });
 

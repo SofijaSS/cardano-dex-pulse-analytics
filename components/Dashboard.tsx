@@ -17,6 +17,7 @@ import { DateRangeSelector, type DatePreset } from "@/components/DateRangeSelect
 import { DexSelector } from "@/components/DexSelector";
 import { DexTable, type DexTableColumnKey } from "@/components/DexTable";
 import { MetricCard } from "@/components/MetricCard";
+import { PreserveAda } from "@/components/PreserveAda";
 import { ThemeControl } from "@/components/ThemeControl";
 import { WeeklySummary } from "@/components/WeeklySummary";
 import { createBrowserPreferenceStore } from "@/lib/browser-preference";
@@ -379,7 +380,7 @@ export function Dashboard({ authEnabled = false }: { authEnabled?: boolean }) {
                 onClick={() => currencyStore.set(option)}
                 aria-pressed={currency === option}
               >
-                {option}
+                {option === "ADA" ? <PreserveAda>{option}</PreserveAda> : option}
               </button>
             ))}
           </div>
@@ -421,7 +422,7 @@ export function Dashboard({ authEnabled = false }: { authEnabled?: boolean }) {
             <button type="button" onClick={refreshData} aria-label="Refresh all data sources"><RefreshCw size={15} /></button>
           </div>
           <div className="price-stamp">
-            <span>ADA / USD</span>
+            <span><PreserveAda>ADA / USD</PreserveAda></span>
             <strong>{adaPrice ? `$${adaPrice.toFixed(4)}` : "Data unavailable"}</strong>
             <small>{data.price.source} · {formatDateTime(data.price.timestamp)}</small>
           </div>

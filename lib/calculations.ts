@@ -32,6 +32,23 @@ export function safeDivide(
   return numerator / denominator;
 }
 
+export function safePercentageShares(
+  values: Array<number | null | undefined>,
+): Array<number | null> {
+  const positiveValues = values.map((value) =>
+    value != null && Number.isFinite(value) && value > 0 ? value : null,
+  );
+  const total = positiveValues.reduce<number>(
+    (sum, value) => sum + (value ?? 0),
+    0,
+  );
+
+  if (total <= 0) return values.map(() => null);
+  return positiveValues.map((value) =>
+    value == null ? null : (value / total) * 100,
+  );
+}
+
 export function finiteOrNull(value: unknown): number | null {
   const parsed = typeof value === "number" ? value : Number(value);
   return Number.isFinite(parsed) ? parsed : null;

@@ -21,7 +21,7 @@ export function ChartCard({
           <h3>{title}</h3>
         </div>
       </header>
-      <div className="chart-card__plot">{children}</div>
+      <div className="chart-card__plot notranslate" translate="no">{children}</div>
       <p className="chart-card__note">{note}</p>
     </article>
   );

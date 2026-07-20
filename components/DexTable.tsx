@@ -18,6 +18,7 @@ import {
   formatRatio,
   type Currency,
 } from "@/lib/format";
+import { PreserveAda } from "@/components/PreserveAda";
 import type { DexMetric, QualityFlag } from "@/lib/types";
 
 type SortKey =
@@ -255,6 +256,9 @@ export function DexTable({
   const visibleColumnCount = visibleColumnKeys.length;
   const tableMinWidth = Math.max(640, 230 + visibleColumnCount * 115);
   const showColumn = (key: DexTableColumnKey) => visibleColumns.has(key);
+  const moneyText = (value: number | null) => (
+    <PreserveAda>{formatMoney(value, currency, adaPriceUsd)}</PreserveAda>
+  );
 
   const headerProps = {
     sortKey: activeSortKey,
@@ -410,19 +414,19 @@ export function DexTable({
                         </div>
                       </div>
                     </td>
-                    {showColumn("volume7dUsd") ? <td>{formatMoney(dex.volume7dUsd, currency, adaPriceUsd)}</td> : null}
-                    {showColumn("volume24hUsd") ? <td>{formatMoney(dex.volume24hUsd, currency, adaPriceUsd)}</td> : null}
-                    {showColumn("volume30dUsd") ? <td>{formatMoney(dex.volume30dUsd, currency, adaPriceUsd)}</td> : null}
-                    {showColumn("previous7dUsd") ? <td>{formatMoney(dex.previous7dUsd, currency, adaPriceUsd)}</td> : null}
+                    {showColumn("volume7dUsd") ? <td>{moneyText(dex.volume7dUsd)}</td> : null}
+                    {showColumn("volume24hUsd") ? <td>{moneyText(dex.volume24hUsd)}</td> : null}
+                    {showColumn("volume30dUsd") ? <td>{moneyText(dex.volume30dUsd)}</td> : null}
+                    {showColumn("previous7dUsd") ? <td>{moneyText(dex.previous7dUsd)}</td> : null}
                     {showColumn("weekChangePct") ? <td><span className={`trend-text trend-text--${trend}`}>{formatPercent(dex.weekChangePct)}</span></td> : null}
                     {showColumn("trades24h") ? <td>{formatCount(dex.trades24h)}</td> : null}
                     {showColumn("users24h") ? <td>{formatCount(dex.users24h)}</td> : null}
                     {showColumn("dau24h") ? <td>{formatCount(dex.dau24h)}</td> : null}
-                    {showColumn("fees24hUsd") ? <td>{formatMoney(dex.fees24hUsd, currency, adaPriceUsd)}</td> : null}
-                    {showColumn("fees7dUsd") ? <td>{formatMoney(dex.fees7dUsd, currency, adaPriceUsd)}</td> : null}
-                    {showColumn("tvlUsd") ? <td>{formatMoney(dex.tvlUsd, currency, adaPriceUsd)}</td> : null}
+                    {showColumn("fees24hUsd") ? <td>{moneyText(dex.fees24hUsd)}</td> : null}
+                    {showColumn("fees7dUsd") ? <td>{moneyText(dex.fees7dUsd)}</td> : null}
+                    {showColumn("tvlUsd") ? <td>{moneyText(dex.tvlUsd)}</td> : null}
                     {showColumn("volumeToTvl") ? <td>{formatRatio(dex.volumeToTvl)}</td> : null}
-                    {showColumn("marketCapUsd") ? <td>{formatMoney(dex.marketCapUsd, currency, adaPriceUsd)}</td> : null}
+                    {showColumn("marketCapUsd") ? <td>{moneyText(dex.marketCapUsd)}</td> : null}
                     {showColumn("marketCapToTvl") ? <td>{formatRatio(dex.marketCapToTvl)}</td> : null}
                     {showColumn("poolCount") ? <td>{formatCount(dex.poolCount)}</td> : null}
                     {showColumn("marketShare24hPct") ? <td>{formatPercent(dex.marketShare24hPct, false)}</td> : null}
@@ -442,17 +446,17 @@ export function DexTable({
                         <div className="source-detail-panel">
                           <article>
                             <span>{dex.rowKind === "version" ? "Version 24h" : "Displayed 24h"}</span>
-                            <strong>{formatMoney(dex.volume24hUsd, currency, adaPriceUsd)}</strong>
+                            <strong>{moneyText(dex.volume24hUsd)}</strong>
                             <small>{dex.sourceLabel}</small>
                           </article>
                           <article>
                             <span>Protocol native total</span>
-                            <strong>{formatMoney(aggregateDetail.nativeVolume24hUsd, currency, adaPriceUsd)}</strong>
+                            <strong>{moneyText(aggregateDetail.nativeVolume24hUsd)}</strong>
                             <small>Aggregate context, never assigned to a version.</small>
                           </article>
                           <article>
                             <span>DefiLlama protocol total</span>
-                            <strong>{formatMoney(aggregateDetail.defillamaVolume24hUsd, currency, adaPriceUsd)}</strong>
+                            <strong>{moneyText(aggregateDetail.defillamaVolume24hUsd)}</strong>
                             <small>Benchmark coverage can differ from the native API.</small>
                           </article>
                           <article>
