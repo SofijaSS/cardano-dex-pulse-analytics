@@ -482,7 +482,7 @@ describe("version-aware table configuration", () => {
     );
   });
 
-  it("maps verified aggregate SundaeSwap metrics to V3 without populating V1", () => {
+  it("uses the official SundaeSwap aggregate as a V3 fallback when exact series are unavailable", () => {
     const nativeSundaeSwap: NativeDexSnapshot = {
       id: "sundaeswap",
       volume24hUsd: 200,
@@ -545,6 +545,49 @@ describe("version-aware table configuration", () => {
     expect(v3?.sourceLabel).toContain("primary V3 mapping");
     expect(v1?.volume24hUsd).toBeNull();
     expect(v1?.volume7dUsd).toBeNull();
+  });
+
+  it("keeps exact SundaeSwap V1 and V3 snapshots separate from the family total", () => {
+    const snapshot = (
+      id: string,
+      volume24hUsd: number,
+      volume7dUsd: number,
+    ): NativeDexSnapshot => ({
+      id,
+      volume24hUsd,
+      volume7dUsd,
+      volume30dUsd: volume7dUsd * 4,
+      previous7dUsd: volume7dUsd / 2,
+      tvlUsd: volume7dUsd * 2,
+      sourceLabel: `Exact ${id}`,
+      sourceUrl: "https://api-internal.minswap.org",
+      periodNote: "Exact contract series.",
+      dataAt: "2026-07-20T00:00:00.000Z",
+    });
+    const { rows } = buildDexRows({
+      overview: null,
+      protocols: [],
+      nativeSnapshots: new Map([
+        ["sundaeswap", snapshot("sundaeswap", 300, 2_100)],
+      ]),
+      versionSnapshots: new Map([
+        ["sundaeswap-v3", snapshot("sundaeswap-v3", 100, 700)],
+        ["sundaeswap-v1", snapshot("sundaeswap-v1", 20, 140)],
+      ]),
+    });
+
+    expect(rows.find((row) => row.id === "sundaeswap-v3")).toMatchObject({
+      volume24hUsd: 100,
+      volume7dUsd: 700,
+      sourceLabel: "Exact sundaeswap-v3",
+      quality: "native-only",
+    });
+    expect(rows.find((row) => row.id === "sundaeswap-v1")).toMatchObject({
+      volume24hUsd: 20,
+      volume7dUsd: 140,
+      sourceLabel: "Exact sundaeswap-v1",
+      quality: "native-only",
+    });
   });
 });
 
