@@ -39,7 +39,7 @@ export const SOURCE_ENDPOINTS = {
   ),
   minswapMarketInsights: env(
     "MINSWAP_MARKET_INSIGHTS_URL",
-    "https://api-internal.minswap.org/api/v1/market/dex-analytic?timeframe=6M",
+    "https://api-internal.minswap.org/api/v1/market/dex-analytic",
   ),
   wingriders: env(
     "WINGRIDERS_STATS_URL",

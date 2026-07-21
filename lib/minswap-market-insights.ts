@@ -20,6 +20,7 @@ const SUNDAE_PROTOCOLS = {
   v1: "sundae-cpmm-v1",
   v3: "sundae-cpmm-v3",
 } as const;
+const METRIC_KEYS = ["tvl", "vol", "fee", "trade", "awallet"] as const;
 
 type MarketData = z.infer<typeof responseSchema>["data"];
 
@@ -68,6 +69,59 @@ export function parseMinswapMarketInsights(payload: unknown): MarketData {
   const parsed = responseSchema.parse(payload).data;
   validateShape(parsed);
   return parsed;
+}
+
+export function mergeMinswapMarketInsights(
+  history: MarketData,
+  recent: MarketData,
+): MarketData {
+  const protocol = [
+    SUNDAE_PROTOCOLS.stable,
+    SUNDAE_PROTOCOLS.v3,
+    SUNDAE_PROTOCOLS.v1,
+  ];
+  const timestamp = [...new Set([...history.timestamp, ...recent.timestamp])].sort(
+    (left, right) => left - right,
+  );
+  const merged = {
+    timestamp,
+    protocol,
+    tvl: [] as number[][],
+    vol: [] as number[][],
+    fee: [] as number[][],
+    trade: [] as number[][],
+    awallet: [] as number[][],
+  };
+
+  for (const protocolId of protocol) {
+    const historyIndex = history.protocol.indexOf(protocolId);
+    const recentIndex = recent.protocol.indexOf(protocolId);
+    if (historyIndex < 0 || recentIndex < 0) {
+      throw new Error(`Minswap Market Insights is missing ${protocolId}.`);
+    }
+
+    for (const metric of METRIC_KEYS) {
+      const values = new Map<number, number>();
+      history.timestamp.forEach((value, index) => {
+        values.set(value, history[metric][historyIndex][index]);
+      });
+      recent.timestamp.forEach((value, index) => {
+        values.set(value, recent[metric][recentIndex][index]);
+      });
+      merged[metric].push(
+        timestamp.map((value) => {
+          const metricValue = values.get(value);
+          if (metricValue == null) {
+            throw new Error("Minswap Market Insights merge produced a missing bucket.");
+          }
+          return metricValue;
+        }),
+      );
+    }
+  }
+
+  validateShape(merged);
+  return merged;
 }
 
 function sum(values: number[]) {

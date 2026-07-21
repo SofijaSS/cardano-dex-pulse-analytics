@@ -21,6 +21,7 @@ import {
 import { fetchJsonWithRetry } from "@/lib/fetch-json";
 import {
   latestCompleteMinswapMarketTimestamp,
+  mergeMinswapMarketInsights,
   parseMinswapMarketInsights,
   summarizeMinswapSundaeSwap,
 } from "@/lib/minswap-market-insights";
@@ -280,6 +281,12 @@ function timestampParam(url: string, timestamp: number) {
 function periodParam(url: string, days: 1 | 7 | 30) {
   const parsed = new URL(url);
   parsed.searchParams.set("days", String(days));
+  return parsed.toString();
+}
+
+function timeframeParam(url: string, timeframe: "1M" | "6M") {
+  const parsed = new URL(url);
+  parsed.searchParams.set("timeframe", timeframe);
   return parsed.toString();
 }
 
@@ -810,14 +817,24 @@ export async function loadLiveDashboardData(): Promise<DashboardData> {
       },
     }),
     capture({
-      id: "minswap-market-insights-v2",
+      id: "minswap-market-insights-v3",
       label: "Minswap Market Insights cross-DEX index",
       endpoint: SOURCE_ENDPOINTS.minswapMarketInsights,
       expectedUpdateMinutes: 1_560,
-      load: async () =>
-        parseMinswapMarketInsights(
-          await fetchJsonWithRetry(SOURCE_ENDPOINTS.minswapMarketInsights),
-        ),
+      load: async () => {
+        const [recent, history] = await Promise.all([
+          fetchJsonWithRetry(
+            timeframeParam(SOURCE_ENDPOINTS.minswapMarketInsights, "1M"),
+          ),
+          fetchJsonWithRetry(
+            timeframeParam(SOURCE_ENDPOINTS.minswapMarketInsights, "6M"),
+          ),
+        ]);
+        return mergeMinswapMarketInsights(
+          parseMinswapMarketInsights(history),
+          parseMinswapMarketInsights(recent),
+        );
+      },
       dataAt: (data) =>
         new Date(
           latestCompleteMinswapMarketTimestamp(data) * 1000,
@@ -1121,7 +1138,7 @@ export async function loadLiveDashboardData(): Promise<DashboardData> {
       ...metrics.aggregate,
       poolCount: sundaeswap.data?.data.stats.poolCount ?? null,
       sourceLabel,
-      sourceUrl: SOURCE_ENDPOINTS.minswapMarketInsights,
+      sourceUrl: timeframeParam(SOURCE_ENDPOINTS.minswapMarketInsights, "1M"),
       periodNote: `${sharedPeriodNote} The protocol total includes exact Minswap index rows for SundaeSwap V1, V3 and Stable. Active wallets are not added across deployments because one wallet can use more than one contract.`,
       dataAt: metrics.dataAt,
     });
@@ -1130,7 +1147,7 @@ export async function loadLiveDashboardData(): Promise<DashboardData> {
       id: "sundaeswap-v3",
       ...metrics.v3,
       sourceLabel: "Minswap Market Insights · sundae-cpmm-v3",
-      sourceUrl: SOURCE_ENDPOINTS.minswapMarketInsights,
+      sourceUrl: timeframeParam(SOURCE_ENDPOINTS.minswapMarketInsights, "1M"),
       periodNote: `${sharedPeriodNote} This row uses only the exact sundae-cpmm-v3 series; Sundae Stable is retained in the family total and is not relabelled as V3.`,
       dataAt: metrics.dataAt,
     });
@@ -1139,7 +1156,7 @@ export async function loadLiveDashboardData(): Promise<DashboardData> {
       id: "sundaeswap-v1",
       ...metrics.v1,
       sourceLabel: "Minswap Market Insights · sundae-cpmm-v1",
-      sourceUrl: SOURCE_ENDPOINTS.minswapMarketInsights,
+      sourceUrl: timeframeParam(SOURCE_ENDPOINTS.minswapMarketInsights, "1M"),
       periodNote: `${sharedPeriodNote} This row uses only the exact legacy sundae-cpmm-v1 series.`,
       dataAt: metrics.dataAt,
     });
