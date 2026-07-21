@@ -4,6 +4,7 @@ import {
   parseMinswapMarketInsights,
   summarizeMinswapCswap,
   summarizeMinswapDeployments,
+  summarizeMinswapSplash,
   summarizeMinswapSundaeSwap,
 } from "../lib/minswap-market-insights";
 
@@ -16,6 +17,8 @@ const protocols = [
   "sundae-cpmm-v1",
   "cswap-cpmm",
   "cswap-orderbook",
+  "splash-cpmm",
+  "splash-stable",
 ];
 
 function series(value: number) {
@@ -40,6 +43,8 @@ function payload() {
         series(200),
         series(900),
         series(1_100),
+        series(500),
+        series(100),
       ],
       vol: [
         series(50),
@@ -50,6 +55,8 @@ function payload() {
         series(2),
         series(7),
         series(11),
+        series(4),
+        series(1),
       ],
       fee: [
         series(5),
@@ -60,6 +67,8 @@ function payload() {
         series(0.2),
         series(0.7),
         series(1.1),
+        series(0.4),
+        series(0.1),
       ],
       trade: [
         series(50),
@@ -70,6 +79,8 @@ function payload() {
         series(2),
         series(7),
         series(11),
+        series(6),
+        series(2),
       ],
       awallet: [
         series(20),
@@ -80,6 +91,8 @@ function payload() {
         series(6),
         series(8),
         series(12),
+        series(9),
+        series(3),
       ],
     },
   };
@@ -106,6 +119,25 @@ describe("Minswap Market Insights cross-DEX adapter", () => {
       fees24hUsd: 1.8,
     });
     expect(metrics?.aggregate.fees7dUsd).toBeCloseTo(12.6);
+  });
+
+  it("combines the exact Splash component set without double-counting active wallets", () => {
+    const metrics = summarizeMinswapSplash(
+      parseMinswapMarketInsights(payload()),
+    );
+
+    expect(metrics?.protocolIds).toEqual(["splash-cpmm", "splash-stable"]);
+    expect(metrics?.aggregate).toMatchObject({
+      volume24hUsd: 5,
+      volume7dUsd: 35,
+      volume30dUsd: 150,
+      previous7dUsd: 35,
+      tvlUsd: 600,
+      trades24h: 8,
+      dau24h: null,
+      fees24hUsd: 0.5,
+      fees7dUsd: 3.5,
+    });
   });
 
   it("keeps V1 and V3 exact while including Stable only in the family total", () => {
@@ -238,6 +270,18 @@ describe("Minswap Market Insights cross-DEX adapter", () => {
     const merged = mergeMinswapMarketInsights(history, recent);
 
     expect(summarizeMinswapCswap(merged)).toBeNull();
+    expect(() => summarizeMinswapDeployments(merged)).not.toThrow();
+    expect(() => summarizeMinswapSundaeSwap(merged)).not.toThrow();
+  });
+
+  it("omits Splash when history and recent protocol identities do not match", () => {
+    const history = parseMinswapMarketInsights(payload());
+    const recentPayload = payload();
+    recentPayload.data.protocol[9] = "another-protocol";
+    const recent = parseMinswapMarketInsights(recentPayload);
+    const merged = mergeMinswapMarketInsights(history, recent);
+
+    expect(summarizeMinswapSplash(merged)).toBeNull();
     expect(() => summarizeMinswapDeployments(merged)).not.toThrow();
     expect(() => summarizeMinswapSundaeSwap(merged)).not.toThrow();
   });

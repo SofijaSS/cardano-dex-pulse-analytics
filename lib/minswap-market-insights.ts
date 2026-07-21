@@ -69,13 +69,29 @@ export interface MinswapCswapMetrics {
   dataAt: string;
 }
 
-function cswapProtocolIds(data: MarketData) {
+export type MinswapSplashMetrics = MinswapCswapMetrics;
+
+function protocolFamilyIds(data: MarketData, prefix: string) {
   return data.protocol
     .filter((protocolId) => {
       const normalized = protocolId.toLowerCase().replace(/[^a-z0-9]/g, "");
-      return normalized.startsWith("cswap");
+      return normalized.startsWith(prefix);
     })
     .sort();
+}
+
+function matchingProtocolFamily(
+  history: MarketData,
+  recent: MarketData,
+  prefix: string,
+) {
+  const historyIds = protocolFamilyIds(history, prefix);
+  const recentIds = protocolFamilyIds(recent, prefix);
+  return historyIds.length > 0 &&
+    historyIds.length === recentIds.length &&
+    historyIds.every((protocolId, index) => protocolId === recentIds[index])
+    ? historyIds
+    : [];
 }
 
 function validateShape(data: MarketData) {
@@ -110,15 +126,11 @@ export function mergeMinswapMarketInsights(
   history: MarketData,
   recent: MarketData,
 ): MarketData {
-  const historyCswap = cswapProtocolIds(history);
-  const recentCswap = cswapProtocolIds(recent);
-  const matchingCswap =
-    historyCswap.length > 0 &&
-    historyCswap.length === recentCswap.length &&
-    historyCswap.every((protocolId, index) => protocolId === recentCswap[index])
-      ? historyCswap
-      : [];
-  const protocol = [...REQUIRED_MERGED_PROTOCOLS, ...matchingCswap];
+  const protocol = [
+    ...REQUIRED_MERGED_PROTOCOLS,
+    ...matchingProtocolFamily(history, recent, "cswap"),
+    ...matchingProtocolFamily(history, recent, "splash"),
+  ];
   const timestamp = [...new Set([...history.timestamp, ...recent.timestamp])].sort(
     (left, right) => left - right,
   );
@@ -265,7 +277,22 @@ export function summarizeMinswapCswap(
   data: MarketData,
   now = Date.now(),
 ): MinswapCswapMetrics | null {
-  const protocolIds = cswapProtocolIds(data);
+  return summarizeProtocolFamily(data, "cswap", now);
+}
+
+export function summarizeMinswapSplash(
+  data: MarketData,
+  now = Date.now(),
+): MinswapSplashMetrics | null {
+  return summarizeProtocolFamily(data, "splash", now);
+}
+
+function summarizeProtocolFamily(
+  data: MarketData,
+  prefix: string,
+  now: number,
+): MinswapCswapMetrics | null {
+  const protocolIds = protocolFamilyIds(data, prefix);
   if (protocolIds.length === 0) return null;
 
   const bucketCount = completeBucketCount(data, now);
