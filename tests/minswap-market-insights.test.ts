@@ -14,8 +14,8 @@ const protocols = [
   "sundae-stable-cpmm-v1",
   "sundae-cpmm-v3",
   "sundae-cpmm-v1",
-  "cswap-cpmm-v1",
-  "cswap-orderbook-v1",
+  "cswap-cpmm",
+  "cswap-orderbook",
 ];
 
 function series(value: number) {
@@ -86,14 +86,14 @@ function payload() {
 }
 
 describe("Minswap Market Insights cross-DEX adapter", () => {
-  it("combines exact CSWAP V1 components without double-counting active wallets", () => {
+  it("combines the exact CSWAP component set without double-counting active wallets", () => {
     const metrics = summarizeMinswapCswap(
       parseMinswapMarketInsights(payload()),
     );
 
     expect(metrics?.protocolIds).toEqual([
-      "cswap-cpmm-v1",
-      "cswap-orderbook-v1",
+      "cswap-cpmm",
+      "cswap-orderbook",
     ]);
     expect(metrics?.aggregate).toMatchObject({
       volume24hUsd: 18,
