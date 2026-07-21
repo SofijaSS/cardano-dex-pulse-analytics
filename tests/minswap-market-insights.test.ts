@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   mergeMinswapMarketInsights,
   parseMinswapMarketInsights,
+  summarizeMinswapCswap,
   summarizeMinswapDeployments,
   summarizeMinswapSundaeSwap,
 } from "../lib/minswap-market-insights";
@@ -13,6 +14,8 @@ const protocols = [
   "sundae-stable-cpmm-v1",
   "sundae-cpmm-v3",
   "sundae-cpmm-v1",
+  "cswap-cpmm-v1",
+  "cswap-orderbook-v1",
 ];
 
 function series(value: number) {
@@ -28,16 +31,83 @@ function payload() {
         1_699_920_000 + index * 86_400,
       ),
       protocol: protocols,
-      tvl: [series(5_000), series(500), series(300), series(100), series(1_000), series(200)],
-      vol: [series(50), series(5), series(3), series(1), series(10), series(2)],
-      fee: [series(5), series(0.5), series(0.3), series(0.1), series(1), series(0.2)],
-      trade: [series(50), series(5), series(3), series(1), series(10), series(2)],
-      awallet: [series(20), series(5), series(4), series(3), series(30), series(6)],
+      tvl: [
+        series(5_000),
+        series(500),
+        series(300),
+        series(100),
+        series(1_000),
+        series(200),
+        series(900),
+        series(1_100),
+      ],
+      vol: [
+        series(50),
+        series(5),
+        series(3),
+        series(1),
+        series(10),
+        series(2),
+        series(7),
+        series(11),
+      ],
+      fee: [
+        series(5),
+        series(0.5),
+        series(0.3),
+        series(0.1),
+        series(1),
+        series(0.2),
+        series(0.7),
+        series(1.1),
+      ],
+      trade: [
+        series(50),
+        series(5),
+        series(3),
+        series(1),
+        series(10),
+        series(2),
+        series(7),
+        series(11),
+      ],
+      awallet: [
+        series(20),
+        series(5),
+        series(4),
+        series(3),
+        series(30),
+        series(6),
+        series(8),
+        series(12),
+      ],
     },
   };
 }
 
-describe("Minswap Market Insights SundaeSwap adapter", () => {
+describe("Minswap Market Insights cross-DEX adapter", () => {
+  it("combines exact CSWAP V1 components without double-counting active wallets", () => {
+    const metrics = summarizeMinswapCswap(
+      parseMinswapMarketInsights(payload()),
+    );
+
+    expect(metrics?.protocolIds).toEqual([
+      "cswap-cpmm-v1",
+      "cswap-orderbook-v1",
+    ]);
+    expect(metrics?.aggregate).toMatchObject({
+      volume24hUsd: 18,
+      volume7dUsd: 126,
+      volume30dUsd: 540,
+      previous7dUsd: 126,
+      tvlUsd: 2_000,
+      trades24h: 18,
+      dau24h: null,
+      fees24hUsd: 1.8,
+    });
+    expect(metrics?.aggregate.fees7dUsd).toBeCloseTo(12.6);
+  });
+
   it("keeps V1 and V3 exact while including Stable only in the family total", () => {
     const metrics = summarizeMinswapSundaeSwap(
       parseMinswapMarketInsights(payload()),
@@ -158,5 +228,17 @@ describe("Minswap Market Insights SundaeSwap adapter", () => {
 
     expect(metrics.v3.volume24hUsd).toBe(123);
     expect(metrics.aggregate.volume24hUsd).toBe(126);
+  });
+
+  it("omits CSWAP when history and recent protocol identities do not match", () => {
+    const history = parseMinswapMarketInsights(payload());
+    const recentPayload = payload();
+    recentPayload.data.protocol[7] = "another-protocol-v1";
+    const recent = parseMinswapMarketInsights(recentPayload);
+    const merged = mergeMinswapMarketInsights(history, recent);
+
+    expect(summarizeMinswapCswap(merged)).toBeNull();
+    expect(() => summarizeMinswapDeployments(merged)).not.toThrow();
+    expect(() => summarizeMinswapSundaeSwap(merged)).not.toThrow();
   });
 });

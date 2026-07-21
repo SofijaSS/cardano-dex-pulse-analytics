@@ -25,7 +25,7 @@ const MINSWAP_PROTOCOLS = {
   v1: "minswap-cpmm-v1",
   v2: "minswap-cpmm-v2",
 } as const;
-const MERGED_PROTOCOLS = [
+const REQUIRED_MERGED_PROTOCOLS = [
   MINSWAP_PROTOCOLS.stable,
   MINSWAP_PROTOCOLS.v2,
   MINSWAP_PROTOCOLS.v1,
@@ -63,6 +63,24 @@ export interface MinswapDeploymentMetrics {
   dataAt: string;
 }
 
+export interface MinswapCswapMetrics {
+  aggregate: MinswapMarketPeriod;
+  protocolIds: string[];
+  dataAt: string;
+}
+
+function cswapV1ProtocolIds(data: MarketData) {
+  return data.protocol
+    .filter((protocolId) => {
+      const normalized = protocolId.toLowerCase().replace(/[^a-z0-9]/g, "");
+      return (
+        normalized === "cswap" ||
+        (normalized.startsWith("cswap") && normalized.endsWith("v1"))
+      );
+    })
+    .sort();
+}
+
 function validateShape(data: MarketData) {
   const bucketCount = data.timestamp.length;
   const protocolCount = data.protocol.length;
@@ -95,7 +113,15 @@ export function mergeMinswapMarketInsights(
   history: MarketData,
   recent: MarketData,
 ): MarketData {
-  const protocol = [...MERGED_PROTOCOLS];
+  const historyCswap = cswapV1ProtocolIds(history);
+  const recentCswap = cswapV1ProtocolIds(recent);
+  const matchingCswap =
+    historyCswap.length > 0 &&
+    historyCswap.length === recentCswap.length &&
+    historyCswap.every((protocolId, index) => protocolId === recentCswap[index])
+      ? historyCswap
+      : [];
+  const protocol = [...REQUIRED_MERGED_PROTOCOLS, ...matchingCswap];
   const timestamp = [...new Set([...history.timestamp, ...recent.timestamp])].sort(
     (left, right) => left - right,
   );
@@ -232,6 +258,23 @@ export function summarizeMinswapDeployments(
     ], bucketCount),
     v1: summarize(data, [MINSWAP_PROTOCOLS.v1], bucketCount),
     v2: summarize(data, [MINSWAP_PROTOCOLS.v2], bucketCount),
+    dataAt: new Date(
+      (data.timestamp[bucketCount - 1] + 86_400) * 1000,
+    ).toISOString(),
+  };
+}
+
+export function summarizeMinswapCswap(
+  data: MarketData,
+  now = Date.now(),
+): MinswapCswapMetrics | null {
+  const protocolIds = cswapV1ProtocolIds(data);
+  if (protocolIds.length === 0) return null;
+
+  const bucketCount = completeBucketCount(data, now);
+  return {
+    aggregate: summarize(data, protocolIds, bucketCount),
+    protocolIds,
     dataAt: new Date(
       (data.timestamp[bucketCount - 1] + 86_400) * 1000,
     ).toISOString(),

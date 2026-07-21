@@ -23,6 +23,7 @@ import {
   latestCompleteMinswapMarketTimestamp,
   mergeMinswapMarketInsights,
   parseMinswapMarketInsights,
+  summarizeMinswapCswap,
   summarizeMinswapDeployments,
   summarizeMinswapSundaeSwap,
 } from "@/lib/minswap-market-insights";
@@ -1133,6 +1134,19 @@ export async function loadLiveDashboardData(): Promise<DashboardData> {
         sourceUrl: marketInsightsUrl,
         periodNote: minswapPeriodNote,
         dataAt: minswapMetrics.dataAt,
+      });
+    }
+
+    const cswapMetrics = summarizeMinswapCswap(minswapMarketInsights.data);
+    if (cswapMetrics) {
+      nativeSnapshots.set("cswap", {
+        id: "cswap",
+        ...cswapMetrics.aggregate,
+        poolCount: null,
+        sourceLabel: "Minswap Market Insights · CSWAP V1 protocol index",
+        sourceUrl: marketInsightsUrl,
+        periodNote: `${minswapPeriodNote} The CSWAP row includes only source protocol IDs identified as CSWAP V1 (${cswapMetrics.protocolIds.join(", ")}). Multiple V1 components are summed; active wallets are not added across components because one wallet can use more than one contract. CSWAP's official DefiLlama adapter independently identifies its pool and orderbook contracts for TVL reconciliation.`,
+        dataAt: cswapMetrics.dataAt,
       });
     }
 
