@@ -21,7 +21,7 @@ function payload() {
     message: "OK",
     data: {
       timestamp: Array.from({ length: 35 }, (_, index) =>
-        1_700_000_000 + index * 86_400,
+        1_699_920_000 + index * 86_400,
       ),
       protocol: protocols,
       tvl: [series(5_000), series(100), series(1_000), series(200)],
@@ -83,6 +83,27 @@ describe("Minswap Market Insights SundaeSwap adapter", () => {
 
     expect(() => summarizeMinswapSundaeSwap(parsed)).toThrow(
       "missing sundae-stable-cpmm-v1",
+    );
+  });
+
+  it("excludes the active partial UTC day from every reporting period", () => {
+    const activeDay = payload();
+    const lastIndex = activeDay.data.timestamp.length - 1;
+    for (const matrix of [activeDay.data.vol, activeDay.data.fee]) {
+      for (const metricSeries of matrix) metricSeries[lastIndex] = 999_999;
+    }
+    const now = (activeDay.data.timestamp[lastIndex] + 3_600) * 1_000;
+    const metrics = summarizeMinswapSundaeSwap(
+      parseMinswapMarketInsights(activeDay),
+      now,
+    );
+
+    expect(metrics.aggregate.volume24hUsd).toBe(13);
+    expect(metrics.aggregate.volume7dUsd).toBe(91);
+    expect(metrics.aggregate.volume30dUsd).toBe(390);
+    expect(metrics.aggregate.fees24hUsd).toBe(1.3);
+    expect(metrics.dataAt).toBe(
+      new Date(activeDay.data.timestamp[lastIndex - 1] * 1_000).toISOString(),
     );
   });
 });

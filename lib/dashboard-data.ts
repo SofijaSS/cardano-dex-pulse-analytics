@@ -20,6 +20,7 @@ import {
 } from "@/lib/calculations";
 import { fetchJsonWithRetry } from "@/lib/fetch-json";
 import {
+  latestCompleteMinswapMarketTimestamp,
   parseMinswapMarketInsights,
   summarizeMinswapSundaeSwap,
 } from "@/lib/minswap-market-insights";
@@ -818,7 +819,9 @@ export async function loadLiveDashboardData(): Promise<DashboardData> {
           await fetchJsonWithRetry(SOURCE_ENDPOINTS.minswapMarketInsights),
         ),
       dataAt: (data) =>
-        new Date(data.timestamp.at(-1)! * 1000).toISOString(),
+        new Date(
+          latestCompleteMinswapMarketTimestamp(data) * 1000,
+        ).toISOString(),
     }),
     capture({
       id: "wingriders-native",
@@ -1111,7 +1114,7 @@ export async function loadLiveDashboardData(): Promise<DashboardData> {
     const metrics = summarizeMinswapSundaeSwap(minswapMarketInsights.data);
     const sourceLabel = "Minswap Market Insights · SundaeSwap protocol index";
     const sharedPeriodNote =
-      "Daily UTC buckets are USD-denominated and contract-scoped. 24h is the latest reported daily bucket; 7d, previous 7d and 30d are sums of 7, 7 and 30 daily buckets. ADA display uses the dashboard's timestamped ADA/USD display price rather than historical daily FX.";
+      "Daily UTC buckets are USD-denominated and contract-scoped. 24h is the latest complete UTC daily bucket; the active partial day is excluded. 7d, previous 7d and 30d are sums of 7, 7 and 30 complete daily buckets. ADA display uses the dashboard's timestamped ADA/USD display price rather than historical daily FX.";
 
     nativeSnapshots.set("sundaeswap", {
       id: "sundaeswap",
