@@ -25,7 +25,7 @@ import {
   parseMinswapMarketInsights,
   summarizeMinswapSundaeSwap,
 } from "@/lib/minswap-market-insights";
-import { parsePoolFlowWingRidersV1 } from "@/lib/poolflow";
+import { parsePoolFlowMarkets } from "@/lib/poolflow";
 import { SOURCE_ENDPOINTS } from "@/lib/source-config";
 import { loadCachedSource } from "@/lib/source-snapshot-cache";
 import { summarizeMinswapVersion } from "@/lib/protocol-versions";
@@ -80,10 +80,20 @@ const defillamaProtocolSchema = z
 const defillamaProtocolsSchema = z.array(defillamaProtocolSchema);
 
 const minswapSchema = z.object({
+  search_after: z
+    .array(z.union([z.string(), z.number().finite()]))
+    .nullish(),
   pool_metrics: z.array(
     z
       .object({
         type: z.string(),
+        lp_asset: z
+          .object({
+            currency_symbol: z.string(),
+            token_name: z.string(),
+          })
+          .passthrough()
+          .optional(),
         volume_24h: nullableNumber,
         volume_7d: nullableNumber,
         trading_fee_24h: nullableNumber,
@@ -302,6 +312,68 @@ function sumField(
 
 type MinswapMetric = z.infer<typeof minswapSchema>["pool_metrics"][number];
 
+interface DexActivitySnapshot {
+  trades24h: number | null;
+  users24h: number | null;
+  dau24h: number | null;
+  dataAt: string;
+  periodNote: string;
+}
+
+const MINSWAP_PROTOCOLS = ["Minswap", "MinswapV2", "MinswapStable"] as const;
+
+async function fetchAllMinswapPoolMetrics(
+  sortField: "volume_24h" | "volume_7d",
+  currency?: "usd",
+) {
+  const poolMetrics: MinswapMetric[] = [];
+  const seenPools = new Set<string>();
+  const seenCursors = new Set<string>();
+  let searchAfter: Array<string | number> | null = null;
+
+  for (let page = 0; page < 20; page += 1) {
+    const parsed = minswapSchema.parse(
+      await fetchJsonWithRetry(SOURCE_ENDPOINTS.minswapPools, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          limit: 100,
+          only_verified: false,
+          protocols: MINSWAP_PROTOCOLS,
+          sort_direction: "desc",
+          sort_field: sortField,
+          ...(currency ? { currency } : {}),
+          ...(searchAfter ? { search_after: searchAfter } : {}),
+        }),
+      }),
+    );
+
+    for (const metric of parsed.pool_metrics) {
+      const poolId = metric.lp_asset
+        ? `${metric.lp_asset.currency_symbol}.${metric.lp_asset.token_name}`
+        : null;
+      if (poolId && seenPools.has(poolId)) {
+        throw new Error(`Minswap pagination returned duplicate pool ${poolId}.`);
+      }
+      if (poolId) seenPools.add(poolId);
+      poolMetrics.push(metric);
+    }
+
+    const next = parsed.search_after ?? null;
+    if (parsed.pool_metrics.length < 100 || !next?.length) {
+      return { search_after: null, pool_metrics: poolMetrics };
+    }
+    const cursor = JSON.stringify(next);
+    if (seenCursors.has(cursor)) {
+      throw new Error("Minswap pagination repeated a cursor.");
+    }
+    seenCursors.add(cursor);
+    searchAfter = next;
+  }
+
+  throw new Error("Minswap pagination exceeded the 2,000-pool safety limit.");
+}
+
 function sumMinswapField(
   rows: MinswapMetric[],
   key:
@@ -467,11 +539,13 @@ export function buildDexRows({
   protocols,
   nativeSnapshots,
   versionSnapshots,
+  activitySnapshots = new Map(),
 }: {
   overview: DefillamaOverview | null;
   protocols: DefillamaProtocol[];
   nativeSnapshots: Map<string, NativeDexSnapshot>;
   versionSnapshots: Map<string, NativeDexSnapshot>;
+  activitySnapshots?: Map<string, DexActivitySnapshot>;
 }) {
   const configs = [...DEX_REGISTRY, ...addDynamicDexes(protocols, overview)];
   const periodWarnings: string[] = [];
@@ -481,6 +555,7 @@ export function buildDexRows({
 
   const rows = configs.map<DexMetric>((config) => {
     const native = nativeSnapshots.get(config.id) || null;
+    const activity = activitySnapshots.get(config.id) || null;
     const benchmark24 = nonNegativeFiniteOrNull(
       getDefillamaMetric(overview, config.volumeAliases, "total24h"),
     );
@@ -551,6 +626,13 @@ export function buildDexRows({
         (native?.volume30dUsd == null && volume30 != null) ||
         (native?.previous7dUsd == null && validatedPrevious7 != null));
     const tvl = native?.tvlUsd ?? getTvl(protocols, config.tvlAliases);
+    const baseSourceLabel = native
+      ? benchmarkHistoryUsed
+        ? `${native.sourceLabel} + validated DefiLlama history`
+        : native.sourceLabel
+      : benchmark24 != null
+        ? "DefiLlama benchmark only"
+        : "Data unavailable";
 
     return {
       id: config.id,
@@ -574,9 +656,9 @@ export function buildDexRows({
       volumeToTvl: safeDivide(volume24, tvl),
       marketShare24hPct: null,
       rank7d: null,
-      trades24h: native?.trades24h ?? null,
-      users24h: native?.users24h ?? null,
-      dau24h: native?.dau24h ?? null,
+      trades24h: activity?.trades24h ?? native?.trades24h ?? null,
+      users24h: activity?.users24h ?? native?.users24h ?? null,
+      dau24h: activity?.dau24h ?? native?.dau24h ?? null,
       fees24hUsd: native?.fees24hUsd ?? null,
       fees7dUsd: native?.fees7dUsd ?? null,
       marketCapUsd: native?.marketCapUsd ?? null,
@@ -589,19 +671,16 @@ export function buildDexRows({
       defillamaPrevious7dUsd: benchmarkPrevious7,
       variance24hPct: variancePct(volume24, benchmark24),
       quality,
-      sourceLabel: native
-        ? benchmarkHistoryUsed
-          ? `${native.sourceLabel} + validated DefiLlama history`
-          : native.sourceLabel
-        : benchmark24 != null
-          ? "DefiLlama benchmark only"
-          : "Data unavailable",
+      sourceLabel: activity
+        ? `${baseSourceLabel} + PoolFlow 24h activity`
+        : baseSourceLabel,
       sourceUrl: native?.sourceUrl || null,
       periodNote: [
         native?.periodNote || "No public native volume endpoint configured.",
+        activity?.periodNote,
         periodValidationNote,
       ].filter(Boolean).join(" "),
-      lastDataAt: native?.dataAt || latestBenchmarkAt,
+      lastDataAt: native?.dataAt || activity?.dataAt || latestBenchmarkAt,
     };
   });
 
@@ -623,6 +702,7 @@ export function buildDexRows({
     const parent = rows.find((row) => row.id === version.parentId);
     if (!parent) return [];
     const native = versionSnapshots.get(version.id) || null;
+    const activity = activitySnapshots.get(version.id) || null;
     const useParent = Boolean(version.useParentMetrics && !native);
     const candidate24 = native?.volume24hUsd ?? (useParent ? parent.volume24hUsd : null);
     const candidate7 = native?.volume7dUsd ?? (useParent ? parent.volume7dUsd : null);
@@ -668,9 +748,9 @@ export function buildDexRows({
       marketShare24hPct:
         observed24 && volume24 != null ? (volume24 / observed24) * 100 : null,
       rank7d: useParent ? parent.rank7d : null,
-      trades24h: native?.trades24h ?? (useParent ? parent.trades24h : null),
-      users24h: native?.users24h ?? (useParent ? parent.users24h : null),
-      dau24h: native?.dau24h ?? (useParent ? parent.dau24h : null),
+      trades24h: activity?.trades24h ?? native?.trades24h ?? (useParent ? parent.trades24h : null),
+      users24h: activity?.users24h ?? native?.users24h ?? (useParent ? parent.users24h : null),
+      dau24h: activity?.dau24h ?? native?.dau24h ?? (useParent ? parent.dau24h : null),
       fees24hUsd: native?.fees24hUsd ?? (useParent ? parent.fees24hUsd : null),
       fees7dUsd: native?.fees7dUsd ?? (useParent ? parent.fees7dUsd : null),
       marketCapUsd: native?.marketCapUsd ?? (useParent ? parent.marketCapUsd : null),
@@ -686,13 +766,17 @@ export function buildDexRows({
       defillamaPrevious7dUsd: useParent ? parent.defillamaPrevious7dUsd : null,
       variance24hPct: useParent ? parent.variance24hPct : null,
       quality: native ? "native-only" : useParent ? parent.quality : "unavailable",
-      sourceLabel: native?.sourceLabel || (useParent ? `${parent.sourceLabel} · primary ${version.version} mapping` : "Version metrics unavailable"),
+      sourceLabel: [
+        native?.sourceLabel || (useParent ? `${parent.sourceLabel} · primary ${version.version} mapping` : "Version metrics unavailable"),
+        activity ? "PoolFlow 24h activity" : null,
+      ].filter(Boolean).join(" + "),
       sourceUrl: native?.sourceUrl || parent.sourceUrl,
       periodNote: [
         native?.periodNote || inheritedNote || version.unavailableNote,
+        activity?.periodNote,
         periodValidationNote,
       ].filter(Boolean).join(" "),
-      lastDataAt: native?.dataAt || (useParent ? parent.lastDataAt : null),
+      lastDataAt: native?.dataAt || activity?.dataAt || (useParent ? parent.lastDataAt : null),
     }];
   });
 
@@ -715,16 +799,6 @@ export function buildDexRows({
 
 export async function loadLiveDashboardData(): Promise<DashboardData> {
   const previousDay = latestCompleteDayStart();
-  const minswapBody = (
-    field: "volume_24h" | "volume_7d",
-    currency?: "usd",
-  ) => ({
-    limit: 100,
-    only_verified: false,
-    sort_direction: "desc",
-    sort_field: field,
-    ...(currency ? { currency } : {}),
-  });
 
   const [
     defillamaOverview,
@@ -735,7 +809,7 @@ export async function loadLiveDashboardData(): Promise<DashboardData> {
     minswapMarketInsights,
     wingriders,
     wingridersFees,
-    poolflowWingridersV1,
+    poolflowMarkets,
     sundaeswap,
     splash,
     muesli,
@@ -787,33 +861,17 @@ export async function loadLiveDashboardData(): Promise<DashboardData> {
         coinbaseSchema.parse(await fetchJsonWithRetry(SOURCE_ENDPOINTS.coinbasePrice)),
     }),
     capture({
-      id: "minswap-native",
+      id: "minswap-native-v2",
       label: "Minswap native pool analytics",
       endpoint: SOURCE_ENDPOINTS.minswapPools,
       expectedUpdateMinutes: 120,
       load: async () => {
-        const [dayUsd, weekUsd, dayAda] = await Promise.all([
-          fetchJsonWithRetry(SOURCE_ENDPOINTS.minswapPools, {
-            method: "POST",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify(minswapBody("volume_24h", "usd")),
-          }),
-          fetchJsonWithRetry(SOURCE_ENDPOINTS.minswapPools, {
-            method: "POST",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify(minswapBody("volume_7d", "usd")),
-          }),
-          fetchJsonWithRetry(SOURCE_ENDPOINTS.minswapPools, {
-            method: "POST",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify(minswapBody("volume_24h")),
-          }),
+        const [dayAda, weekAda, dayUsd] = await Promise.all([
+          fetchAllMinswapPoolMetrics("volume_24h"),
+          fetchAllMinswapPoolMetrics("volume_7d"),
+          fetchAllMinswapPoolMetrics("volume_24h", "usd"),
         ]);
-        return {
-          dayUsd: minswapSchema.parse(dayUsd),
-          weekUsd: minswapSchema.parse(weekUsd),
-          dayAda: minswapSchema.parse(dayAda),
-        };
+        return { dayAda, weekAda, dayUsd };
       },
     }),
     capture({
@@ -864,17 +922,18 @@ export async function loadLiveDashboardData(): Promise<DashboardData> {
         parseWingRidersPayload(await fetchJsonWithRetry(SOURCE_ENDPOINTS.wingriders)),
     }),
     capture({
-      id: "poolflow-wingriders-v1",
-      label: "PoolFlow WingRiders V1 market row",
+      id: "poolflow-markets-v2",
+      label: "PoolFlow 24h DEX activity",
       endpoint: SOURCE_ENDPOINTS.poolflowMarkets,
       expectedUpdateMinutes: 120,
       load: async () => {
         const [day, week, month] = await Promise.all(
           ([1, 7, 30] as const).map(async (days) =>
-            parsePoolFlowWingRidersV1(
+            parsePoolFlowMarkets(
               await fetchJsonWithRetry(
                 periodParam(SOURCE_ENDPOINTS.poolflowMarkets, days),
               ),
+              days,
             ),
           ),
         );
@@ -998,78 +1057,82 @@ export async function loadLiveDashboardData(): Promise<DashboardData> {
   const todaySeconds = Math.floor(Date.now() / 86_400_000) * 86_400;
   const nativeSnapshots = new Map<string, NativeDexSnapshot>();
   const versionSnapshots = new Map<string, NativeDexSnapshot>();
+  const activitySnapshots = new Map<string, DexActivitySnapshot>();
+  let minswapCurrencyWarning: string | null = null;
 
   if (minswap.data) {
     const dayUsd = sumField(
       minswap.data.dayUsd.pool_metrics as Array<Record<string, unknown>>,
       "volume_24h",
     );
-    const weekUsd = sumField(
-      minswap.data.weekUsd.pool_metrics as Array<Record<string, unknown>>,
-      "volume_7d",
-    );
     const dayAda = sumField(
       minswap.data.dayAda.pool_metrics as Array<Record<string, unknown>>,
       "volume_24h",
     );
+    const weekAda = sumField(
+      minswap.data.weekAda.pool_metrics as Array<Record<string, unknown>>,
+      "volume_7d",
+    );
     const currencyCheck = validateUsdAdaPair(dayUsd, dayAda, adaUsd);
-
+    const unitNote = currencyCheck.status === "aligned"
+      ? `The provider USD response reconciled with its ADA response; implied ADA/USD ${currencyCheck.impliedAdaUsd?.toFixed(4)} (${Math.abs(currencyCheck.deviationPct || 0).toFixed(1)}% from ${priceSource}).`
+      : currencyCheck.status === "mismatch"
+        ? `The provider USD response differed from ${priceSource} by ${Math.abs(currencyCheck.deviationPct || 0).toFixed(1)}%; it was discarded while the native ADA response remained primary.`
+        : "The provider ADA response is primary; a live provider-USD reconciliation was unavailable.";
     if (currencyCheck.status === "mismatch") {
-      minswap.status.health = "error";
-      minswap.status.message = `Minswap USD/ADA unit check differs from ${priceSource} by ${Math.abs(currencyCheck.deviationPct || 0).toFixed(1)}%; Minswap volumes were rejected.`;
-    } else {
-      const unitNote =
-        currencyCheck.status === "aligned"
-          ? `currency=\"usd\" verified against the no-currency ADA response; implied ADA/USD ${currencyCheck.impliedAdaUsd?.toFixed(4)} (${Math.abs(currencyCheck.deviationPct || 0).toFixed(1)}% from ${priceSource}).`
-          : `currency=\"usd\" requested per the official API contract; live cross-unit validation was unavailable because no fresh ADA/USD reference price was available.`;
-      nativeSnapshots.set("minswap", {
-        id: "minswap",
-        volume24hUsd: dayUsd,
-        volume7dUsd: weekUsd,
+      minswap.status.message = `${unitNote} Dashboard USD display uses the independently timestamped ADA/USD price.`;
+      minswapCurrencyWarning = `Minswap: ${minswap.status.message}`;
+    }
+
+    nativeSnapshots.set("minswap", {
+      id: "minswap",
+      volume24hUsd: adaToUsd(dayAda, adaUsd),
+      volume7dUsd: adaToUsd(weekAda, adaUsd),
+      volume30dUsd: null,
+      previous7dUsd: null,
+      tvlUsd: adaToUsd(
+        sumMinswapField(minswap.data.dayAda.pool_metrics, "liquidity_currency"),
+        adaUsd,
+      ),
+      fees24hUsd: adaToUsd(
+        sumMinswapField(minswap.data.dayAda.pool_metrics, "trading_fee_24h"),
+        adaUsd,
+      ),
+      fees7dUsd: adaToUsd(
+        sumMinswapField(minswap.data.weekAda.pool_metrics, "trading_fee_7d"),
+        adaUsd,
+      ),
+      poolCount: minswap.data.dayAda.pool_metrics.length,
+      sourceLabel: "Minswap official API · ADA primary",
+      sourceUrl: SOURCE_ENDPOINTS.minswapPools,
+      periodNote: `${unitNote} Rolling 24h and 7d values include every paginated pool returned for the three documented Minswap deployments. USD display is converted from ADA using the dashboard price source.`,
+      dataAt: minswap.status.fetchedAt,
+    });
+
+    for (const version of DEX_VERSION_REGISTRY.filter(
+      (entry) => entry.parentId === "minswap" && entry.nativeType,
+    )) {
+      const summary = summarizeMinswapVersion(
+        minswap.data.dayAda.pool_metrics,
+        minswap.data.weekAda.pool_metrics,
+        version.nativeType || "",
+      );
+      if (!summary) continue;
+      versionSnapshots.set(version.id, {
+        id: version.id,
+        volume24hUsd: adaToUsd(summary.volume24hUsd, adaUsd),
+        volume7dUsd: adaToUsd(summary.volume7dUsd, adaUsd),
         volume30dUsd: null,
         previous7dUsd: null,
-        tvlUsd: null,
-        fees24hUsd: sumMinswapField(
-          minswap.data.dayUsd.pool_metrics,
-          "trading_fee_24h",
-        ),
-        fees7dUsd: sumMinswapField(
-          minswap.data.weekUsd.pool_metrics,
-          "trading_fee_7d",
-        ),
-        poolCount: minswap.data.dayUsd.pool_metrics.length,
-        sourceLabel: "Minswap native API (USD unit-checked)",
+        tvlUsd: adaToUsd(summary.tvlUsd, adaUsd),
+        fees24hUsd: adaToUsd(summary.fees24hUsd, adaUsd),
+        fees7dUsd: adaToUsd(summary.fees7dUsd, adaUsd),
+        poolCount: summary.poolCount,
+        sourceLabel: "Minswap official API · ADA primary",
         sourceUrl: SOURCE_ENDPOINTS.minswapPools,
-        periodNote: `${unitNote} Rolling windows; sum of the top 100 pools ranked by each metric. This is a documented lower bound.`,
+        periodNote: `${unitNote} Version is mapped from the documented pool_metrics[].type field and all returned pages are included. USD display is converted from the native ADA values.`,
         dataAt: minswap.status.fetchedAt,
       });
-
-      for (const version of DEX_VERSION_REGISTRY.filter(
-        (entry) => entry.parentId === "minswap" && entry.nativeType,
-      )) {
-        const summary = summarizeMinswapVersion(
-          minswap.data.dayUsd.pool_metrics,
-          minswap.data.weekUsd.pool_metrics,
-          version.nativeType || "",
-        );
-        if (!summary) continue;
-
-        versionSnapshots.set(version.id, {
-          id: version.id,
-          volume24hUsd: summary.volume24hUsd,
-          volume7dUsd: summary.volume7dUsd,
-          volume30dUsd: null,
-          previous7dUsd: null,
-          tvlUsd: summary.tvlUsd,
-          fees24hUsd: summary.fees24hUsd,
-          fees7dUsd: summary.fees7dUsd,
-          poolCount: summary.poolCount,
-          sourceLabel: "Minswap version-level native API",
-          sourceUrl: SOURCE_ENDPOINTS.minswapPools,
-          periodNote: `${unitNote} Version is mapped from pool_metrics[].type. Volume, fees, liquidity and pool count are lower bounds from the top 100 pools ranked separately for 24h and 7d.`,
-          dataAt: minswap.status.fetchedAt,
-        });
-      }
     }
   }
 
@@ -1106,25 +1169,37 @@ export async function loadLiveDashboardData(): Promise<DashboardData> {
     });
   }
 
-  if (poolflowWingridersV1.data) {
-    const { day, week, month } = poolflowWingridersV1.data;
-    versionSnapshots.set("wingriders-v1", {
-      id: "wingriders-v1",
-      volume24hUsd: adaToUsd(day.volumeAda, adaUsd),
-      volume7dUsd: adaToUsd(week.volumeAda, adaUsd),
-      volume30dUsd: adaToUsd(month.volumeAda, adaUsd),
-      previous7dUsd: null,
-      tvlUsd: adaToUsd(day.tvlAda, adaUsd),
-      trades24h: day.trades,
-      users24h: day.users,
-      dau24h: day.dau,
-      fees24hUsd: adaToUsd(day.feesAda, adaUsd),
-      fees7dUsd: adaToUsd(week.feesAda, adaUsd),
-      sourceLabel: "PoolFlow public market overview · WingRiders V1 only",
-      sourceUrl: periodParam(SOURCE_ENDPOINTS.poolflowMarkets, 1),
-      periodNote: "PoolFlow's exact WingRiders row is used only for the legacy V1 table row. Values are ADA-denominated period totals for 24h, 7d and 30d. The endpoint has no published schema, provider timestamp or SLA; structural and cumulative checks fail closed. Previous 7d and TVL remain unavailable unless explicitly returned.",
-      dataAt: poolflowWingridersV1.status.fetchedAt,
-    });
+  if (poolflowMarkets.data) {
+    const { day, week, month } = poolflowMarkets.data;
+    for (const [id, activity] of Object.entries(day)) {
+      activitySnapshots.set(id, {
+        trades24h: activity.trades,
+        users24h: activity.users,
+        dau24h: activity.dau,
+        dataAt: poolflowMarkets.status.fetchedAt,
+        periodNote: "Trades, Users and DAU are supplied by PoolFlow's exact deployment row for its rolling 24h period. PoolFlow volume is not used for this row unless explicitly stated as the primary source.",
+      });
+    }
+
+    const wingRidersV1Day = day["wingriders-v1"];
+    const wingRidersV1Week = week["wingriders-v1"];
+    const wingRidersV1Month = month["wingriders-v1"];
+    if (wingRidersV1Day && wingRidersV1Week && wingRidersV1Month) {
+      versionSnapshots.set("wingriders-v1", {
+        id: "wingriders-v1",
+        volume24hUsd: adaToUsd(wingRidersV1Day.volumeAda, adaUsd),
+        volume7dUsd: adaToUsd(wingRidersV1Week.volumeAda, adaUsd),
+        volume30dUsd: adaToUsd(wingRidersV1Month.volumeAda, adaUsd),
+        previous7dUsd: null,
+        tvlUsd: null,
+        fees24hUsd: adaToUsd(wingRidersV1Day.feesAda, adaUsd),
+        fees7dUsd: adaToUsd(wingRidersV1Week.feesAda, adaUsd),
+        sourceLabel: "PoolFlow public market overview · WingRiders V1 only",
+        sourceUrl: periodParam(SOURCE_ENDPOINTS.poolflowMarkets, 1),
+        periodNote: "PoolFlow's exact WingRiders row is used only for the legacy V1 table row. Values are ADA-denominated period totals for 24h, 7d and 30d. The endpoint has no published schema, provider timestamp or SLA; structural and cumulative checks fail closed. Previous 7d and TVL remain unavailable unless explicitly returned.",
+        dataAt: poolflowMarkets.status.fetchedAt,
+      });
+    }
   }
 
   if (minswapMarketInsights.data) {
@@ -1294,6 +1369,7 @@ export async function loadLiveDashboardData(): Promise<DashboardData> {
     protocols,
     nativeSnapshots,
     versionSnapshots,
+    activitySnapshots,
   });
   const comparableWeek = protocolRows.filter(
     (row) => row.volume7dUsd != null && row.previous7dUsd != null,
@@ -1310,8 +1386,9 @@ export async function loadLiveDashboardData(): Promise<DashboardData> {
   );
   const warnings = [
     "Reconciled totals are observed coverage across DEXes with usable public native metrics; they are not represented as complete Cardano market totals.",
+    minswapCurrencyWarning,
     ...periodWarnings,
-  ];
+  ].filter((warning): warning is string => Boolean(warning));
 
   for (const row of protocolRows) {
     if (row.quality === "material-variance") {
@@ -1330,7 +1407,7 @@ export async function loadLiveDashboardData(): Promise<DashboardData> {
     minswapMarketInsights.status,
     wingriders.status,
     wingridersFees.status,
-    poolflowWingridersV1.status,
+    poolflowMarkets.status,
     sundaeswap.status,
     splash.status,
     muesli.status,

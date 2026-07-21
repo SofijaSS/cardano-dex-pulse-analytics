@@ -18,7 +18,10 @@ import {
   parseWingRidersGraphqlPayload,
   parseWingRidersPayload,
 } from "../lib/dashboard-data";
-import { parsePoolFlowWingRidersV1 } from "../lib/poolflow";
+import {
+  parsePoolFlowMarkets,
+  parsePoolFlowWingRidersV1,
+} from "../lib/poolflow";
 import { buildWeeklyReportModel } from "../lib/weekly-report";
 import type { DexMetric, NativeDexSnapshot } from "../lib/types";
 
@@ -256,6 +259,15 @@ describe("version-aware table configuration", () => {
       protocols: [],
       nativeSnapshots: new Map([["wingriders", nativeWingRiders]]),
       versionSnapshots: new Map(),
+      activitySnapshots: new Map([
+        ["wingriders-v2", {
+          trades24h: 42,
+          users24h: 11,
+          dau24h: 9,
+          dataAt: "2026-07-15T11:00:00.000Z",
+          periodNote: "PoolFlow exact V2 activity row.",
+        }],
+      ]),
     });
 
     const v2 = rows.find((row) => row.id === "wingriders-v2");
@@ -267,8 +279,12 @@ describe("version-aware table configuration", () => {
       previous7dUsd: 650,
       defillamaVolume24hUsd: 98,
       fees24hUsd: 1,
+      trades24h: 42,
+      users24h: 11,
+      dau24h: 9,
       quality: "aligned",
     });
+    expect(v2?.sourceLabel).toContain("PoolFlow 24h activity");
     expect(v1?.volume24hUsd).toBeNull();
     expect(v1?.volume7dUsd).toBeNull();
     expect(rows.find((row) => row.id === "volume-only-dex")).toMatchObject({
@@ -287,37 +303,40 @@ describe("version-aware table configuration", () => {
 
   it("selects only the PoolFlow WingRiders V1 row and maps its period metrics", () => {
     expect(parsePoolFlowWingRidersV1({
-      data: {
-        protocols: [
-          {
-            name: "WingRiders (V2)",
-            dex_volume: 5_799_965,
-            trades: 2_520,
-          },
-          {
-            name: "WingRiders",
-            dex_volume: 150_677,
-            trades: 220,
-            users: 54,
-            dau: 54,
-            fees: 440,
-            tvl: null,
-          },
-        ],
-      },
+      range_days: 1,
+      protocols: [
+        { dex: "wingriders-v2", volume: 5_799_965, trades: 2_520, users: 390, dau: 390 },
+        { dex: "wingriders", volume: 150_677, trades: 220, users: 54, dau: 54, fees: 440 },
+      ],
     })).toEqual({
       volumeAda: 150_677,
       trades: 220,
       users: 54,
       dau: 54,
       feesAda: 440,
-      tvlAda: null,
+    });
+  });
+
+  it("maps PoolFlow deployment IDs without merging V1 and V2 activity", () => {
+    expect(parsePoolFlowMarkets({
+      range_days: 1,
+      protocols: [
+        { dex: "minswap-v1", volume: 400, trades: 4, users: 3, dau: 2 },
+        { dex: "minswap-v2", volume: 800, trades: 8, users: 6, dau: 5 },
+        { dex: "splash", volume: 200, trades: 2, users: 2, dau: 1 },
+        { dex: "unknown-dex", volume: 100, trades: 1, users: 1, dau: 1 },
+      ],
+    }, 1)).toEqual({
+      "minswap-v1": { volumeAda: 400, trades: 4, users: 3, dau: 2, feesAda: null },
+      "minswap-v2": { volumeAda: 800, trades: 8, users: 6, dau: 5, feesAda: null },
+      splash: { volumeAda: 200, trades: 2, users: 2, dau: 1, feesAda: null },
     });
   });
 
   it("fails closed when PoolFlow does not expose an exact WingRiders V1 row", () => {
     expect(() => parsePoolFlowWingRidersV1({
-      protocols: [{ name: "WingRiders (V2)", dexVolume: 5_799_965 }],
+      range_days: 1,
+      protocols: [{ dex: "wingriders-v2", volume: 5_799_965 }],
     })).toThrow(/WingRiders V1/);
   });
 
