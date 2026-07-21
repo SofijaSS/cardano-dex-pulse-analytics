@@ -20,6 +20,19 @@ const SUNDAE_PROTOCOLS = {
   v1: "sundae-cpmm-v1",
   v3: "sundae-cpmm-v3",
 } as const;
+const MINSWAP_PROTOCOLS = {
+  stable: "minswap-stable-cpmm-v1",
+  v1: "minswap-cpmm-v1",
+  v2: "minswap-cpmm-v2",
+} as const;
+const MERGED_PROTOCOLS = [
+  MINSWAP_PROTOCOLS.stable,
+  MINSWAP_PROTOCOLS.v2,
+  MINSWAP_PROTOCOLS.v1,
+  SUNDAE_PROTOCOLS.stable,
+  SUNDAE_PROTOCOLS.v3,
+  SUNDAE_PROTOCOLS.v1,
+] as const;
 const METRIC_KEYS = ["tvl", "vol", "fee", "trade", "awallet"] as const;
 
 type MarketData = z.infer<typeof responseSchema>["data"];
@@ -40,6 +53,13 @@ export interface MinswapSundaeMetrics {
   aggregate: MinswapMarketPeriod;
   v1: MinswapMarketPeriod;
   v3: MinswapMarketPeriod;
+  dataAt: string;
+}
+
+export interface MinswapDeploymentMetrics {
+  aggregate: MinswapMarketPeriod;
+  v1: MinswapMarketPeriod;
+  v2: MinswapMarketPeriod;
   dataAt: string;
 }
 
@@ -75,11 +95,7 @@ export function mergeMinswapMarketInsights(
   history: MarketData,
   recent: MarketData,
 ): MarketData {
-  const protocol = [
-    SUNDAE_PROTOCOLS.stable,
-    SUNDAE_PROTOCOLS.v3,
-    SUNDAE_PROTOCOLS.v1,
-  ];
+  const protocol = [...MERGED_PROTOCOLS];
   const timestamp = [...new Set([...history.timestamp, ...recent.timestamp])].sort(
     (left, right) => left - right,
   );
@@ -197,6 +213,23 @@ export function summarizeMinswapSundaeSwap(
     ], bucketCount),
     v1: summarize(data, [SUNDAE_PROTOCOLS.v1], bucketCount),
     v3: summarize(data, [SUNDAE_PROTOCOLS.v3], bucketCount),
+    dataAt: new Date(data.timestamp[bucketCount - 1] * 1000).toISOString(),
+  };
+}
+
+export function summarizeMinswapDeployments(
+  data: MarketData,
+  now = Date.now(),
+): MinswapDeploymentMetrics {
+  const bucketCount = completeBucketCount(data, now);
+  return {
+    aggregate: summarize(data, [
+      MINSWAP_PROTOCOLS.stable,
+      MINSWAP_PROTOCOLS.v2,
+      MINSWAP_PROTOCOLS.v1,
+    ], bucketCount),
+    v1: summarize(data, [MINSWAP_PROTOCOLS.v1], bucketCount),
+    v2: summarize(data, [MINSWAP_PROTOCOLS.v2], bucketCount),
     dataAt: new Date(data.timestamp[bucketCount - 1] * 1000).toISOString(),
   };
 }

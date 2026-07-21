@@ -23,6 +23,7 @@ import {
   latestCompleteMinswapMarketTimestamp,
   mergeMinswapMarketInsights,
   parseMinswapMarketInsights,
+  summarizeMinswapDeployments,
   summarizeMinswapSundaeSwap,
 } from "@/lib/minswap-market-insights";
 import { parsePoolFlowMarkets } from "@/lib/poolflow";
@@ -875,7 +876,7 @@ export async function loadLiveDashboardData(): Promise<DashboardData> {
       },
     }),
     capture({
-      id: "minswap-market-insights-v3",
+      id: "minswap-market-insights-v4",
       label: "Minswap Market Insights cross-DEX index",
       endpoint: SOURCE_ENDPOINTS.minswapMarketInsights,
       expectedUpdateMinutes: 1_560,
@@ -1203,6 +1204,42 @@ export async function loadLiveDashboardData(): Promise<DashboardData> {
   }
 
   if (minswapMarketInsights.data) {
+    const minswapMetrics = summarizeMinswapDeployments(
+      minswapMarketInsights.data,
+    );
+    const poolAggregate = nativeSnapshots.get("minswap");
+    const marketInsightsUrl = timeframeParam(
+      SOURCE_ENDPOINTS.minswapMarketInsights,
+      "1M",
+    );
+    const minswapPeriodNote =
+      "Contract-indexed daily UTC series from Minswap Market Insights. 24h is the latest complete UTC bucket; 7d, previous 7d and 30d use complete daily buckets only. The active partial day is excluded. ADA display uses the dashboard's timestamped ADA/USD display price rather than historical daily FX.";
+    nativeSnapshots.set("minswap", {
+      id: "minswap",
+      ...minswapMetrics.aggregate,
+      poolCount: poolAggregate?.poolCount ?? null,
+      sourceLabel: "Minswap Market Insights · exact deployment index",
+      sourceUrl: marketInsightsUrl,
+      periodNote: `${minswapPeriodNote} The family total includes V1, V2 and Stable once. The official paginated pool API remains a rolling reconciliation fallback rather than being averaged into this daily series.`,
+      dataAt: minswapMetrics.dataAt,
+    });
+
+    for (const [id, metrics] of [
+      ["minswap-v1", minswapMetrics.v1],
+      ["minswap-v2", minswapMetrics.v2],
+    ] as const) {
+      const poolVersion = versionSnapshots.get(id);
+      versionSnapshots.set(id, {
+        id,
+        ...metrics,
+        poolCount: poolVersion?.poolCount ?? null,
+        sourceLabel: "Minswap Market Insights · exact contract series",
+        sourceUrl: marketInsightsUrl,
+        periodNote: minswapPeriodNote,
+        dataAt: minswapMetrics.dataAt,
+      });
+    }
+
     const metrics = summarizeMinswapSundaeSwap(minswapMarketInsights.data);
     const sourceLabel = "Minswap Market Insights · SundaeSwap protocol index";
     const sharedPeriodNote =
