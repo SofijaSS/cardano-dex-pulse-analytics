@@ -338,7 +338,7 @@ async function fetchAllMinswapPoolMetrics(
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           limit: 100,
-          only_verified: false,
+          only_verified: true,
           protocols: MINSWAP_PROTOCOLS,
           sort_direction: "desc",
           sort_field: sortField,
@@ -861,7 +861,7 @@ export async function loadLiveDashboardData(): Promise<DashboardData> {
         coinbaseSchema.parse(await fetchJsonWithRetry(SOURCE_ENDPOINTS.coinbasePrice)),
     }),
     capture({
-      id: "minswap-native-v2",
+      id: "minswap-native-v3",
       label: "Minswap native pool analytics",
       endpoint: SOURCE_ENDPOINTS.minswapPools,
       expectedUpdateMinutes: 120,
@@ -1103,9 +1103,9 @@ export async function loadLiveDashboardData(): Promise<DashboardData> {
         adaUsd,
       ),
       poolCount: minswap.data.dayAda.pool_metrics.length,
-      sourceLabel: "Minswap official API · ADA primary",
+      sourceLabel: "Minswap official API · verified ADA pools",
       sourceUrl: SOURCE_ENDPOINTS.minswapPools,
-      periodNote: `${unitNote} Rolling 24h and 7d values include every paginated pool returned for the three documented Minswap deployments. USD display is converted from ADA using the dashboard price source.`,
+      periodNote: `${unitNote} Rolling 24h and 7d values include every verified pool returned through pagination for the three documented Minswap deployments. USD display is converted from ADA using the dashboard price source.`,
       dataAt: minswap.status.fetchedAt,
     });
 
@@ -1128,9 +1128,9 @@ export async function loadLiveDashboardData(): Promise<DashboardData> {
         fees24hUsd: adaToUsd(summary.fees24hUsd, adaUsd),
         fees7dUsd: adaToUsd(summary.fees7dUsd, adaUsd),
         poolCount: summary.poolCount,
-        sourceLabel: "Minswap official API · ADA primary",
+        sourceLabel: "Minswap official API · verified ADA pools",
         sourceUrl: SOURCE_ENDPOINTS.minswapPools,
-        periodNote: `${unitNote} Version is mapped from the documented pool_metrics[].type field and all returned pages are included. USD display is converted from the native ADA values.`,
+        periodNote: `${unitNote} Version is mapped from the documented pool_metrics[].type field and all verified-pool pages are included. USD display is converted from the native ADA values.`,
         dataAt: minswap.status.fetchedAt,
       });
     }
