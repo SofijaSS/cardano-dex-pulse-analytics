@@ -204,7 +204,7 @@ export const DEX_VERSION_REGISTRY: DexVersionConfig[] = [
     version: "V3",
     useParentMetrics: true,
     showInTable: true,
-    unavailableNote: "SundaeSwap V3 is the primary deployment; its public protocol feed is unavailable.",
+    unavailableNote: "The exact Minswap Market Insights SundaeSwap V3 series is currently unavailable.",
   },
   {
     id: "sundaeswap-v1",
@@ -212,7 +212,7 @@ export const DEX_VERSION_REGISTRY: DexVersionConfig[] = [
     name: "SundaeSwap V1",
     version: "V1",
     showInTable: true,
-    unavailableNote: "The public SundaeSwap endpoint does not expose a separate legacy V1 metric.",
+    unavailableNote: "The exact Minswap Market Insights SundaeSwap V1 series is currently unavailable.",
   },
 ];
 

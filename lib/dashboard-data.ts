@@ -19,6 +19,10 @@ import {
   type CumulativeVolumeIssue,
 } from "@/lib/calculations";
 import { fetchJsonWithRetry } from "@/lib/fetch-json";
+import {
+  parseMinswapMarketInsights,
+  summarizeMinswapSundaeSwap,
+} from "@/lib/minswap-market-insights";
 import { parsePoolFlowWingRidersV1 } from "@/lib/poolflow";
 import { SOURCE_ENDPOINTS } from "@/lib/source-config";
 import { loadCachedSource } from "@/lib/source-snapshot-cache";
@@ -720,6 +724,7 @@ export async function loadLiveDashboardData(): Promise<DashboardData> {
     coinGecko,
     coinbase,
     minswap,
+    minswapMarketInsights,
     wingriders,
     wingridersFees,
     poolflowWingridersV1,
@@ -802,6 +807,18 @@ export async function loadLiveDashboardData(): Promise<DashboardData> {
           dayAda: minswapSchema.parse(dayAda),
         };
       },
+    }),
+    capture({
+      id: "minswap-market-insights",
+      label: "Minswap Market Insights cross-DEX index",
+      endpoint: SOURCE_ENDPOINTS.minswapMarketInsights,
+      expectedUpdateMinutes: 1_560,
+      load: async () =>
+        parseMinswapMarketInsights(
+          await fetchJsonWithRetry(SOURCE_ENDPOINTS.minswapMarketInsights),
+        ),
+      dataAt: (data) =>
+        new Date(data.timestamp.at(-1)! * 1000).toISOString(),
     }),
     capture({
       id: "wingriders-native",
@@ -1090,7 +1107,40 @@ export async function loadLiveDashboardData(): Promise<DashboardData> {
     });
   }
 
-  if (sundaeswap.data) {
+  if (minswapMarketInsights.data) {
+    const metrics = summarizeMinswapSundaeSwap(minswapMarketInsights.data);
+    const sourceLabel = "Minswap Market Insights · SundaeSwap protocol index";
+    const sharedPeriodNote =
+      "Daily UTC buckets are USD-denominated and contract-scoped. 24h is the latest reported daily bucket; 7d, previous 7d and 30d are sums of 7, 7 and 30 daily buckets. ADA display uses the dashboard's timestamped ADA/USD display price rather than historical daily FX.";
+
+    nativeSnapshots.set("sundaeswap", {
+      id: "sundaeswap",
+      ...metrics.aggregate,
+      poolCount: sundaeswap.data?.data.stats.poolCount ?? null,
+      sourceLabel,
+      sourceUrl: SOURCE_ENDPOINTS.minswapMarketInsights,
+      periodNote: `${sharedPeriodNote} The protocol total includes exact Minswap index rows for SundaeSwap V1, V3 and Stable. Active wallets are not added across deployments because one wallet can use more than one contract.`,
+      dataAt: metrics.dataAt,
+    });
+
+    versionSnapshots.set("sundaeswap-v3", {
+      id: "sundaeswap-v3",
+      ...metrics.v3,
+      sourceLabel: "Minswap Market Insights · sundae-cpmm-v3",
+      sourceUrl: SOURCE_ENDPOINTS.minswapMarketInsights,
+      periodNote: `${sharedPeriodNote} This row uses only the exact sundae-cpmm-v3 series; Sundae Stable is retained in the family total and is not relabelled as V3.`,
+      dataAt: metrics.dataAt,
+    });
+
+    versionSnapshots.set("sundaeswap-v1", {
+      id: "sundaeswap-v1",
+      ...metrics.v1,
+      sourceLabel: "Minswap Market Insights · sundae-cpmm-v1",
+      sourceUrl: SOURCE_ENDPOINTS.minswapMarketInsights,
+      periodNote: `${sharedPeriodNote} This row uses only the exact legacy sundae-cpmm-v1 series.`,
+      dataAt: metrics.dataAt,
+    });
+  } else if (sundaeswap.data) {
     const volume = sundaeswap.data.data.stats.volume;
     const ada = Number(volume.quantity) / 1_000_000;
     nativeSnapshots.set("sundaeswap", {
@@ -1257,6 +1307,7 @@ export async function loadLiveDashboardData(): Promise<DashboardData> {
     coinGecko.status,
     coinbase.status,
     minswap.status,
+    minswapMarketInsights.status,
     wingriders.status,
     wingridersFees.status,
     poolflowWingridersV1.status,
