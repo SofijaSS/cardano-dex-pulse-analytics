@@ -29,7 +29,6 @@ import {
 import { parsePoolFlowMarkets } from "@/lib/poolflow";
 import { SOURCE_ENDPOINTS } from "@/lib/source-config";
 import { loadCachedSource } from "@/lib/source-snapshot-cache";
-import { summarizeMinswapVersion } from "@/lib/protocol-versions";
 import type {
   DashboardData,
   DexMetric,
@@ -311,8 +310,6 @@ function sumField(
   }, 0);
 }
 
-type MinswapMetric = z.infer<typeof minswapSchema>["pool_metrics"][number];
-
 interface DexActivitySnapshot {
   trades24h: number | null;
   users24h: number | null;
@@ -323,68 +320,24 @@ interface DexActivitySnapshot {
 
 const MINSWAP_PROTOCOLS = ["Minswap", "MinswapV2", "MinswapStable"] as const;
 
-async function fetchAllMinswapPoolMetrics(
+async function fetchMinswapPoolMetricsSample(
   sortField: "volume_24h" | "volume_7d",
   currency?: "usd",
 ) {
-  const poolMetrics: MinswapMetric[] = [];
-  const seenPools = new Set<string>();
-  const seenCursors = new Set<string>();
-  let searchAfter: Array<string | number> | null = null;
-
-  for (let page = 0; page < 20; page += 1) {
-    const parsed = minswapSchema.parse(
-      await fetchJsonWithRetry(SOURCE_ENDPOINTS.minswapPools, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          limit: 100,
-          only_verified: true,
-          protocols: MINSWAP_PROTOCOLS,
-          sort_direction: "desc",
-          sort_field: sortField,
-          ...(currency ? { currency } : {}),
-          ...(searchAfter ? { search_after: searchAfter } : {}),
-        }),
+  return minswapSchema.parse(
+    await fetchJsonWithRetry(SOURCE_ENDPOINTS.minswapPools, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        limit: 100,
+        only_verified: true,
+        protocols: MINSWAP_PROTOCOLS,
+        sort_direction: "desc",
+        sort_field: sortField,
+        ...(currency ? { currency } : {}),
       }),
-    );
-
-    for (const metric of parsed.pool_metrics) {
-      const poolId = metric.lp_asset
-        ? `${metric.lp_asset.currency_symbol}.${metric.lp_asset.token_name}`
-        : null;
-      if (poolId && seenPools.has(poolId)) {
-        throw new Error(`Minswap pagination returned duplicate pool ${poolId}.`);
-      }
-      if (poolId) seenPools.add(poolId);
-      poolMetrics.push(metric);
-    }
-
-    const next = parsed.search_after ?? null;
-    if (parsed.pool_metrics.length < 100 || !next?.length) {
-      return { search_after: null, pool_metrics: poolMetrics };
-    }
-    const cursor = JSON.stringify(next);
-    if (seenCursors.has(cursor)) {
-      throw new Error("Minswap pagination repeated a cursor.");
-    }
-    seenCursors.add(cursor);
-    searchAfter = next;
-  }
-
-  throw new Error("Minswap pagination exceeded the 2,000-pool safety limit.");
-}
-
-function sumMinswapField(
-  rows: MinswapMetric[],
-  key:
-    | "volume_24h"
-    | "volume_7d"
-    | "trading_fee_24h"
-    | "trading_fee_7d"
-    | "liquidity_currency",
-) {
-  return sumAvailable(rows.map((row) => row[key] ?? null));
+    }),
+  );
 }
 
 function adaToUsd(valueAda: number | null, price: number | null) {
@@ -862,17 +815,16 @@ export async function loadLiveDashboardData(): Promise<DashboardData> {
         coinbaseSchema.parse(await fetchJsonWithRetry(SOURCE_ENDPOINTS.coinbasePrice)),
     }),
     capture({
-      id: "minswap-native-v3",
-      label: "Minswap native pool analytics",
+      id: "minswap-pool-reconciliation-v1",
+      label: "Minswap pool API reconciliation sample",
       endpoint: SOURCE_ENDPOINTS.minswapPools,
       expectedUpdateMinutes: 120,
       load: async () => {
-        const [dayAda, weekAda, dayUsd] = await Promise.all([
-          fetchAllMinswapPoolMetrics("volume_24h"),
-          fetchAllMinswapPoolMetrics("volume_7d"),
-          fetchAllMinswapPoolMetrics("volume_24h", "usd"),
+        const [dayAda, dayUsd] = await Promise.all([
+          fetchMinswapPoolMetricsSample("volume_24h"),
+          fetchMinswapPoolMetricsSample("volume_24h", "usd"),
         ]);
-        return { dayAda, weekAda, dayUsd };
+        return { dayAda, dayUsd };
       },
     }),
     capture({
@@ -1070,10 +1022,6 @@ export async function loadLiveDashboardData(): Promise<DashboardData> {
       minswap.data.dayAda.pool_metrics as Array<Record<string, unknown>>,
       "volume_24h",
     );
-    const weekAda = sumField(
-      minswap.data.weekAda.pool_metrics as Array<Record<string, unknown>>,
-      "volume_7d",
-    );
     const currencyCheck = validateUsdAdaPair(dayUsd, dayAda, adaUsd);
     const unitNote = currencyCheck.status === "aligned"
       ? `The provider USD response reconciled with its ADA response; implied ADA/USD ${currencyCheck.impliedAdaUsd?.toFixed(4)} (${Math.abs(currencyCheck.deviationPct || 0).toFixed(1)}% from ${priceSource}).`
@@ -1085,56 +1033,6 @@ export async function loadLiveDashboardData(): Promise<DashboardData> {
       minswapCurrencyWarning = `Minswap: ${minswap.status.message}`;
     }
 
-    nativeSnapshots.set("minswap", {
-      id: "minswap",
-      volume24hUsd: adaToUsd(dayAda, adaUsd),
-      volume7dUsd: adaToUsd(weekAda, adaUsd),
-      volume30dUsd: null,
-      previous7dUsd: null,
-      tvlUsd: adaToUsd(
-        sumMinswapField(minswap.data.dayAda.pool_metrics, "liquidity_currency"),
-        adaUsd,
-      ),
-      fees24hUsd: adaToUsd(
-        sumMinswapField(minswap.data.dayAda.pool_metrics, "trading_fee_24h"),
-        adaUsd,
-      ),
-      fees7dUsd: adaToUsd(
-        sumMinswapField(minswap.data.weekAda.pool_metrics, "trading_fee_7d"),
-        adaUsd,
-      ),
-      poolCount: minswap.data.dayAda.pool_metrics.length,
-      sourceLabel: "Minswap official API · verified ADA pools",
-      sourceUrl: SOURCE_ENDPOINTS.minswapPools,
-      periodNote: `${unitNote} Rolling 24h and 7d values include every verified pool returned through pagination for the three documented Minswap deployments. USD display is converted from ADA using the dashboard price source.`,
-      dataAt: minswap.status.fetchedAt,
-    });
-
-    for (const version of DEX_VERSION_REGISTRY.filter(
-      (entry) => entry.parentId === "minswap" && entry.nativeType,
-    )) {
-      const summary = summarizeMinswapVersion(
-        minswap.data.dayAda.pool_metrics,
-        minswap.data.weekAda.pool_metrics,
-        version.nativeType || "",
-      );
-      if (!summary) continue;
-      versionSnapshots.set(version.id, {
-        id: version.id,
-        volume24hUsd: adaToUsd(summary.volume24hUsd, adaUsd),
-        volume7dUsd: adaToUsd(summary.volume7dUsd, adaUsd),
-        volume30dUsd: null,
-        previous7dUsd: null,
-        tvlUsd: adaToUsd(summary.tvlUsd, adaUsd),
-        fees24hUsd: adaToUsd(summary.fees24hUsd, adaUsd),
-        fees7dUsd: adaToUsd(summary.fees7dUsd, adaUsd),
-        poolCount: summary.poolCount,
-        sourceLabel: "Minswap official API · verified ADA pools",
-        sourceUrl: SOURCE_ENDPOINTS.minswapPools,
-        periodNote: `${unitNote} Version is mapped from the documented pool_metrics[].type field and all verified-pool pages are included. USD display is converted from the native ADA values.`,
-        dataAt: minswap.status.fetchedAt,
-      });
-    }
   }
 
   if (wingriders.data || wingridersFees.data) {
@@ -1207,7 +1105,6 @@ export async function loadLiveDashboardData(): Promise<DashboardData> {
     const minswapMetrics = summarizeMinswapDeployments(
       minswapMarketInsights.data,
     );
-    const poolAggregate = nativeSnapshots.get("minswap");
     const marketInsightsUrl = timeframeParam(
       SOURCE_ENDPOINTS.minswapMarketInsights,
       "1M",
@@ -1217,7 +1114,7 @@ export async function loadLiveDashboardData(): Promise<DashboardData> {
     nativeSnapshots.set("minswap", {
       id: "minswap",
       ...minswapMetrics.aggregate,
-      poolCount: poolAggregate?.poolCount ?? null,
+      poolCount: null,
       sourceLabel: "Minswap Market Insights · exact deployment index",
       sourceUrl: marketInsightsUrl,
       periodNote: `${minswapPeriodNote} The family total includes V1, V2 and Stable once. The official paginated pool API remains a rolling reconciliation fallback rather than being averaged into this daily series.`,
@@ -1228,11 +1125,10 @@ export async function loadLiveDashboardData(): Promise<DashboardData> {
       ["minswap-v1", minswapMetrics.v1],
       ["minswap-v2", minswapMetrics.v2],
     ] as const) {
-      const poolVersion = versionSnapshots.get(id);
       versionSnapshots.set(id, {
         id,
         ...metrics,
-        poolCount: poolVersion?.poolCount ?? null,
+        poolCount: null,
         sourceLabel: "Minswap Market Insights · exact contract series",
         sourceUrl: marketInsightsUrl,
         periodNote: minswapPeriodNote,
