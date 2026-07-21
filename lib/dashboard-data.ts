@@ -25,6 +25,7 @@ import {
   parseMinswapMarketInsights,
   summarizeMinswapCswap,
   summarizeMinswapDeployments,
+  summarizeMinswapSplash,
   summarizeMinswapSundaeSwap,
 } from "@/lib/minswap-market-insights";
 import { parsePoolFlowMarkets } from "@/lib/poolflow";
@@ -1150,6 +1151,19 @@ export async function loadLiveDashboardData(): Promise<DashboardData> {
       });
     }
 
+    const splashMetrics = summarizeMinswapSplash(minswapMarketInsights.data);
+    if (splashMetrics) {
+      nativeSnapshots.set("splash", {
+        id: "splash",
+        ...splashMetrics.aggregate,
+        poolCount: null,
+        sourceLabel: "Minswap Market Insights · Splash protocol index",
+        sourceUrl: marketInsightsUrl,
+        periodNote: `${minswapPeriodNote} The Splash row includes only source protocol IDs whose normalized name starts with Splash (${splashMetrics.protocolIds.join(", ")}). The complete ID set must agree between the recent and historical feeds. Multiple components are summed; active wallets are not added across components because one wallet can use more than one contract. The official Splash analytics endpoint remains monitored as an independent current-period fallback.`,
+        dataAt: splashMetrics.dataAt,
+      });
+    }
+
     const metrics = summarizeMinswapSundaeSwap(minswapMarketInsights.data);
     const sourceLabel = "Minswap Market Insights · SundaeSwap protocol index";
     const sharedPeriodNote =
@@ -1200,7 +1214,7 @@ export async function loadLiveDashboardData(): Promise<DashboardData> {
     });
   }
 
-  if (splash.data) {
+  if (splash.data && !nativeSnapshots.has("splash")) {
     nativeSnapshots.set("splash", {
       id: "splash",
       volume24hUsd: Number(splash.data.volumeUsd) / 1_000_000,
