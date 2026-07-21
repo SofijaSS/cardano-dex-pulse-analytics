@@ -13,7 +13,7 @@ describe("source snapshot refresh policy", () => {
   });
 
   it("refreshes active DEX and TVL providers hourly by default", () => {
-    expect(sourceRefreshSeconds("minswap-native-v3")).toBe(DEX_REFRESH_SECONDS);
+    expect(sourceRefreshSeconds("minswap-pool-reconciliation-v1")).toBe(DEX_REFRESH_SECONDS);
     expect(sourceRefreshSeconds("wingriders-native")).toBe(DEX_REFRESH_SECONDS);
     expect(sourceRefreshSeconds("wingriders-fees")).toBe(DEX_REFRESH_SECONDS);
     expect(sourceRefreshSeconds("poolflow-markets-v2")).toBe(DEX_REFRESH_SECONDS);
