@@ -80,7 +80,29 @@ function combineSeries(matrix: number[][], indexes: number[]) {
   );
 }
 
-function summarize(data: MarketData, protocolIds: string[]): MinswapMarketPeriod {
+function completeBucketCount(data: MarketData, now: number) {
+  const currentUtcDayStart = Math.floor(now / 86_400_000) * 86_400;
+  const latestCompleteIndex = data.timestamp.findLastIndex(
+    (timestamp) => timestamp < currentUtcDayStart,
+  );
+  if (latestCompleteIndex < 0) {
+    throw new Error("Minswap Market Insights has no complete UTC daily bucket.");
+  }
+  return latestCompleteIndex + 1;
+}
+
+export function latestCompleteMinswapMarketTimestamp(
+  data: MarketData,
+  now = Date.now(),
+) {
+  return data.timestamp[completeBucketCount(data, now) - 1];
+}
+
+function summarize(
+  data: MarketData,
+  protocolIds: string[],
+  bucketCount: number,
+): MinswapMarketPeriod {
   const indexes = protocolIds.map((protocolId) => {
     const index = data.protocol.indexOf(protocolId);
     if (index < 0) {
@@ -88,11 +110,11 @@ function summarize(data: MarketData, protocolIds: string[]): MinswapMarketPeriod
     }
     return index;
   });
-  const volume = combineSeries(data.vol, indexes);
-  const fees = combineSeries(data.fee, indexes);
-  const trades = combineSeries(data.trade, indexes);
-  const tvl = combineSeries(data.tvl, indexes);
-  const activeWallets = combineSeries(data.awallet, indexes);
+  const volume = combineSeries(data.vol, indexes).slice(0, bucketCount);
+  const fees = combineSeries(data.fee, indexes).slice(0, bucketCount);
+  const trades = combineSeries(data.trade, indexes).slice(0, bucketCount);
+  const tvl = combineSeries(data.tvl, indexes).slice(0, bucketCount);
+  const activeWallets = combineSeries(data.awallet, indexes).slice(0, bucketCount);
 
   return {
     volume24hUsd: volume.at(-1) ?? null,
@@ -110,15 +132,17 @@ function summarize(data: MarketData, protocolIds: string[]): MinswapMarketPeriod
 
 export function summarizeMinswapSundaeSwap(
   data: MarketData,
+  now = Date.now(),
 ): MinswapSundaeMetrics {
+  const bucketCount = completeBucketCount(data, now);
   return {
     aggregate: summarize(data, [
       SUNDAE_PROTOCOLS.stable,
       SUNDAE_PROTOCOLS.v3,
       SUNDAE_PROTOCOLS.v1,
-    ]),
-    v1: summarize(data, [SUNDAE_PROTOCOLS.v1]),
-    v3: summarize(data, [SUNDAE_PROTOCOLS.v3]),
-    dataAt: new Date(data.timestamp.at(-1)! * 1000).toISOString(),
+    ], bucketCount),
+    v1: summarize(data, [SUNDAE_PROTOCOLS.v1], bucketCount),
+    v3: summarize(data, [SUNDAE_PROTOCOLS.v3], bucketCount),
+    dataAt: new Date(data.timestamp[bucketCount - 1] * 1000).toISOString(),
   };
 }
