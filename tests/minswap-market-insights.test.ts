@@ -141,7 +141,9 @@ describe("Minswap Market Insights SundaeSwap adapter", () => {
     expect(metrics.aggregate.volume30dUsd).toBe(390);
     expect(metrics.aggregate.fees24hUsd).toBe(1.3);
     expect(metrics.dataAt).toBe(
-      new Date(activeDay.data.timestamp[lastIndex - 1] * 1_000).toISOString(),
+      new Date(
+        (activeDay.data.timestamp[lastIndex - 1] + 86_400) * 1_000,
+      ).toISOString(),
     );
   });
 

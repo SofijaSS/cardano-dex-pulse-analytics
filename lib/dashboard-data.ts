@@ -876,7 +876,7 @@ export async function loadLiveDashboardData(): Promise<DashboardData> {
       },
     }),
     capture({
-      id: "minswap-market-insights-v4",
+      id: "minswap-market-insights-v5",
       label: "Minswap Market Insights cross-DEX index",
       endpoint: SOURCE_ENDPOINTS.minswapMarketInsights,
       expectedUpdateMinutes: 1_560,

@@ -165,7 +165,7 @@ export function latestCompleteMinswapMarketTimestamp(
   data: MarketData,
   now = Date.now(),
 ) {
-  return data.timestamp[completeBucketCount(data, now) - 1];
+  return data.timestamp[completeBucketCount(data, now) - 1] + 86_400;
 }
 
 function summarize(
@@ -213,7 +213,9 @@ export function summarizeMinswapSundaeSwap(
     ], bucketCount),
     v1: summarize(data, [SUNDAE_PROTOCOLS.v1], bucketCount),
     v3: summarize(data, [SUNDAE_PROTOCOLS.v3], bucketCount),
-    dataAt: new Date(data.timestamp[bucketCount - 1] * 1000).toISOString(),
+    dataAt: new Date(
+      (data.timestamp[bucketCount - 1] + 86_400) * 1000,
+    ).toISOString(),
   };
 }
 
@@ -230,6 +232,8 @@ export function summarizeMinswapDeployments(
     ], bucketCount),
     v1: summarize(data, [MINSWAP_PROTOCOLS.v1], bucketCount),
     v2: summarize(data, [MINSWAP_PROTOCOLS.v2], bucketCount),
-    dataAt: new Date(data.timestamp[bucketCount - 1] * 1000).toISOString(),
+    dataAt: new Date(
+      (data.timestamp[bucketCount - 1] + 86_400) * 1000,
+    ).toISOString(),
   };
 }
