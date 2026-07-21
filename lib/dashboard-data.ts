@@ -1143,9 +1143,9 @@ export async function loadLiveDashboardData(): Promise<DashboardData> {
         id: "cswap",
         ...cswapMetrics.aggregate,
         poolCount: null,
-        sourceLabel: "Minswap Market Insights · CSWAP V1 protocol index",
+        sourceLabel: "Minswap Market Insights · CSWAP protocol index",
         sourceUrl: marketInsightsUrl,
-        periodNote: `${minswapPeriodNote} The CSWAP row includes only source protocol IDs identified as CSWAP V1 (${cswapMetrics.protocolIds.join(", ")}). Multiple V1 components are summed; active wallets are not added across components because one wallet can use more than one contract. CSWAP's official DefiLlama adapter independently identifies its pool and orderbook contracts for TVL reconciliation.`,
+        periodNote: `${minswapPeriodNote} The CSWAP row includes only source protocol IDs whose normalized name starts with CSWAP (${cswapMetrics.protocolIds.join(", ")}). The complete ID set must agree between the recent and historical feeds. Multiple components are summed; active wallets are not added across components because one wallet can use more than one contract. CSWAP's official DefiLlama adapter independently identifies its pool and orderbook contracts for TVL reconciliation.`,
         dataAt: cswapMetrics.dataAt,
       });
     }

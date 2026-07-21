@@ -69,14 +69,11 @@ export interface MinswapCswapMetrics {
   dataAt: string;
 }
 
-function cswapV1ProtocolIds(data: MarketData) {
+function cswapProtocolIds(data: MarketData) {
   return data.protocol
     .filter((protocolId) => {
       const normalized = protocolId.toLowerCase().replace(/[^a-z0-9]/g, "");
-      return (
-        normalized === "cswap" ||
-        (normalized.startsWith("cswap") && normalized.endsWith("v1"))
-      );
+      return normalized.startsWith("cswap");
     })
     .sort();
 }
@@ -113,8 +110,8 @@ export function mergeMinswapMarketInsights(
   history: MarketData,
   recent: MarketData,
 ): MarketData {
-  const historyCswap = cswapV1ProtocolIds(history);
-  const recentCswap = cswapV1ProtocolIds(recent);
+  const historyCswap = cswapProtocolIds(history);
+  const recentCswap = cswapProtocolIds(recent);
   const matchingCswap =
     historyCswap.length > 0 &&
     historyCswap.length === recentCswap.length &&
@@ -268,7 +265,7 @@ export function summarizeMinswapCswap(
   data: MarketData,
   now = Date.now(),
 ): MinswapCswapMetrics | null {
-  const protocolIds = cswapV1ProtocolIds(data);
+  const protocolIds = cswapProtocolIds(data);
   if (protocolIds.length === 0) return null;
 
   const bucketCount = completeBucketCount(data, now);
