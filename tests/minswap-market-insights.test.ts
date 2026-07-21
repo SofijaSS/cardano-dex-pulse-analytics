@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  mergeMinswapMarketInsights,
   parseMinswapMarketInsights,
   summarizeMinswapSundaeSwap,
 } from "../lib/minswap-market-insights";
@@ -105,5 +106,18 @@ describe("Minswap Market Insights SundaeSwap adapter", () => {
     expect(metrics.dataAt).toBe(
       new Date(activeDay.data.timestamp[lastIndex - 1] * 1_000).toISOString(),
     );
+  });
+
+  it("prefers the recent feed for overlapping timestamps", () => {
+    const history = parseMinswapMarketInsights(payload());
+    const recentPayload = payload();
+    recentPayload.data.vol[2][34] = 123;
+    const recent = parseMinswapMarketInsights(recentPayload);
+    const metrics = summarizeMinswapSundaeSwap(
+      mergeMinswapMarketInsights(history, recent),
+    );
+
+    expect(metrics.v3.volume24hUsd).toBe(123);
+    expect(metrics.aggregate.volume24hUsd).toBe(126);
   });
 });
