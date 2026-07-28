@@ -1064,7 +1064,7 @@ footer {
 .table-shell {
   position: relative;
   isolation: isolate;
-  max-height: min(72vh, 760px);
+  max-height: 524px;
   overflow: auto;
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
@@ -1097,6 +1097,8 @@ th:first-child,
 td:first-child { position: sticky; left: 0; z-index: 3; width: 196px; min-width: 196px; max-width: 196px; text-align: left; background: var(--table-sticky); box-shadow: 8px 0 15px rgba(20, 38, 54, 0.025); }
 thead th { position: sticky; top: 0; z-index: 5; background: var(--table-head); box-shadow: 0 1px 0 var(--line), 0 9px 18px rgba(20, 38, 54, 0.07); }
 thead th:first-child { z-index: 7; background: var(--table-head); box-shadow: 8px 1px 15px rgba(20, 38, 54, 0.07), 0 1px 0 var(--line); }
+.table-shell thead tr { height: 32px; }
+.table-shell tbody > tr:not(.source-detail-row) { height: 49px; }
 tbody tr:last-child td { border-bottom: 0; }
 tbody tr:hover td { background-color: var(--table-hover); }
 .table-row--alternate td { background: var(--table-stripe); }
