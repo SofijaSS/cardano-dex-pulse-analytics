@@ -1,5 +1,9 @@
 import { revalidateTag } from "next/cache";
-import { loadDashboardSnapshot } from "@/lib/dashboard-snapshot";
+import { after } from "next/server";
+import {
+  loadDashboardSnapshot,
+  refreshDashboardSnapshot,
+} from "@/lib/dashboard-snapshot";
 import { DATA_CACHE_SECONDS } from "@/lib/source-config";
 import { DASHBOARD_SOURCE_CACHE_TAG } from "@/lib/source-snapshot-cache";
 import {
@@ -20,10 +24,18 @@ export async function GET(request: Request) {
     const force = url.searchParams.get("force") === "1";
     if (force) revalidateTag(DASHBOARD_SOURCE_CACHE_TAG, { expire: 0 });
     const cached = await loadDashboardSnapshot({ force });
+    if (cached.refreshInBackground) {
+      after(async () => {
+        await refreshDashboardSnapshot({ force });
+      });
+    }
 
     return Response.json(cached.value, {
       headers: {
         "x-data-cache": cached.status,
+        "x-background-refresh": cached.refreshInBackground
+          ? "scheduled"
+          : "not-needed",
         "cache-control": isDashboardAuthEnabled()
           ? "private, no-store"
           : `public, max-age=60, s-maxage=${DATA_CACHE_SECONDS}, stale-while-revalidate=300`,

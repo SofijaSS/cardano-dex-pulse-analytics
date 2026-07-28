@@ -1,4 +1,4 @@
-import { loadDashboardSnapshot } from "@/lib/dashboard-snapshot";
+import { refreshDashboardSnapshot } from "@/lib/dashboard-snapshot";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -16,7 +16,7 @@ export async function GET(request: Request) {
   }
 
   const startedAt = Date.now();
-  const snapshot = await loadDashboardSnapshot({ force: true });
+  const snapshot = await refreshDashboardSnapshot({ force: true });
 
   return Response.json({
     cache: snapshot.status,
