@@ -84,7 +84,7 @@ export const SOURCE_ENDPOINTS = {
   ),
 } as const;
 
-export const DATA_CACHE_SECONDS = boundedNumber("DATA_CACHE_SECONDS", 300, 30, 3_600);
+export const DATA_CACHE_SECONDS = boundedNumber("DATA_CACHE_SECONDS", 3_600, 30, 3_600);
 export const DATA_STALE_SECONDS = boundedNumber("DATA_STALE_SECONDS", 1_800, 60, 86_400);
 export const TOKEN_CACHE_SECONDS = boundedNumber("TOKEN_CACHE_SECONDS", 300, 60, 3_600);
 export const PRICE_REFRESH_SECONDS = boundedNumber("PRICE_REFRESH_SECONDS", 300, 60, 3_600);

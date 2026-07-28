@@ -31,7 +31,7 @@ The existing `npm run build` command remains dedicated to the Sites/Cloudflare d
 
 Import the GitHub repository into Vercel as a Next.js project and configure the shared-login values from **Optional shared login** as encrypted Production, Preview, and Development environment variables. Also set `NEXT_PUBLIC_SITE_URL` to the final HTTPS deployment URL and add a random `CRON_SECRET` of at least 16 characters. Do not commit `.env.local`, the password hash, the cron secret, or the session-signing secret.
 
-`vercel.json` registers one daily cache warm-up at `07:15 UTC`. It calls `/api/cron/refresh-dashboard`, never bypasses dashboard authentication for a user, and returns only cache metadata. Vercel automatically supplies `Authorization: Bearer <CRON_SECRET>` when that environment variable exists. The source-level cache still follows its own 5-minute, hourly, and 12-hour policies between warm-ups, so dashboard freshness does not depend on the cron running at the exact minute.
+`vercel.json` registers one daily cache warm-up at `07:15 UTC`. It calls `/api/cron/refresh-dashboard`, never bypasses dashboard authentication for a user, and returns only cache metadata. Vercel automatically supplies `Authorization: Bearer <CRON_SECRET>` when that environment variable exists. The final normalized DEX snapshot uses Vercel's persistent Data Cache with a one-hour stale-while-revalidate interval, while price, current-source, and benchmark adapters retain their own 5-minute, hourly, and 12-hour policies.
 
 The interface uses a local-first `Avenir Next`/`SFMono` font stack with cross-platform fallbacks. Production builds do not download font assets and therefore remain reproducible in network-restricted CI environments.
 
@@ -115,7 +115,7 @@ Research and comparison were last reviewed on **2026-07-21**. Values below are a
 
 Dashboard and token source responses use structural validation, a configurable 7-second timeout, and two attempts with exponential backoff. Non-retryable 4xx responses fail immediately. Each source reports `healthy`, `stale`, or `error`. Auth is checked before every API response; browser responses remain private and `no-store` while login protection is enabled.
 
-Provider payloads are cached separately in Next's persistent Data Cache, which Vercel shares across requests and deployments. ADA/USD providers refresh every `PRICE_REFRESH_SECONDS` (default 5 minutes); current native DEX and TVL providers refresh every `DEX_REFRESH_SECONDS` (default 60 minutes); daily and historical benchmark providers refresh every `BENCHMARK_REFRESH_SECONDS` (default 12 hours). The normalized API response has an additional 5-minute in-memory single-flight cache. Failed background revalidation keeps the last successful persistent snapshot available, while its original source timestamp allows the UI to mark it stale instead of presenting it as new.
+Provider payloads are cached separately in Next's persistent Data Cache, which Vercel shares across requests and deployments. ADA/USD providers refresh every `PRICE_REFRESH_SECONDS` (default 5 minutes); current native DEX and TVL providers refresh every `DEX_REFRESH_SECONDS` (default 60 minutes); daily and historical benchmark providers refresh every `BENCHMARK_REFRESH_SECONDS` (default 12 hours). The normalized DEX response also has its own persistent one-hour snapshot plus an in-instance single-flight layer. After the first successful seed, expired snapshots are served stale while Vercel refreshes them in the background. Failed revalidation keeps the last successful snapshot available, while original source timestamps allow the UI to mark provider data stale instead of presenting it as new. Token-chart snapshots remain independent and refresh every 5 minutes.
 
 ### Reference-table field audit
 
@@ -181,7 +181,9 @@ Add or rename exchanges in `config/dexes.ts`; the dashboard components do not ne
 ```text
 Browser
   -> GET /api/dashboard
-     -> 5m final normalized snapshot
+     -> persistent 60m final normalized snapshot
+        -> serve the last successful snapshot immediately
+        -> stale-while-revalidate in Vercel's Data Cache
      -> persistent provider snapshots
         -> ADA/USD sources: 5m
         -> current native DEX + TVL sources: 60m
