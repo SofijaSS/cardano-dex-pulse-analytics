@@ -15,6 +15,25 @@ type CopyTablePngOptions = {
 const clamp = (value: number, minimum: number, maximum: number) =>
   Math.min(maximum, Math.max(minimum, value));
 
+const MAX_PNG_WIDTH = 4_096;
+const MAX_PNG_HEIGHT = 1_024;
+const MAX_PNG_AREA = 4_000_000;
+
+export function calculateTablePngScale(
+  logicalWidth: number,
+  logicalHeight: number,
+  devicePixelRatio: number,
+) {
+  const preferredScale = clamp(devicePixelRatio || 1, 1, 2);
+  const widthScale = MAX_PNG_WIDTH / logicalWidth;
+  const heightScale = MAX_PNG_HEIGHT / logicalHeight;
+  const areaScale = Math.sqrt(
+    MAX_PNG_AREA / (logicalWidth * logicalHeight),
+  );
+
+  return Math.min(preferredScale, widthScale, heightScale, areaScale);
+}
+
 function ellipsize(
   context: CanvasRenderingContext2D,
   value: string,
@@ -86,7 +105,6 @@ export async function copyTableAsPng({
         line: "#d4d7d5",
         blue: "#1b5cff",
       };
-  const scale = Math.min(window.devicePixelRatio || 1, 2);
   const outerPadding = 30;
   const titleHeight = 92;
   const headerHeight = 40;
@@ -115,9 +133,14 @@ export async function copyTableAsPng({
       rows.length * rowHeight +
       footerHeight,
   );
+  const scale = calculateTablePngScale(
+    logicalWidth,
+    logicalHeight,
+    window.devicePixelRatio || 1,
+  );
 
-  canvas.width = logicalWidth * scale;
-  canvas.height = logicalHeight * scale;
+  canvas.width = Math.ceil(logicalWidth * scale);
+  canvas.height = Math.ceil(logicalHeight * scale);
   context.scale(scale, scale);
   context.textBaseline = "middle";
   context.fillStyle = colors.canvas;
@@ -211,7 +234,11 @@ export async function copyTableAsPng({
   context.fillStyle = colors.muted;
   context.font = '500 9px "SFMono-Regular", "Cascadia Code", monospace';
   context.textAlign = "left";
-  context.fillText("Cardano DEX Pulse", outerPadding + 16, footerY);
+  context.fillText(
+    `Cardano DEX Pulse · ${rows.length} DEX rows`,
+    outerPadding + 16,
+    footerY,
+  );
   context.textAlign = "right";
   context.fillText(
     new Intl.DateTimeFormat("en-GB", {
