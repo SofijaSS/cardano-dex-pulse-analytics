@@ -133,15 +133,15 @@ export function DashboardCharts({
             <AreaChart data={convertedSeries} margin={{ top: 12, right: 12, left: 0, bottom: 0 }}>
               <defs>
                 <linearGradient id="totalGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#1b5cff" stopOpacity={0.28} />
-                  <stop offset="100%" stopColor="#1b5cff" stopOpacity={0.01} />
+                  <stop offset="0%" stopColor="var(--blue)" stopOpacity={0.28} />
+                  <stop offset="100%" stopColor="var(--blue)" stopOpacity={0.01} />
                 </linearGradient>
               </defs>
               <CartesianGrid stroke={gridColor} vertical={false} />
               <XAxis dataKey="timestamp" tickFormatter={dateLabel} tick={{ fill: axisColor, fontSize: 11 }} axisLine={false} tickLine={false} minTickGap={28} />
               <YAxis tickFormatter={(value) => unitFormatter(value)} tick={{ fill: axisColor, fontSize: 11 }} axisLine={false} tickLine={false} width={78} />
               <Tooltip formatter={tooltipFormatter} labelFormatter={(value) => dateLabel(Number(value))} />
-              <Area type="monotone" dataKey="total" name="Total benchmark" stroke="#1b5cff" strokeWidth={2.5} fill="url(#totalGradient)" />
+              <Area type="monotone" dataKey="total" name="Total benchmark" stroke="var(--blue)" strokeWidth={2.5} fill="url(#totalGradient)" />
             </AreaChart>
           </ResponsiveContainer>
         )}
@@ -188,7 +188,10 @@ export function DashboardCharts({
               <CartesianGrid stroke={gridColor} horizontal={false} />
               <XAxis type="number" domain={[0, 100]} tickFormatter={(value) => `${Number(value).toFixed(0)}%`} tick={{ fill: axisColor, fontSize: 11 }} axisLine={false} tickLine={false} />
               <YAxis type="category" dataKey="name" width={86} tick={{ fill: axisColor, fontSize: 10 }} axisLine={false} tickLine={false} />
-              <Tooltip formatter={(value) => `${Number(value).toFixed(1)}%`} />
+              <Tooltip
+                cursor={{ fill: "var(--chart-hover)" }}
+                formatter={(value) => `${Number(value).toFixed(1)}%`}
+              />
               <Bar dataKey="value" name="Observed 24h share" radius={[0, 6, 6, 0]}>
                 {marketShareData.map((entry) => <Cell key={entry.name} fill={entry.color} />)}
               </Bar>
@@ -234,10 +237,10 @@ export function DashboardCharts({
               <CartesianGrid stroke={gridColor} vertical={false} />
               <XAxis dataKey="name" angle={-28} textAnchor="end" interval={0} tick={{ fill: axisColor, fontSize: 10 }} axisLine={false} tickLine={false} />
               <YAxis tickFormatter={(value) => unitFormatter(value)} tick={{ fill: axisColor, fontSize: 11 }} axisLine={false} tickLine={false} width={74} />
-              <Tooltip formatter={tooltipFormatter} />
+              <Tooltip cursor={false} formatter={tooltipFormatter} />
               <Legend />
-              <Bar dataKey="current" name="Current 7d" fill="#1b5cff" radius={[5, 5, 0, 0]} />
-              <Bar dataKey="previous" name="Previous 7d" fill="#b8c4cc" radius={[5, 5, 0, 0]} />
+              <Bar dataKey="current" name="Current 7d" fill="var(--blue)" radius={[5, 5, 0, 0]} />
+              <Bar dataKey="previous" name="Previous 7d" fill="var(--chart-secondary)" radius={[5, 5, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         )}
@@ -256,7 +259,10 @@ export function DashboardCharts({
               <CartesianGrid stroke={gridColor} horizontal={false} />
               <XAxis type="number" tickFormatter={(value) => `${Number(value).toFixed(2)}x`} tick={{ fill: axisColor, fontSize: 11 }} axisLine={false} tickLine={false} />
               <YAxis type="category" dataKey="name" width={86} tick={{ fill: axisColor, fontSize: 10 }} axisLine={false} tickLine={false} />
-              <Tooltip formatter={(value) => `${Number(value).toFixed(3)}x`} />
+              <Tooltip
+                cursor={{ fill: "var(--chart-hover)" }}
+                formatter={(value) => `${Number(value).toFixed(3)}x`}
+              />
               <Bar dataKey="value" name="24h volume / TVL" radius={[0, 6, 6, 0]}>
                 {efficiencyData.map((entry) => <Cell key={entry.name} fill={entry.color} />)}
               </Bar>
@@ -279,7 +285,7 @@ export function DashboardCharts({
               <CartesianGrid stroke={gridColor} horizontal={false} />
               <XAxis type="number" tickFormatter={(value) => unitFormatter(value)} tick={{ fill: axisColor, fontSize: 11 }} axisLine={false} tickLine={false} />
               <YAxis type="category" dataKey="name" width={94} tick={{ fill: axisColor, fontSize: 10 }} axisLine={false} tickLine={false} />
-              <Tooltip formatter={tooltipFormatter} />
+              <Tooltip cursor={{ fill: "var(--chart-hover)" }} formatter={tooltipFormatter} />
               <Bar dataKey="value" name="Tracked TVL" radius={[0, 6, 6, 0]}>
                 {tvlData.map((entry) => <Cell key={entry.name} fill={entry.color} />)}
               </Bar>

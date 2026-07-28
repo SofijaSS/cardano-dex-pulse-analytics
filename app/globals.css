@@ -8,14 +8,15 @@
   --surface: #faf9f5;
   --surface-strong: #ffffff;
   --ink: #142636;
-  --muted: #687984;
+  --muted: #596b76;
   --line: rgba(20, 38, 54, 0.13);
   --blue: #1b5cff;
+  --on-blue: #ffffff;
   --blue-soft: #e9efff;
   --coral: #ef6c47;
   --green: #14845c;
   --red: #c8494d;
-  --amber: #b87909;
+  --amber: #8a5a00;
   --navy: #10283c;
   --shadow: 0 18px 55px rgba(24, 45, 62, 0.08);
   --topbar-bg: rgba(250, 249, 245, 0.88);
@@ -31,7 +32,9 @@
   --detail-bg: #edf3f6;
   --detail-card: #f8faf9;
   --chart-grid: rgba(20, 38, 54, 0.1);
-  --chart-axis: #6d7b84;
+  --chart-axis: #596b76;
+  --chart-secondary: #7c8f9a;
+  --chart-hover: rgba(27, 92, 255, 0.035);
   --shimmer-a: #e6e4dc;
   --shimmer-b: #f7f6f1;
 }
@@ -45,6 +48,7 @@ html[data-theme="dark"] {
   --muted: #91a3ad;
   --line: rgba(216, 231, 238, 0.14);
   --blue: #7098ff;
+  --on-blue: #142636;
   --blue-soft: #172b4d;
   --coral: #ff8c6d;
   --green: #59c99c;
@@ -66,6 +70,8 @@ html[data-theme="dark"] {
   --detail-card: #182b36;
   --chart-grid: rgba(215, 231, 239, 0.12);
   --chart-axis: #9aabb4;
+  --chart-secondary: #b8c4cc;
+  --chart-hover: rgba(112, 152, 255, 0.05);
   --shimmer-a: #15232d;
   --shimmer-b: #223541;
 }
@@ -483,7 +489,7 @@ a {
 .source-item div { display: flex; flex-direction: column; gap: 3px; }
 .source-item strong { font-size: 11px; }
 .source-item span { color: var(--muted); font-size: 10px; line-height: 1.4; }
-.source-item small { color: #87949c; font-family: var(--font-plex-mono), monospace; font-size: 8px; }
+.source-item small { color: var(--muted); font-family: var(--font-plex-mono), monospace; font-size: 8px; }
 
 .source-warnings {
   margin-top: 12px;
@@ -770,7 +776,7 @@ footer {
   white-space: nowrap;
 }
 
-.button--primary { border: 1px solid var(--blue); background: var(--blue); color: #fff; }
+.button--primary { border: 1px solid var(--blue); background: var(--blue); color: var(--on-blue); }
 .button--secondary { border: 1px solid var(--line); background: var(--control-bg); color: var(--ink); }
 .button--light { border: 1px solid #fff; background: #fff; color: var(--navy); }
 .button--ghost-light { border: 1px solid rgba(255, 255, 255, 0.28); background: transparent; color: #fff; }
@@ -846,6 +852,10 @@ footer {
 .empty-chart { display: grid; place-items: center; height: 100%; color: var(--muted); border: 1px dashed var(--line); border-radius: 8px; font-size: 11px; }
 .recharts-default-tooltip { border: 1px solid var(--line) !important; border-radius: 8px; background: var(--surface-strong) !important; color: var(--ink) !important; box-shadow: var(--shadow); font-size: 10px; }
 .recharts-tooltip-label { color: var(--ink) !important; }
+.recharts-tooltip-item,
+.recharts-tooltip-item-name,
+.recharts-tooltip-item-value,
+.recharts-tooltip-item-separator { color: var(--ink) !important; }
 .recharts-legend-item-text { color: var(--muted) !important; font-size: 9px; }
 .recharts-tooltip-wrapper { max-width: calc(100% - 8px); }
 .recharts-default-tooltip { max-width: 220px; white-space: normal; }
@@ -2005,7 +2015,7 @@ footer a { color: var(--blue); font-weight: 700; }
 
 .token-range-control button.is-active {
   background: var(--blue);
-  color: #fff;
+  color: var(--on-blue);
 }
 
 .token-range-control > span {
@@ -2061,7 +2071,7 @@ footer a { color: var(--blue); font-weight: 700; }
 .candle-negative .candle-volume { fill: rgba(200, 73, 77, 0.58); fill: color-mix(in srgb, var(--red) 58%, transparent); }
 .token-price-line { stroke: var(--blue); stroke-width: 1.2; stroke-dasharray: 3 4; }
 .token-price-label-bg { fill: var(--blue); }
-.token-price-label { fill: #fff; font-family: var(--font-plex-mono), monospace; font-size: 11px; font-weight: 600; }
+.token-price-label { fill: var(--on-blue); font-family: var(--font-plex-mono), monospace; font-size: 11px; font-weight: 600; }
 
 .token-chart-empty,
 .depth-empty {
