@@ -1064,7 +1064,8 @@ footer {
 .table-shell {
   position: relative;
   isolation: isolate;
-  max-height: 524px;
+  /* Header (32px) + 10 DEX rows (10 × 49px) + borders and horizontal scrollbar. */
+  max-height: 542px;
   overflow: auto;
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
