@@ -28,7 +28,7 @@ import {
   type Currency,
 } from "@/lib/format";
 import { PreserveTerms } from "@/components/PreserveTerms";
-import { copyTableAsPng } from "@/lib/table-png";
+import { copyTableAsPng, selectTablePngRows } from "@/lib/table-png";
 import type { DexMetric, QualityFlag } from "@/lib/types";
 
 type SortKey =
@@ -439,17 +439,18 @@ export function DexTable({
   const copyCurrentTablePng = async () => {
     setPngStatus("working");
     try {
+      const pngDexes = selectTablePngRows(filtered);
       const result = await copyTableAsPng({
         filename: `cardano-dex-performance-${new Date().toISOString().slice(0, 10)}.png`,
         title: "DEX performance table",
-        subtitle: `${filtered.length} rows · ${visibleColumnCount} visible metrics · ${currency} · current filters and sorting`,
+        subtitle: `${pngDexes.length} top rows · ${visibleColumnCount} visible metrics · ${currency} · current filters and sorting`,
         headers: [
           "7D rank / DEX",
           ...visibleColumnKeys.map(
             (key) => DEX_TABLE_COLUMNS.find((column) => column.key === key)?.label || key,
           ),
         ],
-        rows: filtered.map((dex) => ({
+        rows: pngDexes.map((dex) => ({
           accentColor: dex.color,
           cells: [
             `${volumeRanks.has(dex.id) ? `#${volumeRanks.get(dex.id)}` : "–"} ${dex.name} · ${dex.rowKind === "version" ? dex.protocolVersion : "DEX"} · ${qualityLabels[dex.quality]}`,

@@ -18,6 +18,11 @@ const clamp = (value: number, minimum: number, maximum: number) =>
 const MAX_PNG_WIDTH = 4_096;
 const MAX_PNG_HEIGHT = 1_024;
 const MAX_PNG_AREA = 4_000_000;
+export const TABLE_PNG_ROW_LIMIT = 10;
+
+export function selectTablePngRows<T>(rows: T[]) {
+  return rows.slice(0, TABLE_PNG_ROW_LIMIT);
+}
 
 export function calculateTablePngScale(
   logicalWidth: number,
