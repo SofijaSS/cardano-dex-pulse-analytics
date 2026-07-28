@@ -13,8 +13,8 @@ describe("table PNG sizing", () => {
     ]);
   });
 
-  it("keeps a compact table at full Retina resolution", () => {
-    expect(calculateTablePngScale(1_000, 500, 2)).toBe(2);
+  it("renders a compact table at enhanced Retina resolution", () => {
+    expect(calculateTablePngScale(1_000, 500, 2)).toBe(3);
   });
 
   it("fits a wide 10-row table inside clipboard-safe dimensions", () => {
@@ -22,10 +22,10 @@ describe("table PNG sizing", () => {
     const height = 584;
     const scale = calculateTablePngScale(width, height, 2);
 
-    expect(Math.ceil(width * scale)).toBeLessThanOrEqual(4_096);
-    expect(Math.ceil(height * scale)).toBeLessThanOrEqual(1_024);
+    expect(Math.ceil(width * scale)).toBeLessThanOrEqual(6_144);
+    expect(Math.ceil(height * scale)).toBeLessThanOrEqual(2_048);
     expect(Math.ceil(width * height * scale * scale)).toBeLessThanOrEqual(
-      4_000_000,
+      12_000_000,
     );
   });
 });

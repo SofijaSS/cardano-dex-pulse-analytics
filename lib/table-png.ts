@@ -15,9 +15,9 @@ type CopyTablePngOptions = {
 const clamp = (value: number, minimum: number, maximum: number) =>
   Math.min(maximum, Math.max(minimum, value));
 
-const MAX_PNG_WIDTH = 4_096;
-const MAX_PNG_HEIGHT = 1_024;
-const MAX_PNG_AREA = 4_000_000;
+const MAX_PNG_WIDTH = 6_144;
+const MAX_PNG_HEIGHT = 2_048;
+const MAX_PNG_AREA = 12_000_000;
 export const TABLE_PNG_ROW_LIMIT = 10;
 
 export function selectTablePngRows<T>(rows: T[]) {
@@ -29,7 +29,7 @@ export function calculateTablePngScale(
   logicalHeight: number,
   devicePixelRatio: number,
 ) {
-  const preferredScale = clamp(devicePixelRatio || 1, 1, 2);
+  const preferredScale = clamp((devicePixelRatio || 1) * 1.5, 2, 3);
   const widthScale = MAX_PNG_WIDTH / logicalWidth;
   const heightScale = MAX_PNG_HEIGHT / logicalHeight;
   const areaScale = Math.sqrt(
