@@ -29,6 +29,7 @@ import {
   formatMoney,
   type Currency,
 } from "@/lib/format";
+import { downloadTablePdf } from "@/lib/pdf-export";
 import type { DashboardData, DexMetric, VolumeSeriesPoint } from "@/lib/types";
 import { useVisibleRefresh } from "@/lib/use-visible-refresh";
 
@@ -337,14 +338,23 @@ export function Dashboard({ authEnabled = false }: { authEnabled?: boolean }) {
 
   const exportRange = () => {
     const selected = displayedDexes.filter((dex) => selectedDexes.has(dex.id));
-    downloadCsv(`cardano-dex-range-${preset}-${currency.toLowerCase()}.csv`, [
-      ["Date (CET/CEST)", `Total benchmark (${currency})`, ...selected.map((dex) => `${dex.name} (${currency})`)],
-      ...chartSeries.map((point) => [
+    downloadTablePdf({
+      filename: `cardano-dex-range-${preset}-${currency.toLowerCase()}.pdf`,
+      title: "Selected DEX volume range",
+      subtitle: `${sourceLabel} | Range: ${preset.toUpperCase()} | Currency: ${currency}`,
+      headers: [
+        "Date (CET/CEST)",
+        `Total benchmark (${currency})`,
+        ...selected.map((dex) => `${dex.name} (${currency})`),
+      ],
+      rows: chartSeries.map((point) => [
         formatDateTime(new Date(point.timestamp * 1000).toISOString()),
-        convertUsd(point.totalUsd, currency, adaPrice),
-        ...selected.map((dex) => convertUsd(point.byDex[dex.id] || 0, currency, adaPrice)),
+        formatMoney(point.totalUsd, currency, adaPrice),
+        ...selected.map((dex) =>
+          formatMoney(point.byDex[dex.id] || 0, currency, adaPrice),
+        ),
       ]),
-    ]);
+    });
   };
 
   return (
@@ -464,7 +474,7 @@ export function Dashboard({ authEnabled = false }: { authEnabled?: boolean }) {
             <p>Historical charts remain explicitly benchmark-labelled because no public native API supplies one aligned ecosystem time series.</p>
           </div>
           <button type="button" className="button button--secondary" onClick={exportRange}>
-            <Download size={15} aria-hidden="true" /> Export selected range
+            <Download size={15} aria-hidden="true" /> Export selected range (PDF)
           </button>
         </div>
         <div className="chart-controls">

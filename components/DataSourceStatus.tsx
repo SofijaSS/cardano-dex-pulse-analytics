@@ -1,4 +1,4 @@
-import { AlertTriangle, CheckCircle2, Database, XCircle } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ChevronDown, Database, XCircle } from "lucide-react";
 import { PreserveTerms } from "@/components/PreserveTerms";
 import { formatDateTime } from "@/lib/format";
 import type { SourceStatus } from "@/lib/types";
@@ -18,9 +18,10 @@ export function DataSourceStatus({
     <details className="source-status">
       <summary>
         <span className={`source-status__dot source-status__dot--${overall}`} />
-        <Database size={15} aria-hidden="true" />
+        <Database className="source-status__database" size={15} aria-hidden="true" />
         <span>{overall === "healthy" ? "Sources healthy" : overall === "stale" ? "Stale source detected" : "Sources degraded"}</span>
         <span className="source-status__count">{sources.length} checked</span>
+        <ChevronDown className="dropdown-chevron" size={15} aria-hidden="true" />
       </summary>
       <div className="source-status__panel">
         <div className="source-status__grid">

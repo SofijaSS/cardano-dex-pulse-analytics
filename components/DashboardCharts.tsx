@@ -27,6 +27,23 @@ function EmptyChart({ message }: { message: string }) {
   return <div className="empty-chart">{message}</div>;
 }
 
+function ChartLegend({
+  items,
+}: {
+  items: Array<{ name: string; color: string }>;
+}) {
+  return (
+    <ul className="chart-legend-list" aria-label="Chart legend">
+      {items.map((item) => (
+        <li key={item.name}>
+          <i style={{ backgroundColor: item.color }} aria-hidden="true" />
+          <span>{item.name}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 function dateLabel(timestamp: number) {
   return new Intl.DateTimeFormat("en-GB", {
     day: "2-digit",
@@ -139,18 +156,22 @@ export function DashboardCharts({
         {!convertedSeries.length || !selectedDexes.length ? (
           <EmptyChart message="Select at least one DEX with historical benchmark data." />
         ) : (
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={convertedSeries} margin={{ top: 12, right: 12, left: 0, bottom: 0 }}>
-              <CartesianGrid stroke={gridColor} vertical={false} />
-              <XAxis dataKey="timestamp" tickFormatter={dateLabel} tick={{ fill: axisColor, fontSize: 11 }} axisLine={false} tickLine={false} minTickGap={28} />
-              <YAxis tickFormatter={(value) => unitFormatter(value)} tick={{ fill: axisColor, fontSize: 11 }} axisLine={false} tickLine={false} width={78} />
-              <Tooltip formatter={tooltipFormatter} labelFormatter={(value) => dateLabel(Number(value))} />
-              <Legend iconType="circle" />
-              {selectedDexes.map((dex) => (
-                <Area key={dex.id} type="monotone" dataKey={dex.id} name={dex.name} stackId="volume" stroke={dex.color} fill={dex.color} fillOpacity={0.45} />
-              ))}
-            </AreaChart>
-          </ResponsiveContainer>
+          <div className="chart-stack">
+            <div className="chart-stack__canvas">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={convertedSeries} margin={{ top: 12, right: 12, left: 0, bottom: 0 }}>
+                  <CartesianGrid stroke={gridColor} vertical={false} />
+                  <XAxis dataKey="timestamp" tickFormatter={dateLabel} tick={{ fill: axisColor, fontSize: 11 }} axisLine={false} tickLine={false} minTickGap={28} />
+                  <YAxis tickFormatter={(value) => unitFormatter(value)} tick={{ fill: axisColor, fontSize: 11 }} axisLine={false} tickLine={false} width={78} />
+                  <Tooltip formatter={tooltipFormatter} labelFormatter={(value) => dateLabel(Number(value))} />
+                  {selectedDexes.map((dex) => (
+                    <Area key={dex.id} type="monotone" dataKey={dex.id} name={dex.name} stackId="volume" stroke={dex.color} fill={dex.color} fillOpacity={0.45} />
+                  ))}
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+            <ChartLegend items={selectedDexes.map((dex) => ({ name: dex.name, color: dex.color }))} />
+          </div>
         )}
       </ChartCard>
 
@@ -184,15 +205,19 @@ export function DashboardCharts({
         {!pieData.length ? (
           <EmptyChart message="Current market share data unavailable." />
         ) : (
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie data={pieData} dataKey="value" nameKey="name" innerRadius="55%" outerRadius="82%" paddingAngle={2}>
-                {pieData.map((entry) => <Cell key={entry.name} fill={entry.color} />)}
-              </Pie>
-              <Tooltip formatter={tooltipFormatter} />
-              <Legend iconType="circle" />
-            </PieChart>
-          </ResponsiveContainer>
+          <div className="chart-stack">
+            <div className="chart-stack__canvas">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={pieData} dataKey="value" nameKey="name" innerRadius="51%" outerRadius="76%" paddingAngle={2}>
+                    {pieData.map((entry) => <Cell key={entry.name} fill={entry.color} />)}
+                  </Pie>
+                  <Tooltip formatter={tooltipFormatter} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <ChartLegend items={pieData.map((entry) => ({ name: entry.name, color: entry.color }))} />
+          </div>
         )}
       </ChartCard>
 

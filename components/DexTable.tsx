@@ -1,6 +1,13 @@
 "use client";
 
-import { Fragment, useDeferredValue, useState } from "react";
+import {
+  Fragment,
+  useDeferredValue,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import {
   ArrowDown,
   ArrowUp,
@@ -71,36 +78,104 @@ type ColumnDefinition = {
 };
 
 export const DEX_TABLE_COLUMNS: ColumnDefinition[] = [
-  { key: "volume7dUsd", label: "DEX volume · 7d", group: "Volume", sortKey: "volume7dUsd", width: 112 },
-  { key: "volume24hUsd", label: "24h volume", group: "Volume", sortKey: "volume24hUsd", width: 108 },
-  { key: "volume30dUsd", label: "30d volume", group: "Volume", sortKey: "volume30dUsd", width: 108 },
-  { key: "previous7dUsd", label: "Previous 7d", group: "Volume", sortKey: "previous7dUsd", width: 112 },
-  { key: "weekChangePct", label: "WoW change", group: "Volume", sortKey: "weekChangePct", width: 82 },
-  { key: "tvlUsd", label: "TVL", group: "Value", sortKey: "tvlUsd", width: 106 },
-  { key: "volumeToTvl", label: "Volume / TVL", group: "Value", sortKey: "volumeToTvl", width: 92 },
-  { key: "trades24h", label: "Trades · 24h", group: "Activity", sortKey: "trades24h", width: 92 },
-  { key: "users24h", label: "Users · 24h", group: "Activity", sortKey: "users24h", width: 90 },
-  { key: "dau24h", label: "DAU · 24h", group: "Activity", sortKey: "dau24h", width: 84 },
-  { key: "fees24hUsd", label: "Fees · 24h", group: "Activity", sortKey: "fees24hUsd", width: 104 },
-  { key: "fees7dUsd", label: "Fees · 7d", group: "Activity", sortKey: "fees7dUsd", width: 102 },
-  { key: "marketCapUsd", label: "Market cap", group: "Value", sortKey: "marketCapUsd", width: 108 },
-  { key: "marketCapToTvl", label: "Market cap / TVL", group: "Value", sortKey: "marketCapToTvl", width: 104 },
-  { key: "poolCount", label: "Pools", group: "Value", sortKey: "poolCount", width: 72 },
-  { key: "marketShare24hPct", label: "Market share", group: "Reporting", sortKey: "marketShare24hPct", width: 86 },
-  { key: "variance24hPct", label: "vs DefiLlama", group: "Reporting", sortKey: "variance24hPct", width: 98 },
-  { key: "lastData", label: "Last data", group: "Reporting", width: 128 },
+  { key: "volume7dUsd", label: "DEX volume · 7d", group: "Volume", sortKey: "volume7dUsd", width: 102 },
+  { key: "volume24hUsd", label: "24h volume", group: "Volume", sortKey: "volume24hUsd", width: 98 },
+  { key: "volume30dUsd", label: "30d volume", group: "Volume", sortKey: "volume30dUsd", width: 98 },
+  { key: "previous7dUsd", label: "Previous 7d", group: "Volume", sortKey: "previous7dUsd", width: 102 },
+  { key: "weekChangePct", label: "WoW change", group: "Volume", sortKey: "weekChangePct", width: 76 },
+  { key: "tvlUsd", label: "TVL", group: "Value", sortKey: "tvlUsd", width: 96 },
+  { key: "volumeToTvl", label: "Volume / TVL", group: "Value", sortKey: "volumeToTvl", width: 84 },
+  { key: "trades24h", label: "Trades · 24h", group: "Activity", sortKey: "trades24h", width: 84 },
+  { key: "users24h", label: "Users · 24h", group: "Activity", sortKey: "users24h", width: 82 },
+  { key: "dau24h", label: "DAU · 24h", group: "Activity", sortKey: "dau24h", width: 76 },
+  { key: "fees24hUsd", label: "Fees · 24h", group: "Activity", sortKey: "fees24hUsd", width: 94 },
+  { key: "fees7dUsd", label: "Fees · 7d", group: "Activity", sortKey: "fees7dUsd", width: 92 },
+  { key: "marketCapUsd", label: "Market cap", group: "Value", sortKey: "marketCapUsd", width: 100 },
+  { key: "marketCapToTvl", label: "Market cap / TVL", group: "Value", sortKey: "marketCapToTvl", width: 96 },
+  { key: "poolCount", label: "Pools", group: "Value", sortKey: "poolCount", width: 66 },
+  { key: "marketShare24hPct", label: "Market share", group: "Reporting", sortKey: "marketShare24hPct", width: 80 },
+  { key: "variance24hPct", label: "vs DefiLlama", group: "Reporting", sortKey: "variance24hPct", width: 90 },
+  { key: "lastData", label: "Last data", group: "Reporting", width: 118 },
 ];
 
 const ALL_COLUMN_KEYS = DEX_TABLE_COLUMNS.map((column) => column.key);
+const COLUMN_PREFERENCE_KEY = "cardano-dex-pulse:table-columns";
+const COLUMN_PREFERENCE_EVENT = `${COLUMN_PREFERENCE_KEY}:changed`;
+const DEFAULT_COLUMN_PREFERENCE = JSON.stringify(ALL_COLUMN_KEYS);
+let memoryColumnPreference = DEFAULT_COLUMN_PREFERENCE;
 const SEVEN_DAY_COLUMN_KEYS: DexTableColumnKey[] = [
   "volume7dUsd",
   "previous7dUsd",
   "weekChangePct",
 ];
 
+function readColumnPreference() {
+  if (typeof window === "undefined") return DEFAULT_COLUMN_PREFERENCE;
+  try {
+    const stored = window.localStorage.getItem(COLUMN_PREFERENCE_KEY);
+    if (!stored) {
+      memoryColumnPreference = DEFAULT_COLUMN_PREFERENCE;
+      return memoryColumnPreference;
+    }
+    const parsed: unknown = JSON.parse(stored);
+    if (!Array.isArray(parsed)) return DEFAULT_COLUMN_PREFERENCE;
+    memoryColumnPreference = JSON.stringify(
+      parsed.filter(
+        (key): key is DexTableColumnKey =>
+          typeof key === "string" &&
+          ALL_COLUMN_KEYS.includes(key as DexTableColumnKey),
+      ),
+    );
+    return memoryColumnPreference;
+  } catch {
+    return memoryColumnPreference;
+  }
+}
+
+function subscribeToColumnPreference(onStoreChange: () => void) {
+  if (typeof window === "undefined") return () => undefined;
+  const handleStorage = (event: StorageEvent) => {
+    if (event.key === null || event.key === COLUMN_PREFERENCE_KEY) onStoreChange();
+  };
+  window.addEventListener("storage", handleStorage);
+  window.addEventListener(COLUMN_PREFERENCE_EVENT, onStoreChange);
+  return () => {
+    window.removeEventListener("storage", handleStorage);
+    window.removeEventListener(COLUMN_PREFERENCE_EVENT, onStoreChange);
+  };
+}
+
+function storeColumnPreference(columns: Set<DexTableColumnKey>) {
+  memoryColumnPreference = JSON.stringify(
+    ALL_COLUMN_KEYS.filter((key) => columns.has(key)),
+  );
+  try {
+    window.localStorage.setItem(COLUMN_PREFERENCE_KEY, memoryColumnPreference);
+  } catch {
+    // The custom event still keeps the selection active in the current tab.
+  }
+  window.dispatchEvent(new Event(COLUMN_PREFERENCE_EVENT));
+}
+
 function formatCount(value: number | null) {
-  if (value == null || !Number.isFinite(value)) return "Data unavailable";
+  if (value == null || !Number.isFinite(value)) return "n/a";
   return new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(value);
+}
+
+function formatTablePercent(value: number | null | undefined, signed = true) {
+  return value == null || !Number.isFinite(value)
+    ? "n/a"
+    : formatPercent(value, signed);
+}
+
+function formatTableRatio(value: number | null | undefined) {
+  return value == null || !Number.isFinite(value) ? "n/a" : formatRatio(value);
+}
+
+function formatTableDateTime(value: string | null | undefined) {
+  if (!value) return "n/a";
+  const formatted = formatDateTime(value);
+  return formatted === "Data unavailable" ? "n/a" : formatted;
 }
 
 function sourceVariance(row: DexMetric) {
@@ -141,6 +216,14 @@ const qualityLabels: Record<QualityFlag, string> = {
   unavailable: "Unavailable",
 };
 
+const qualityOptions: Array<{ value: "all" | QualityFlag; label: string }> = [
+  { value: "all", label: "All quality states" },
+  ...Object.entries(qualityLabels).map(([value, label]) => ({
+    value: value as QualityFlag,
+    label,
+  })),
+];
+
 export function DexTable({
   dexes,
   currency,
@@ -158,9 +241,42 @@ export function DexTable({
   const [sortKey, setSortKey] = useState<SortKey>("volume7dUsd");
   const [direction, setDirection] = useState<"asc" | "desc">("desc");
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
-  const [visibleColumns, setVisibleColumns] = useState<Set<DexTableColumnKey>>(
+  const storedColumnPreference = useSyncExternalStore(
+    subscribeToColumnPreference,
+    readColumnPreference,
+    () => DEFAULT_COLUMN_PREFERENCE,
+  );
+  const visibleColumns = new Set<DexTableColumnKey>(
+    JSON.parse(storedColumnPreference) as DexTableColumnKey[],
+  );
+  const [draftColumns, setDraftColumns] = useState<Set<DexTableColumnKey>>(
     () => new Set(ALL_COLUMN_KEYS),
   );
+  const [columnPickerOpen, setColumnPickerOpen] = useState(false);
+  const [qualityPickerOpen, setQualityPickerOpen] = useState(false);
+  const columnPickerRef = useRef<HTMLDivElement>(null);
+  const qualityPickerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const closeOpenMenus = (event: PointerEvent) => {
+      const target = event.target as Node;
+      if (!columnPickerRef.current?.contains(target)) setColumnPickerOpen(false);
+      if (!qualityPickerRef.current?.contains(target)) setQualityPickerOpen(false);
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setColumnPickerOpen(false);
+      setQualityPickerOpen(false);
+    };
+
+    document.addEventListener("pointerdown", closeOpenMenus);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeOpenMenus);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, []);
+
   const fallbackSortKey = DEX_TABLE_COLUMNS.find(
     (column) => visibleColumns.has(column.key) && column.sortKey,
   )?.sortKey;
@@ -233,7 +349,6 @@ export function DexTable({
   };
 
   const applyVisibleColumns = (next: Set<DexTableColumnKey>) => {
-    setVisibleColumns(new Set(next));
     if (activeSortKey === "name" || next.has(activeSortKey as DexTableColumnKey)) {
       if (sortKey !== activeSortKey) setSortKey(activeSortKey);
       return;
@@ -246,25 +361,42 @@ export function DexTable({
     setDirection(fallback ? "desc" : "asc");
   };
 
-  const toggleColumn = (key: DexTableColumnKey) => {
-    const next = new Set(visibleColumns);
+  const toggleDraftColumn = (key: DexTableColumnKey) => {
+    const next = new Set(draftColumns);
     if (next.has(key)) next.delete(key);
     else next.add(key);
-    applyVisibleColumns(next);
+    setDraftColumns(next);
+  };
+
+  const openColumnPicker = () => {
+    if (!columnPickerOpen) setDraftColumns(new Set(visibleColumns));
+    setColumnPickerOpen((current) => !current);
+    setQualityPickerOpen(false);
+  };
+
+  const saveColumnSelection = () => {
+    applyVisibleColumns(draftColumns);
+    storeColumnPreference(draftColumns);
+    setColumnPickerOpen(false);
   };
 
   const visibleColumnKeys = ALL_COLUMN_KEYS.filter((key) => visibleColumns.has(key));
   const visibleColumnCount = visibleColumnKeys.length;
+  const draftColumnCount = ALL_COLUMN_KEYS.filter((key) => draftColumns.has(key)).length;
   const tableMinWidth = Math.max(
-    640,
-    218 + DEX_TABLE_COLUMNS.reduce(
+    560,
+    196 + DEX_TABLE_COLUMNS.reduce(
       (width, column) => width + (visibleColumns.has(column.key) ? column.width : 0),
       0,
     ),
   );
   const showColumn = (key: DexTableColumnKey) => visibleColumns.has(key);
   const moneyText = (value: number | null) => (
-    <PreserveTerms>{formatMoney(value, currency, adaPriceUsd)}</PreserveTerms>
+    <PreserveTerms>
+      {value == null || !Number.isFinite(value)
+        ? "n/a"
+        : formatMoney(value, currency, adaPriceUsd)}
+    </PreserveTerms>
   );
 
   const headerProps = {
@@ -287,31 +419,69 @@ export function DexTable({
             <span className="sr-only">Filter DEXes</span>
             <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Filter DEXes" />
           </label>
-          <label className="select-field">
-            <span className="sr-only">Filter by source quality</span>
-            <select value={quality} onChange={(event) => setQuality(event.target.value as "all" | QualityFlag)}>
-              <option value="all">All quality states</option>
-              {Object.entries(qualityLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-            </select>
-          </label>
-          <details className="column-picker">
-            <summary>
+          <div className="select-field" ref={qualityPickerRef}>
+            <button
+              type="button"
+              className="select-field__trigger"
+              aria-label="Filter by source quality"
+              aria-haspopup="listbox"
+              aria-expanded={qualityPickerOpen}
+              onClick={() => {
+                setQualityPickerOpen((current) => !current);
+                setColumnPickerOpen(false);
+              }}
+            >
+              <span>{qualityOptions.find((option) => option.value === quality)?.label}</span>
+              <ChevronDown className="dropdown-chevron" size={15} aria-hidden="true" />
+            </button>
+            {qualityPickerOpen ? (
+              <div className="select-field__menu" role="listbox" aria-label="Source quality">
+                {qualityOptions.map((option) => (
+                  <button
+                    type="button"
+                    key={option.value}
+                    className={quality === option.value ? "is-selected" : ""}
+                    role="option"
+                    aria-selected={quality === option.value}
+                    onClick={() => {
+                      setQuality(option.value);
+                      setQualityPickerOpen(false);
+                    }}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </div>
+          <div
+            className={columnPickerOpen ? "column-picker is-open" : "column-picker"}
+            ref={columnPickerRef}
+          >
+            <button
+              type="button"
+              className="column-picker__trigger"
+              aria-haspopup="dialog"
+              aria-expanded={columnPickerOpen}
+              onClick={openColumnPicker}
+            >
               <SlidersHorizontal size={15} aria-hidden="true" />
               Columns
               <span>{visibleColumnCount}/{DEX_TABLE_COLUMNS.length}</span>
-            </summary>
-            <div className="column-picker__menu">
+              <ChevronDown className="dropdown-chevron" size={15} aria-hidden="true" />
+            </button>
+            {columnPickerOpen ? <div className="column-picker__menu" role="dialog" aria-label="Customize table columns">
               <div className="column-picker__heading">
                 <div>
                   <strong>Customize table</strong>
                   <small>Rank / DEX is always visible.</small>
                 </div>
-                <span>{visibleColumnCount} shown</span>
+                <span>{draftColumnCount} shown</span>
               </div>
               <div className="column-picker__actions" aria-label="Column presets">
-                <button type="button" onClick={() => applyVisibleColumns(new Set(ALL_COLUMN_KEYS))}>Show all</button>
-                <button type="button" onClick={() => applyVisibleColumns(new Set(SEVEN_DAY_COLUMN_KEYS))}>7D focus</button>
-                <button type="button" onClick={() => applyVisibleColumns(new Set())}>Clear metrics</button>
+                <button type="button" onClick={() => setDraftColumns(new Set(ALL_COLUMN_KEYS))}>Show all</button>
+                <button type="button" onClick={() => setDraftColumns(new Set(SEVEN_DAY_COLUMN_KEYS))}>7D focus</button>
+                <button type="button" onClick={() => setDraftColumns(new Set())}>Clear metrics</button>
               </div>
               {["Volume", "Activity", "Value", "Reporting"].map((group) => (
                 <fieldset key={group}>
@@ -321,8 +491,8 @@ export function DexTable({
                       <label key={column.key}>
                         <input
                           type="checkbox"
-                          checked={showColumn(column.key)}
-                          onChange={() => toggleColumn(column.key)}
+                          checked={draftColumns.has(column.key)}
+                          onChange={() => toggleDraftColumn(column.key)}
                         />
                         <span>{column.label}</span>
                       </label>
@@ -330,8 +500,13 @@ export function DexTable({
                   </div>
                 </fieldset>
               ))}
-            </div>
-          </details>
+              <div className="column-picker__footer">
+                <button type="button" className="button button--primary" onClick={saveColumnSelection}>
+                  Save
+                </button>
+              </div>
+            </div> : null}
+          </div>
           <button type="button" className="button button--secondary" onClick={() => onExport(filtered, visibleColumnKeys)}>
             <Download size={15} aria-hidden="true" />
             Export table
@@ -370,7 +545,7 @@ export function DexTable({
             </tr>
           </thead>
           <tbody>
-            {filtered.map((dex) => {
+            {filtered.map((dex, rowIndex) => {
               const trend = dex.weekChangePct == null ? "neutral" : dex.weekChangePct > 0 ? "positive" : dex.weekChangePct < 0 ? "negative" : "neutral";
               const aggregateDetail = dex.parentId ? detailRows.get(dex.parentId) || null : dex;
               const aggregateQuality = aggregateDetail?.quality || dex.quality;
@@ -378,7 +553,7 @@ export function DexTable({
               const isExpanded = expandedRows.has(dex.id);
               return (
                 <Fragment key={dex.id}>
-                  <tr className={dex.rowKind === "version" ? "version-row" : "protocol-row"}>
+                  <tr className={`${dex.rowKind === "version" ? "version-row" : "protocol-row"}${rowIndex % 2 === 1 ? " table-row--alternate" : ""}`}>
                     <td>
                       <div className="dex-cell">
                         <span className="rank">{volumeRanks.has(dex.id) ? `#${volumeRanks.get(dex.id)}` : "–"}</span>
@@ -427,25 +602,25 @@ export function DexTable({
                     {showColumn("volume24hUsd") ? <td>{moneyText(dex.volume24hUsd)}</td> : null}
                     {showColumn("volume30dUsd") ? <td>{moneyText(dex.volume30dUsd)}</td> : null}
                     {showColumn("previous7dUsd") ? <td>{moneyText(dex.previous7dUsd)}</td> : null}
-                    {showColumn("weekChangePct") ? <td><span className={`trend-text trend-text--${trend}`}>{formatPercent(dex.weekChangePct)}</span></td> : null}
+                    {showColumn("weekChangePct") ? <td><span className={`trend-text trend-text--${trend}`}>{formatTablePercent(dex.weekChangePct)}</span></td> : null}
                     {showColumn("tvlUsd") ? <td>{moneyText(dex.tvlUsd)}</td> : null}
-                    {showColumn("volumeToTvl") ? <td>{formatRatio(dex.volumeToTvl)}</td> : null}
+                    {showColumn("volumeToTvl") ? <td>{formatTableRatio(dex.volumeToTvl)}</td> : null}
                     {showColumn("trades24h") ? <td>{formatCount(dex.trades24h)}</td> : null}
                     {showColumn("users24h") ? <td>{formatCount(dex.users24h)}</td> : null}
                     {showColumn("dau24h") ? <td>{formatCount(dex.dau24h)}</td> : null}
                     {showColumn("fees24hUsd") ? <td>{moneyText(dex.fees24hUsd)}</td> : null}
                     {showColumn("fees7dUsd") ? <td>{moneyText(dex.fees7dUsd)}</td> : null}
                     {showColumn("marketCapUsd") ? <td>{moneyText(dex.marketCapUsd)}</td> : null}
-                    {showColumn("marketCapToTvl") ? <td>{formatRatio(dex.marketCapToTvl)}</td> : null}
+                    {showColumn("marketCapToTvl") ? <td>{formatTableRatio(dex.marketCapToTvl)}</td> : null}
                     {showColumn("poolCount") ? <td>{formatCount(dex.poolCount)}</td> : null}
-                    {showColumn("marketShare24hPct") ? <td>{formatPercent(dex.marketShare24hPct, false)}</td> : null}
+                    {showColumn("marketShare24hPct") ? <td>{formatTablePercent(dex.marketShare24hPct, false)}</td> : null}
                     {showColumn("variance24hPct") ? <td>
                       <span className={`variance variance--${dex.quality}`} title={`${dex.sourceLabel}. ${dex.periodNote}`}>
-                        {formatPercent(dex.variance24hPct)}
+                        {formatTablePercent(dex.variance24hPct)}
                       </span>
                     </td> : null}
                     {showColumn("lastData") ? <td>
-                      <time dateTime={dex.lastDataAt || undefined}>{formatDateTime(dex.lastDataAt)}</time>
+                      <time dateTime={dex.lastDataAt || undefined}>{formatTableDateTime(dex.lastDataAt)}</time>
                       <small><PreserveTerms>{dex.sourceLabel}</PreserveTerms></small>
                     </td> : null}
                   </tr>
@@ -470,7 +645,7 @@ export function DexTable({
                           </article>
                           <article>
                             <span>Protocol source variance</span>
-                            <strong>{formatPercent(sourceVariance(aggregateDetail))}</strong>
+                            <strong>{formatTablePercent(sourceVariance(aggregateDetail))}</strong>
                             <small>No arithmetic average is used.</small>
                           </article>
                           <p><PreserveTerms>{`${dex.periodNote} ${dex.rowKind === "version" ? aggregateDetail.periodNote : ""}`}</PreserveTerms></p>
