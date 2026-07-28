@@ -12,6 +12,8 @@ import {
   ArrowDown,
   ArrowUp,
   ArrowUpDown,
+  Camera,
+  Check,
   ChevronDown,
   ChevronRight,
   Download,
@@ -26,6 +28,7 @@ import {
   type Currency,
 } from "@/lib/format";
 import { PreserveTerms } from "@/components/PreserveTerms";
+import { copyTableAsPng } from "@/lib/table-png";
 import type { DexMetric, QualityFlag } from "@/lib/types";
 
 type SortKey =
@@ -254,6 +257,9 @@ export function DexTable({
   );
   const [columnPickerOpen, setColumnPickerOpen] = useState(false);
   const [qualityPickerOpen, setQualityPickerOpen] = useState(false);
+  const [pngStatus, setPngStatus] = useState<
+    "idle" | "working" | "copied" | "downloaded" | "error"
+  >("idle");
   const columnPickerRef = useRef<HTMLDivElement>(null);
   const qualityPickerRef = useRef<HTMLDivElement>(null);
 
@@ -391,13 +397,83 @@ export function DexTable({
     ),
   );
   const showColumn = (key: DexTableColumnKey) => visibleColumns.has(key);
+  const moneyValue = (value: number | null) =>
+    value == null || !Number.isFinite(value)
+      ? "n/a"
+      : formatMoney(value, currency, adaPriceUsd);
   const moneyText = (value: number | null) => (
-    <PreserveTerms>
-      {value == null || !Number.isFinite(value)
-        ? "n/a"
-        : formatMoney(value, currency, adaPriceUsd)}
-    </PreserveTerms>
+    <PreserveTerms>{moneyValue(value)}</PreserveTerms>
   );
+
+  const pngCellValue = (dex: DexMetric, key: DexTableColumnKey) => {
+    switch (key) {
+      case "volume24hUsd":
+      case "volume7dUsd":
+      case "volume30dUsd":
+      case "previous7dUsd":
+      case "fees24hUsd":
+      case "fees7dUsd":
+      case "tvlUsd":
+      case "marketCapUsd":
+        return moneyValue(dex[key]);
+      case "weekChangePct":
+        return formatTablePercent(dex.weekChangePct);
+      case "volumeToTvl":
+        return formatTableRatio(dex.volumeToTvl);
+      case "trades24h":
+      case "users24h":
+      case "dau24h":
+      case "poolCount":
+        return formatCount(dex[key]);
+      case "marketCapToTvl":
+        return formatTableRatio(dex.marketCapToTvl);
+      case "marketShare24hPct":
+        return formatTablePercent(dex.marketShare24hPct, false);
+      case "variance24hPct":
+        return formatTablePercent(dex.variance24hPct);
+      case "lastData":
+        return `${formatTableDateTime(dex.lastDataAt)} · ${dex.sourceLabel}`;
+    }
+  };
+
+  const copyCurrentTablePng = async () => {
+    setPngStatus("working");
+    try {
+      const result = await copyTableAsPng({
+        filename: `cardano-dex-performance-${new Date().toISOString().slice(0, 10)}.png`,
+        title: "DEX performance table",
+        subtitle: `${filtered.length} rows · ${visibleColumnCount} visible metrics · ${currency} · current filters and sorting`,
+        headers: [
+          "7D rank / DEX",
+          ...visibleColumnKeys.map(
+            (key) => DEX_TABLE_COLUMNS.find((column) => column.key === key)?.label || key,
+          ),
+        ],
+        rows: filtered.map((dex) => ({
+          accentColor: dex.color,
+          cells: [
+            `${volumeRanks.has(dex.id) ? `#${volumeRanks.get(dex.id)}` : "–"} ${dex.name} · ${dex.rowKind === "version" ? dex.protocolVersion : "DEX"} · ${qualityLabels[dex.quality]}`,
+            ...visibleColumnKeys.map((key) => pngCellValue(dex, key)),
+          ],
+        })),
+        theme: document.documentElement.dataset.theme === "dark" ? "dark" : "light",
+      });
+      setPngStatus(result);
+    } catch {
+      setPngStatus("error");
+    }
+    window.setTimeout(() => setPngStatus("idle"), 2_400);
+  };
+
+  const pngStatusLabel = pngStatus === "working"
+    ? "Preparing PNG"
+    : pngStatus === "copied"
+      ? "PNG copied"
+      : pngStatus === "downloaded"
+        ? "PNG downloaded"
+        : pngStatus === "error"
+          ? "Copy failed"
+          : "Copy current table as PNG";
 
   const headerProps = {
     sortKey: activeSortKey,
@@ -414,11 +490,30 @@ export function DexTable({
           <p>Individual DEX versions ranked by 7-day volume. Protocol totals stay inside source details.</p>
         </div>
         <div className="table-actions">
-          <label className="search-field">
-            <Search size={16} aria-hidden="true" />
-            <span className="sr-only">Filter DEXes</span>
-            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Filter DEXes" />
-          </label>
+          <div className="table-search-actions">
+            <div className="table-copy-control">
+              <button
+                type="button"
+                className={`table-copy-button table-copy-button--${pngStatus}`}
+                aria-label="Copy current DEX performance table as PNG"
+                title={pngStatusLabel}
+                disabled={pngStatus === "working"}
+                onClick={copyCurrentTablePng}
+              >
+                {pngStatus === "copied" || pngStatus === "downloaded"
+                  ? <Check size={16} aria-hidden="true" />
+                  : <Camera size={16} aria-hidden="true" />}
+              </button>
+              {pngStatus !== "idle" ? (
+                <span className="table-copy-status" role="status">{pngStatusLabel}</span>
+              ) : null}
+            </div>
+            <label className="search-field">
+              <Search size={16} aria-hidden="true" />
+              <span className="sr-only">Filter DEXes</span>
+              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Filter DEXes" />
+            </label>
+          </div>
           <div className="select-field" ref={qualityPickerRef}>
             <button
               type="button"

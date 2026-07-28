@@ -20,7 +20,7 @@ export function DexSelector({
           className={selected.has(dex.id) ? "is-selected" : ""}
           aria-pressed={selected.has(dex.id)}
         >
-          <span style={{ background: dex.color }} />
+          <span className="dex-selector__dot" style={{ background: dex.color }} />
           <PreserveTerms>{dex.name}</PreserveTerms>
         </button>
       ))}
