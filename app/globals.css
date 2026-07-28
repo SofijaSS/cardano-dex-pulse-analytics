@@ -1064,8 +1064,8 @@ footer {
 .table-shell {
   position: relative;
   isolation: isolate;
-  /* Header (32px) + 10 DEX rows (10 × 49px) + borders and horizontal scrollbar. */
-  max-height: 542px;
+  /* Rendered header (41.5px) + 10 full DEX rows (10 × 56px) + borders and scrollbar. */
+  max-height: 618.5px;
   overflow: auto;
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
@@ -2436,6 +2436,8 @@ footer a { color: var(--blue); font-weight: 700; }
   td:first-child { width: 184px; min-width: 184px; max-width: 184px; }
   th,
   td { padding: 9px 8px; }
+  /* Mobile rows render more compactly: header (38px) + 10 rows (10 × 51.5px). */
+  .table-shell { max-height: 570px; }
   .dex-cell { grid-template-columns: 20px minmax(0, 1fr); gap: 5px; }
   .dex-identity { gap: 7px; }
   .dex-logo-frame,
