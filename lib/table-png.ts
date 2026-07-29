@@ -3,13 +3,15 @@ export type TablePngRow = {
   accentColor?: string;
 };
 
+type TablePngTheme = "light" | "dark";
+
 type CopyTablePngOptions = {
   filename: string;
   title: string;
   subtitle: string;
   headers: string[];
   rows: TablePngRow[];
-  theme: "light" | "dark";
+  theme: TablePngTheme;
 };
 
 const clamp = (value: number, minimum: number, maximum: number) =>
@@ -19,6 +21,54 @@ const MAX_PNG_WIDTH = 6_144;
 const MAX_PNG_HEIGHT = 2_048;
 const MAX_PNG_AREA = 12_000_000;
 export const TABLE_PNG_ROW_LIMIT = 10;
+
+const TABLE_PNG_COLORS = {
+  dark: {
+    canvas: "#09121a",
+    surface: "#101b24",
+    surfaceStrong: "#17242e",
+    header: "#15222c",
+    stripe: "#13212b",
+    ink: "#edf4f6",
+    muted: "#91a3ad",
+    line: "#2c3c47",
+    blue: "#7098ff",
+    green: "#59c99c",
+    red: "#ff858a",
+  },
+  light: {
+    canvas: "#f2f1eb",
+    surface: "#faf9f5",
+    surfaceStrong: "#ffffff",
+    header: "#f6f5ef",
+    stripe: "#f7f6f1",
+    ink: "#142636",
+    muted: "#687984",
+    line: "#d4d7d5",
+    blue: "#1b5cff",
+    green: "#14845c",
+    red: "#c8494d",
+  },
+} as const;
+
+export function tablePngCellColor(
+  header: string | undefined,
+  value: string,
+  theme: TablePngTheme,
+) {
+  const colors = TABLE_PNG_COLORS[theme];
+  if (header?.toLowerCase() !== "wow change") return colors.ink;
+
+  const normalizedValue = value.trim();
+  if (normalizedValue.startsWith("+")) return colors.green;
+  if (
+    normalizedValue.startsWith("-") ||
+    normalizedValue.startsWith("−")
+  ) {
+    return colors.red;
+  }
+  return colors.ink;
+}
 
 export function selectTablePngRows<T>(rows: T[]) {
   return rows.slice(0, TABLE_PNG_ROW_LIMIT);
@@ -87,29 +137,7 @@ export async function copyTableAsPng({
   const context = canvas.getContext("2d");
   if (!context) throw new Error("Canvas is unavailable.");
 
-  const colors = theme === "dark"
-    ? {
-        canvas: "#09121a",
-        surface: "#101b24",
-        surfaceStrong: "#17242e",
-        header: "#15222c",
-        stripe: "#13212b",
-        ink: "#edf4f6",
-        muted: "#91a3ad",
-        line: "#2c3c47",
-        blue: "#7098ff",
-      }
-    : {
-        canvas: "#f2f1eb",
-        surface: "#faf9f5",
-        surfaceStrong: "#ffffff",
-        header: "#f6f5ef",
-        stripe: "#f7f6f1",
-        ink: "#142636",
-        muted: "#687984",
-        line: "#d4d7d5",
-        blue: "#1b5cff",
-      };
+  const colors = TABLE_PNG_COLORS[theme];
   const outerPadding = 30;
   const titleHeight = 92;
   const headerHeight = 40;
@@ -213,7 +241,11 @@ export async function copyTableAsPng({
         context.arc(cellX + 17, rowTop + rowHeight / 2, 4, 0, Math.PI * 2);
         context.fill();
       }
-      context.fillStyle = colors.ink;
+      context.fillStyle = tablePngCellColor(
+        headers[columnIndex],
+        cell,
+        theme,
+      );
       context.font = columnIndex === 0
         ? '600 11px "Avenir Next", Avenir, sans-serif'
         : '500 10px "SFMono-Regular", "Cascadia Code", monospace';

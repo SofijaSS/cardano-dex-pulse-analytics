@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   calculateTablePngScale,
   selectTablePngRows,
+  tablePngCellColor,
 } from "@/lib/table-png";
 
 describe("table PNG sizing", () => {
@@ -27,5 +28,14 @@ describe("table PNG sizing", () => {
     expect(Math.ceil(width * height * scale * scale)).toBeLessThanOrEqual(
       12_000_000,
     );
+  });
+
+  it("uses the active app theme colors for WoW changes only", () => {
+    expect(tablePngCellColor("WoW change", "-73.9%", "dark")).toBe("#ff858a");
+    expect(tablePngCellColor("WoW change", "+8.3%", "dark")).toBe("#59c99c");
+    expect(tablePngCellColor("WoW change", "n/a", "dark")).toBe("#edf4f6");
+    expect(tablePngCellColor("WoW change", "-73.9%", "light")).toBe("#c8494d");
+    expect(tablePngCellColor("WoW change", "+8.3%", "light")).toBe("#14845c");
+    expect(tablePngCellColor("24h volume", "-73.9%", "dark")).toBe("#edf4f6");
   });
 });
