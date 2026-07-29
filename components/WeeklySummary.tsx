@@ -25,20 +25,29 @@ export function WeeklySummary({
   generatedAt: string;
 }) {
   const [copied, setCopied] = useState(false);
-  const [selectedDexId, setSelectedDexId] = useState<string | null>("wingriders");
-  const { topThree, selectedDex, share7d, difference, rank } =
+  const [selectedDexId, setSelectedDexId] = useState<string | null>(null);
+  const { topThree, selectedDex, rank } =
     buildWeeklyReportModel(dexes, selectedDexId);
 
   let summary =
     "Weekly summary: Data unavailable from the configured verified sources.";
   if (selectedDex?.volume7dUsd != null) {
-    summary = `${selectedDex.name} recorded ${formatMoney(selectedDex.volume7dUsd, currency, adaPriceUsd, false)} in weekly volume`;
+    summary = `${selectedDex.name} recorded ${formatMoney(selectedDex.volume7dUsd, currency, adaPriceUsd)} in 7-day volume`;
+    if (selectedDex.previous7dUsd != null) {
+      summary += `, compared with ${formatMoney(selectedDex.previous7dUsd, currency, adaPriceUsd)} in the previous period`;
+    }
     if (selectedDex.weekChangePct != null) {
-      summary += `, representing a ${formatPercent(selectedDex.weekChangePct)} change compared with the previous week`;
+      summary += `, a change of ${formatPercent(selectedDex.weekChangePct)}`;
     }
     summary += ".";
-    if (share7d != null && rank != null) {
-      summary += ` Its share of comparable reported 7-day volume was ${share7d.toFixed(1)}%, ranking it #${rank} among DEXes with available weekly data.`;
+    if (rank != null) {
+      summary += ` It ranks #${rank} in the current DEX performance table`;
+      if (selectedDex.marketShare24hPct != null) {
+        summary += ` and represents ${formatPercent(selectedDex.marketShare24hPct, false)} of reported 24-hour volume`;
+      }
+      summary += ".";
+    } else if (selectedDex.marketShare24hPct != null) {
+      summary += ` It represents ${formatPercent(selectedDex.marketShare24hPct, false)} of reported 24-hour volume.`;
     }
   }
 
@@ -66,7 +75,7 @@ export function WeeklySummary({
         <div>
           <span className="eyebrow eyebrow--light"><PreserveTerms>{selectedDex?.name || "DEX"}</PreserveTerms> focus</span>
           <h2>Weekly performance brief</h2>
-          <p>Select any current top-three DEX to update the full weekly report.</p>
+          <p>Select any current top-three table entry to update the weekly report.</p>
         </div>
         <div className="weekly-actions no-print">
           <button type="button" className="button button--ghost-light" onClick={copySummary}>
@@ -85,23 +94,29 @@ export function WeeklySummary({
           <article><span>24h volume</span><strong><PreserveTerms>{formatMoney(selectedDex?.volume24hUsd, currency, adaPriceUsd)}</PreserveTerms></strong></article>
           <article><span>7d volume</span><strong><PreserveTerms>{formatMoney(selectedDex?.volume7dUsd, currency, adaPriceUsd)}</PreserveTerms></strong></article>
           <article><span>30d volume</span><strong><PreserveTerms>{formatMoney(selectedDex?.volume30dUsd, currency, adaPriceUsd)}</PreserveTerms></strong></article>
-          <article><span>Week change</span><strong className={changeClass}>{formatPercent(selectedDex?.weekChangePct)}</strong></article>
-          <article><span>Comparable 7d share</span><strong>{formatPercent(share7d, false)}</strong></article>
-          <article><span>Rank by 7d volume</span><strong>{rank ? `#${rank}` : "N/A"}</strong></article>
+          <article><span>Previous 7d</span><strong><PreserveTerms>{formatMoney(selectedDex?.previous7dUsd, currency, adaPriceUsd)}</PreserveTerms></strong></article>
+          <article><span>WoW</span><strong className={changeClass}>{formatPercent(selectedDex?.weekChangePct)}</strong></article>
+          <article><span>7d rank</span><strong>{rank ? `#${rank}` : "N/A"}</strong></article>
           <article><span>TVL</span><strong><PreserveTerms>{formatMoney(selectedDex?.tvlUsd, currency, adaPriceUsd)}</PreserveTerms></strong></article>
-          <article><span>24h volume / TVL</span><strong>{formatRatio(selectedDex?.volumeToTvl)}</strong></article>
-          <article><span>vs previous week</span><strong><PreserveTerms>{formatMoney(difference, currency, adaPriceUsd)}</PreserveTerms></strong></article>
+          <article><span>Volume / TVL</span><strong>{formatRatio(selectedDex?.volumeToTvl)}</strong></article>
+          <article><span>24h share</span><strong>{formatPercent(selectedDex?.marketShare24hPct, false)}</strong></article>
         </div>
 
         <div className="weekly-copy" aria-live="polite">
           <span>Auto-generated weekly summary</span>
           <blockquote><PreserveTerms>{summary}</PreserveTerms></blockquote>
-          <small>Generated {formatDateTime(generatedAt)}. Share is based only on DEXes with comparable 7-day values.</small>
+          <div className="weekly-copy__meta">
+            <small>
+              Last data {formatDateTime(selectedDex?.lastDataAt)} ·{" "}
+              <PreserveTerms>{selectedDex?.sourceLabel || "Data unavailable"}</PreserveTerms>
+            </small>
+            <small>Report generated {formatDateTime(generatedAt)}.</small>
+          </div>
         </div>
       </div>
 
       <div className="top-three">
-        <span>Select a top-three DEX</span>
+        <span>Select a top-three table entry</span>
         <div>
           {topThree.map((dex, index) => (
             <button

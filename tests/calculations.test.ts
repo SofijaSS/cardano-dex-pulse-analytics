@@ -612,32 +612,29 @@ describe("version-aware table configuration", () => {
 
 describe("interactive weekly report", () => {
   const weeklyRows = [
-    { id: "minswap", name: "Minswap", volume7dUsd: 700, previous7dUsd: 600 },
-    { id: "sundaeswap", name: "SundaeSwap", volume7dUsd: 500, previous7dUsd: 550 },
-    { id: "wingriders", name: "WingRiders", volume7dUsd: 300, previous7dUsd: 250 },
+    { id: "minswap-v2", name: "Minswap V2", volume7dUsd: 700, previous7dUsd: 600 },
+    { id: "wingriders-v2", name: "WingRiders V2", volume7dUsd: 500, previous7dUsd: 550 },
+    { id: "sundaeswap-v3", name: "SundaeSwap V3", volume7dUsd: 300, previous7dUsd: 250 },
     { id: "other", name: "Other", volume7dUsd: 100, previous7dUsd: 80 },
   ] as DexMetric[];
 
-  it("selects any top-three DEX and calculates its comparable share", () => {
-    const report = buildWeeklyReportModel(weeklyRows, "sundaeswap");
+  it("selects and ranks the same version-level entries as the table", () => {
+    const report = buildWeeklyReportModel(weeklyRows, "wingriders-v2");
     expect(report.topThree.map((dex) => dex.id)).toEqual([
-      "minswap",
-      "sundaeswap",
-      "wingriders",
+      "minswap-v2",
+      "wingriders-v2",
+      "sundaeswap-v3",
     ]);
-    expect(report.selectedDex?.id).toBe("sundaeswap");
+    expect(report.selectedDex?.id).toBe("wingriders-v2");
     expect(report.rank).toBe(2);
-    expect(report.share7d).toBeCloseTo((500 / 1_600) * 100);
-    expect(report.difference).toBe(-50);
   });
 
-  it("falls back to WingRiders, then the leader, when selection is unavailable", () => {
-    expect(buildWeeklyReportModel(weeklyRows, "missing").selectedDex?.id).toBe(
-      "wingriders",
+  it("automatically selects the table leader when no valid selection exists", () => {
+    expect(buildWeeklyReportModel(weeklyRows, null).selectedDex?.id).toBe(
+      "minswap-v2",
     );
-    expect(
-      buildWeeklyReportModel(weeklyRows.filter((dex) => dex.id !== "wingriders"), "missing")
-        .selectedDex?.id,
-    ).toBe("minswap");
+    expect(buildWeeklyReportModel(weeklyRows, "missing").selectedDex?.id).toBe(
+      "minswap-v2",
+    );
   });
 });

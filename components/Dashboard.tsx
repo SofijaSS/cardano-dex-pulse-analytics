@@ -238,6 +238,7 @@ export function Dashboard({ authEnabled = false }: { authEnabled?: boolean }) {
     sourceMode === "defillama"
       ? benchmarkRows(data.dexes, data.aggregates.benchmark24hUsd)
       : data.dexes;
+  const weeklyDexes = tableDexes.filter((dex) => dex.tableRole === "primary");
   const aggregates = data.aggregates;
   const metric24 =
     sourceMode === "defillama"
@@ -463,7 +464,7 @@ export function Dashboard({ authEnabled = false }: { authEnabled?: boolean }) {
         </div>
       </section>
 
-      <WeeklySummary dexes={protocolDexes} currency={currency} adaPriceUsd={adaPrice} generatedAt={data.generatedAt} />
+      <WeeklySummary dexes={weeklyDexes} currency={currency} adaPriceUsd={adaPrice} generatedAt={data.generatedAt} />
       <DexTable dexes={tableDexes} currency={currency} adaPriceUsd={adaPrice} onExport={exportTable} />
 
       <section className="analytics-section" id="charts">
