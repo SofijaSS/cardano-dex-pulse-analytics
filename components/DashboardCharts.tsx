@@ -7,7 +7,6 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
-  Legend,
   Pie,
   PieChart,
   ResponsiveContainer,
@@ -215,7 +214,7 @@ export function DashboardCharts({
                   <Pie data={pieData} dataKey="value" nameKey="name" innerRadius="51%" outerRadius="76%" paddingAngle={2}>
                     {pieData.map((entry) => <Cell key={entry.name} fill={entry.color} />)}
                   </Pie>
-                  <Tooltip formatter={tooltipFormatter} />
+                  <Tooltip cursor={false} formatter={tooltipFormatter} />
                 </PieChart>
               </ResponsiveContainer>
             </div>
@@ -232,17 +231,35 @@ export function DashboardCharts({
         {!weeklyData.length ? (
           <EmptyChart message="Comparable weekly data unavailable." />
         ) : (
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={weeklyData} margin={{ top: 10, right: 8, left: 0, bottom: 42 }}>
-              <CartesianGrid stroke={gridColor} vertical={false} />
-              <XAxis dataKey="name" angle={-28} textAnchor="end" interval={0} tick={{ fill: axisColor, fontSize: 10 }} axisLine={false} tickLine={false} />
-              <YAxis tickFormatter={(value) => unitFormatter(value)} tick={{ fill: axisColor, fontSize: 11 }} axisLine={false} tickLine={false} width={74} />
-              <Tooltip cursor={false} formatter={tooltipFormatter} />
-              <Legend />
-              <Bar dataKey="current" name="Current 7d" fill="var(--blue)" radius={[5, 5, 0, 0]} />
-              <Bar dataKey="previous" name="Previous 7d" fill="var(--chart-secondary)" radius={[5, 5, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+          <div className="chart-stack chart-stack--weekly">
+            <div className="chart-stack__canvas">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={weeklyData} margin={{ top: 10, right: 8, left: 0, bottom: 0 }}>
+                  <CartesianGrid stroke={gridColor} vertical={false} />
+                  <XAxis
+                    dataKey="name"
+                    angle={-28}
+                    textAnchor="end"
+                    interval={0}
+                    height={68}
+                    tick={{ fill: axisColor, fontSize: 10 }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <YAxis tickFormatter={(value) => unitFormatter(value)} tick={{ fill: axisColor, fontSize: 11 }} axisLine={false} tickLine={false} width={74} />
+                  <Tooltip cursor={false} formatter={tooltipFormatter} />
+                  <Bar dataKey="current" name="Current 7d" fill="var(--blue)" radius={[5, 5, 0, 0]} />
+                  <Bar dataKey="previous" name="Previous 7d" fill="var(--chart-secondary)" radius={[5, 5, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+            <ChartLegend
+              items={[
+                { name: "Current 7d", color: "var(--blue)" },
+                { name: "Previous 7d", color: "var(--chart-secondary)" },
+              ]}
+            />
+          </div>
         )}
       </ChartCard>
 

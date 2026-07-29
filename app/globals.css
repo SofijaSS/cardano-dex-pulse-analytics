@@ -919,6 +919,7 @@ footer {
 .chart-legend-list { display: flex; flex: 0 0 auto; flex-wrap: wrap; justify-content: center; gap: 5px 12px; max-height: 48px; margin: 0; padding: 0 4px; overflow-y: auto; color: var(--muted); list-style: none; }
 .chart-legend-list li { display: inline-flex; align-items: center; min-width: 0; gap: 5px; font-family: var(--font-plex-mono), monospace; font-size: 8px; line-height: 1.35; }
 .chart-legend-list i { flex: 0 0 auto; width: 7px; height: 7px; border-radius: 50%; }
+.chart-stack--weekly .chart-legend-list { min-height: 18px; overflow: visible; }
 
 .wing-section {
   position: relative;
