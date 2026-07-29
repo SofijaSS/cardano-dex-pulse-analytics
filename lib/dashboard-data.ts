@@ -18,6 +18,10 @@ import {
   variancePct,
   type CumulativeVolumeIssue,
 } from "@/lib/calculations";
+import {
+  DELTA_KNOWN_LIMITATION,
+  loadDeltaDailyVolume,
+} from "@/lib/delta-source";
 import { fetchJsonWithRetry } from "@/lib/fetch-json";
 import {
   latestCompleteMinswapMarketTimestamp,
@@ -80,6 +84,24 @@ const defillamaProtocolSchema = z
   .passthrough();
 
 const defillamaProtocolsSchema = z.array(defillamaProtocolSchema);
+
+export function parseCardanoDefillamaProtocols(payload: unknown) {
+  return defillamaProtocolsSchema
+    .parse(payload)
+    .filter(
+      (protocol) =>
+        protocol.chains.includes("Cardano") ||
+        protocol.chainTvls?.Cardano != null,
+    )
+    .map(({ name, category, chains, tvl, chainTvls, logo }) => ({
+      name,
+      category,
+      chains,
+      tvl,
+      chainTvls,
+      logo,
+    }));
+}
 
 const minswapSchema = z.object({
   search_after: z
@@ -202,7 +224,6 @@ const danoSchema = z.object({
   data: z.object({ dailyVolumeAdaValue: z.string() }),
 });
 
-const deltaSchema = z.object({ volume_usd: z.number().finite() });
 const saturnSchema = z.object({
   volume: z.object({ volume: z.number().finite() }),
 });
@@ -222,6 +243,7 @@ async function capture<T>({
   expectedUpdateMinutes,
   load,
   dataAt,
+  knownLimitation,
 }: {
   id: string;
   label: string;
@@ -229,6 +251,7 @@ async function capture<T>({
   expectedUpdateMinutes: number;
   load: () => Promise<T>;
   dataAt?: (data: T) => string | null;
+  knownLimitation?: string;
 }): Promise<Captured<T>> {
   try {
     const snapshot = await loadCachedSource({
@@ -275,7 +298,13 @@ async function capture<T>({
         fetchedAt,
         dataAt: null,
         expectedUpdateMinutes,
-        message: error instanceof Error ? error.message : "Source request failed.",
+        message: knownLimitation
+          ? `${knownLimitation} Latest attempt: ${
+              error instanceof Error ? error.message : "Source request failed."
+            }`
+          : error instanceof Error
+            ? error.message
+            : "Source request failed.",
       },
     };
   }
@@ -794,7 +823,7 @@ export async function loadLiveDashboardData(): Promise<DashboardData> {
       endpoint: SOURCE_ENDPOINTS.defillamaProtocols,
       expectedUpdateMinutes: 120,
       load: async () =>
-        defillamaProtocolsSchema.parse(
+        parseCardanoDefillamaProtocols(
           await fetchJsonWithRetry(SOURCE_ENDPOINTS.defillamaProtocols),
         ),
     }),
@@ -968,10 +997,9 @@ export async function loadLiveDashboardData(): Promise<DashboardData> {
       endpoint: SOURCE_ENDPOINTS.delta,
       expectedUpdateMinutes: 3_000,
       load: async () =>
-        deltaSchema.parse(
-          await fetchJsonWithRetry(timestampParam(SOURCE_ENDPOINTS.delta, previousDay)),
-        ),
+        loadDeltaDailyVolume(SOURCE_ENDPOINTS.delta, previousDay),
       dataAt: () => new Date(previousDay).toISOString(),
+      knownLimitation: DELTA_KNOWN_LIMITATION,
     }),
     capture({
       id: "saturn-native",

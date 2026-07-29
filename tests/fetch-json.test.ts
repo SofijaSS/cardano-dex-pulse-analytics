@@ -1,5 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { fetchJsonWithRetry } from "../lib/fetch-json";
+import {
+  fetchJsonWithRetry,
+  SourceTimeoutError,
+} from "../lib/fetch-json";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -30,5 +33,28 @@ describe("fetchJsonWithRetry", () => {
       { attempts: 2, timeoutMs: 100 },
     )).resolves.toEqual({ ok: true });
     expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("reports a source timeout instead of leaking AbortError", async () => {
+    const fetchMock = vi.fn(
+      async (_url: string | URL | Request, init?: RequestInit) =>
+        new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener(
+            "abort",
+            () => reject(new DOMException("This operation was aborted", "AbortError")),
+            { once: true },
+          );
+        }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      fetchJsonWithRetry(
+        "https://example.invalid/slow",
+        {},
+        { attempts: 1, timeoutMs: 5 },
+      ),
+    ).rejects.toEqual(new SourceTimeoutError(5));
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });

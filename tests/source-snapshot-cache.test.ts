@@ -1,10 +1,25 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+const cacheMocks = vi.hoisted(() => ({
+  revalidateTag: vi.fn(),
+  unstableCache: vi.fn((load: () => Promise<unknown>) => load),
+}));
+
+vi.mock("next/cache", () => ({
+  revalidateTag: cacheMocks.revalidateTag,
+  unstable_cache: cacheMocks.unstableCache,
+}));
+
 import {
   BENCHMARK_REFRESH_SECONDS,
   DEX_REFRESH_SECONDS,
   PRICE_REFRESH_SECONDS,
 } from "../lib/source-config";
-import { sourceRefreshSeconds } from "../lib/source-snapshot-cache";
+import {
+  DASHBOARD_SOURCE_CACHE_TAG,
+  revalidateDashboardSources,
+  sourceRefreshSeconds,
+} from "../lib/source-snapshot-cache";
 
 describe("source snapshot refresh policy", () => {
   it("refreshes ADA price providers on the price cadence", () => {
@@ -24,5 +39,23 @@ describe("source snapshot refresh policy", () => {
     expect(sourceRefreshSeconds("defillama-volume")).toBe(BENCHMARK_REFRESH_SECONDS);
     expect(sourceRefreshSeconds("muesliswap-native")).toBe(BENCHMARK_REFRESH_SECONDS);
     expect(sourceRefreshSeconds("dano-native")).toBe(BENCHMARK_REFRESH_SECONDS);
+    expect(sourceRefreshSeconds("delta-native")).toBe(BENCHMARK_REFRESH_SECONDS);
+  });
+
+  it("keeps the last successful source snapshot during manual refresh", () => {
+    revalidateDashboardSources();
+
+    expect(cacheMocks.revalidateTag).toHaveBeenCalledWith(
+      "dashboard-source-delta-native",
+      "max",
+    );
+    expect(cacheMocks.revalidateTag).toHaveBeenCalledWith(
+      "dashboard-source-defillama-volume",
+      { expire: 0 },
+    );
+    expect(cacheMocks.revalidateTag).not.toHaveBeenCalledWith(
+      DASHBOARD_SOURCE_CACHE_TAG,
+      expect.anything(),
+    );
   });
 });

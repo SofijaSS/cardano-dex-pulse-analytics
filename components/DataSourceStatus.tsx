@@ -12,6 +12,7 @@ export function DataSourceStatus({
 }) {
   const errors = sources.filter((source) => source.health === "error").length;
   const stale = sources.filter((source) => source.health === "stale").length;
+  const active = sources.length - errors;
   const overall = errors ? "degraded" : stale ? "stale" : "healthy";
 
   return (
@@ -20,7 +21,7 @@ export function DataSourceStatus({
         <span className={`source-status__dot source-status__dot--${overall}`} />
         <Database className="source-status__database" size={15} aria-hidden="true" />
         <span>{overall === "healthy" ? "Sources healthy" : overall === "stale" ? "Stale source detected" : "Sources degraded"}</span>
-        <span className="source-status__count">{sources.length} checked</span>
+        <span className="source-status__count">{active}/{sources.length} active</span>
         <ChevronDown className="dropdown-chevron" size={15} aria-hidden="true" />
       </summary>
       <div className="source-status__panel">

@@ -1,7 +1,6 @@
-import { revalidateTag } from "next/cache";
 import { loadDashboardSnapshot } from "@/lib/dashboard-snapshot";
 import { DATA_CACHE_SECONDS } from "@/lib/source-config";
-import { DASHBOARD_SOURCE_CACHE_TAG } from "@/lib/source-snapshot-cache";
+import { revalidateDashboardSources } from "@/lib/source-snapshot-cache";
 import {
   hasValidDashboardSession,
   isDashboardAuthEnabled,
@@ -18,7 +17,7 @@ export async function GET(request: Request) {
   try {
     const url = new URL(request.url);
     const force = url.searchParams.get("force") === "1";
-    if (force) revalidateTag(DASHBOARD_SOURCE_CACHE_TAG, { expire: 0 });
+    if (force) revalidateDashboardSources();
     const cached = await loadDashboardSnapshot({ force });
 
     return Response.json(cached.value, {

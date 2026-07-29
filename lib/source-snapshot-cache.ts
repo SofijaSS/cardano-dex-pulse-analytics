@@ -1,4 +1,4 @@
-import { unstable_cache } from "next/cache";
+import { revalidateTag, unstable_cache } from "next/cache";
 import {
   BENCHMARK_REFRESH_SECONDS,
   DEX_REFRESH_SECONDS,
@@ -7,6 +7,25 @@ import {
 
 export const DASHBOARD_SOURCE_CACHE_TAG = "dashboard-sources";
 export const TOKEN_SOURCE_CACHE_TAG = "token-sources";
+
+const DASHBOARD_SOURCE_IDS = [
+  "defillama-volume",
+  "defillama-tvl",
+  "coingecko-price",
+  "coinbase-price",
+  "minswap-pool-reconciliation-v1",
+  "minswap-market-insights-v5",
+  "wingriders-native",
+  "wingriders-fees",
+  "poolflow-markets-v2",
+  "sundaeswap-native",
+  "splash-native",
+  "muesliswap-native",
+  "vyfinance-native",
+  "dano-native",
+  "delta-native",
+  "saturn-native",
+] as const;
 
 const PRICE_SOURCE_IDS = new Set(["coingecko-price", "coinbase-price"]);
 const BENCHMARK_SOURCE_IDS = new Set([
@@ -24,6 +43,15 @@ export function sourceRefreshSeconds(sourceId: string) {
 }
 export function sourceCacheTag(sourceId: string) {
   return `dashboard-source-${sourceId}`;
+}
+
+export function revalidateDashboardSources() {
+  for (const sourceId of DASHBOARD_SOURCE_IDS) {
+    revalidateTag(
+      sourceCacheTag(sourceId),
+      sourceId === "delta-native" ? "max" : { expire: 0 },
+    );
+  }
 }
 
 export async function loadCachedSource<T>({

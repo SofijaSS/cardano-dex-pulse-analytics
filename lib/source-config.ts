@@ -99,4 +99,13 @@ export const SOURCE_FETCH_TIMEOUT_MS = boundedNumber("SOURCE_FETCH_TIMEOUT_MS", 
 export const SOURCE_FETCH_ATTEMPTS = Math.floor(
   boundedNumber("SOURCE_FETCH_ATTEMPTS", 2, 1, 4),
 );
+export const DELTA_FETCH_TIMEOUT_MS = boundedNumber(
+  "DELTA_FETCH_TIMEOUT_MS",
+  4_000,
+  1_000,
+  20_000,
+);
+export const DELTA_FETCH_ATTEMPTS = Math.floor(
+  boundedNumber("DELTA_FETCH_ATTEMPTS", 1, 1, 2),
+);
 export const USE_MOCK_DATA = process.env.USE_MOCK_DATA === "true";

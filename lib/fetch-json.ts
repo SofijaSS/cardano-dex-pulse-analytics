@@ -15,6 +15,13 @@ class UpstreamHttpError extends Error {
   }
 }
 
+export class SourceTimeoutError extends Error {
+  constructor(timeoutMs: number) {
+    super(`Source request timed out after ${timeoutMs} ms.`);
+    this.name = "SourceTimeoutError";
+  }
+}
+
 export async function fetchJsonWithRetry(
   url: string,
   init: RequestInit = {},
@@ -32,7 +39,11 @@ export async function fetchJsonWithRetry(
 
   for (let attempt = 0; attempt < totalAttempts; attempt += 1) {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), requestTimeoutMs);
+    let timedOut = false;
+    const timeout = setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, requestTimeoutMs);
 
     try {
       const response = await fetch(url, {
@@ -49,7 +60,11 @@ export async function fetchJsonWithRetry(
       if (!response.ok) throw new UpstreamHttpError(response.status);
       return await response.json();
     } catch (error) {
-      lastError = error instanceof Error ? error : new Error("Unknown fetch error");
+      lastError = timedOut
+        ? new SourceTimeoutError(requestTimeoutMs)
+        : error instanceof Error
+          ? error
+          : new Error("Unknown fetch error");
       const retryable = !(lastError instanceof UpstreamHttpError) || lastError.retryable;
       if (!retryable || attempt >= totalAttempts - 1) break;
       await wait(250 * 2 ** attempt);
