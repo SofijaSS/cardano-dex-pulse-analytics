@@ -90,6 +90,9 @@ export function DashboardCharts({
       value: convertUsd(dex.volume24hUsd, currency, adaPriceUsd) || 0,
       color: dex.color,
     }));
+  const pieAriaLabel = `Current 24-hour volume distribution by DEX. ${pieData
+    .map((entry) => `${entry.name}: ${unitFormatter(entry.value)}`)
+    .join("; ")}.`;
   const marketShareData = shareRows.map((dex, index) => ({
     name: dex.name,
     value: sharePercentages[index] || 0,
@@ -208,10 +211,10 @@ export function DashboardCharts({
           <EmptyChart message="Current market share data unavailable." />
         ) : (
           <div className="chart-stack">
-            <div className="chart-stack__canvas">
+            <div className="chart-stack__canvas" role="img" aria-label={pieAriaLabel}>
               <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie data={pieData} dataKey="value" nameKey="name" innerRadius="51%" outerRadius="76%" paddingAngle={2}>
+                <PieChart accessibilityLayer={false}>
+                  <Pie data={pieData} dataKey="value" nameKey="name" innerRadius="51%" outerRadius="76%" paddingAngle={2} rootTabIndex={-1}>
                     {pieData.map((entry) => <Cell key={entry.name} fill={entry.color} />)}
                   </Pie>
                   <Tooltip cursor={false} formatter={tooltipFormatter} />
