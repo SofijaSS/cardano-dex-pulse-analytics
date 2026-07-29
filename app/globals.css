@@ -526,11 +526,13 @@ footer {
 }
 
 .hero {
+  position: relative;
+  z-index: 10;
   display: grid;
   grid-template-columns: minmax(0, 1.6fr) minmax(420px, 0.8fr);
   gap: 64px;
   padding: 76px 0 52px;
-  animation: reveal 520ms ease both;
+  animation: reveal-hero 520ms ease both;
 }
 
 .eyebrow {
@@ -2326,6 +2328,11 @@ footer a { color: var(--blue); font-weight: 700; }
 @keyframes reveal {
   from { opacity: 0; transform: translateY(12px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes reveal-hero {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 @keyframes shimmer {
