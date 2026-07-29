@@ -29,6 +29,10 @@ import {
 } from "@/lib/format";
 import { PreserveTerms } from "@/components/PreserveTerms";
 import { copyTableAsPng, selectTablePngRows } from "@/lib/table-png";
+import {
+  sortButtonAriaLabel,
+  tableAriaSort,
+} from "@/lib/table-sort-accessibility";
 import type { DexMetric, QualityFlag } from "@/lib/types";
 
 type SortKey =
@@ -190,12 +194,14 @@ function sourceVariance(row: DexMetric) {
 
 function SortableHeader({
   label,
+  sortLabel = label,
   field,
   sortKey,
   direction,
   onSort,
 }: {
   label: string;
+  sortLabel?: string;
   field: SortKey;
   sortKey: SortKey;
   direction: "asc" | "desc";
@@ -204,10 +210,17 @@ function SortableHeader({
   const active = field === sortKey;
   const Icon = active ? (direction === "asc" ? ArrowUp : ArrowDown) : ArrowUpDown;
   return (
-    <button type="button" className={active ? "table-sort is-active" : "table-sort"} onClick={() => onSort(field)}>
-      <PreserveTerms>{label}</PreserveTerms>
-      <Icon size={13} aria-hidden="true" />
-    </button>
+    <th aria-sort={tableAriaSort(active, direction)}>
+      <button
+        type="button"
+        className={active ? "table-sort is-active" : "table-sort"}
+        onClick={() => onSort(field)}
+        aria-label={sortButtonAriaLabel(sortLabel, active, direction)}
+      >
+        <PreserveTerms>{label}</PreserveTerms>
+        <Icon size={13} aria-hidden="true" />
+      </button>
+    </th>
   );
 }
 
@@ -619,24 +632,24 @@ export function DexTable({
         <table style={{ minWidth: `${tableMinWidth}px` }}>
           <thead>
             <tr>
-              <th><SortableHeader label="7D rank / DEX" field="volume7dUsd" {...headerProps} /></th>
-              {showColumn("volume7dUsd") ? <th><SortableHeader label="DEX volume · 7d" field="volume7dUsd" {...headerProps} /></th> : null}
-              {showColumn("volume24hUsd") ? <th><SortableHeader label="24h volume" field="volume24hUsd" {...headerProps} /></th> : null}
-              {showColumn("volume30dUsd") ? <th><SortableHeader label="30d volume" field="volume30dUsd" {...headerProps} /></th> : null}
-              {showColumn("previous7dUsd") ? <th><SortableHeader label="Previous 7d" field="previous7dUsd" {...headerProps} /></th> : null}
-              {showColumn("weekChangePct") ? <th><SortableHeader label="WoW" field="weekChangePct" {...headerProps} /></th> : null}
-              {showColumn("tvlUsd") ? <th><SortableHeader label="TVL" field="tvlUsd" {...headerProps} /></th> : null}
-              {showColumn("volumeToTvl") ? <th><SortableHeader label="Vol / TVL" field="volumeToTvl" {...headerProps} /></th> : null}
-              {showColumn("trades24h") ? <th><SortableHeader label="Trades · 24h" field="trades24h" {...headerProps} /></th> : null}
-              {showColumn("users24h") ? <th><SortableHeader label="Users · 24h" field="users24h" {...headerProps} /></th> : null}
-              {showColumn("dau24h") ? <th><SortableHeader label="DAU · 24h" field="dau24h" {...headerProps} /></th> : null}
-              {showColumn("fees24hUsd") ? <th><SortableHeader label="Fees · 24h" field="fees24hUsd" {...headerProps} /></th> : null}
-              {showColumn("fees7dUsd") ? <th><SortableHeader label="Fees · 7d" field="fees7dUsd" {...headerProps} /></th> : null}
-              {showColumn("marketCapUsd") ? <th><SortableHeader label="Market cap" field="marketCapUsd" {...headerProps} /></th> : null}
-              {showColumn("marketCapToTvl") ? <th><SortableHeader label="MCap / TVL" field="marketCapToTvl" {...headerProps} /></th> : null}
-              {showColumn("poolCount") ? <th><SortableHeader label="Pools" field="poolCount" {...headerProps} /></th> : null}
-              {showColumn("marketShare24hPct") ? <th><SortableHeader label="Share" field="marketShare24hPct" {...headerProps} /></th> : null}
-              {showColumn("variance24hPct") ? <th><SortableHeader label="vs DefiLlama" field="variance24hPct" {...headerProps} /></th> : null}
+              <SortableHeader label="7D rank / DEX" sortLabel="DEX name" field="name" {...headerProps} />
+              {showColumn("volume7dUsd") ? <SortableHeader label="DEX volume · 7d" field="volume7dUsd" {...headerProps} /> : null}
+              {showColumn("volume24hUsd") ? <SortableHeader label="24h volume" field="volume24hUsd" {...headerProps} /> : null}
+              {showColumn("volume30dUsd") ? <SortableHeader label="30d volume" field="volume30dUsd" {...headerProps} /> : null}
+              {showColumn("previous7dUsd") ? <SortableHeader label="Previous 7d" field="previous7dUsd" {...headerProps} /> : null}
+              {showColumn("weekChangePct") ? <SortableHeader label="WoW" field="weekChangePct" {...headerProps} /> : null}
+              {showColumn("tvlUsd") ? <SortableHeader label="TVL" field="tvlUsd" {...headerProps} /> : null}
+              {showColumn("volumeToTvl") ? <SortableHeader label="Vol / TVL" field="volumeToTvl" {...headerProps} /> : null}
+              {showColumn("trades24h") ? <SortableHeader label="Trades · 24h" field="trades24h" {...headerProps} /> : null}
+              {showColumn("users24h") ? <SortableHeader label="Users · 24h" field="users24h" {...headerProps} /> : null}
+              {showColumn("dau24h") ? <SortableHeader label="DAU · 24h" field="dau24h" {...headerProps} /> : null}
+              {showColumn("fees24hUsd") ? <SortableHeader label="Fees · 24h" field="fees24hUsd" {...headerProps} /> : null}
+              {showColumn("fees7dUsd") ? <SortableHeader label="Fees · 7d" field="fees7dUsd" {...headerProps} /> : null}
+              {showColumn("marketCapUsd") ? <SortableHeader label="Market cap" field="marketCapUsd" {...headerProps} /> : null}
+              {showColumn("marketCapToTvl") ? <SortableHeader label="MCap / TVL" field="marketCapToTvl" {...headerProps} /> : null}
+              {showColumn("poolCount") ? <SortableHeader label="Pools" field="poolCount" {...headerProps} /> : null}
+              {showColumn("marketShare24hPct") ? <SortableHeader label="Share" field="marketShare24hPct" {...headerProps} /> : null}
+              {showColumn("variance24hPct") ? <SortableHeader label="vs DefiLlama" field="variance24hPct" {...headerProps} /> : null}
               {showColumn("lastData") ? <th>Last data</th> : null}
             </tr>
           </thead>
