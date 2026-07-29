@@ -415,6 +415,8 @@ a {
 }
 
 .source-status > summary {
+  position: relative;
+  z-index: 20;
   display: flex;
   align-items: center;
   gap: 7px;
@@ -463,6 +465,7 @@ a {
 
 .source-status__panel {
   position: absolute;
+  z-index: 21;
   top: calc(100% + 12px);
   right: 0;
   width: min(720px, calc(100vw - 32px));
@@ -473,6 +476,47 @@ a {
   border: 1px solid var(--line);
   border-radius: 14px;
   box-shadow: 0 24px 70px rgba(20, 38, 54, 0.18);
+}
+
+.source-status__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 19;
+  background: transparent;
+}
+
+.source-status__panel-header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: -18px -18px 14px;
+  padding: 10px 12px;
+  background: var(--surface-strong);
+  border-bottom: 1px solid var(--line);
+}
+
+.source-status__panel-header > strong {
+  font-size: 11px;
+}
+
+.source-status__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: 32px;
+  padding: 0 9px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--control-bg);
+  color: var(--ink);
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 650;
 }
 
 .source-status__grid {
@@ -586,7 +630,7 @@ footer {
 }
 
 .hero-source-status .source-status__panel {
-  z-index: 20;
+  z-index: 21;
 }
 
 .mode-control {
@@ -2427,6 +2471,7 @@ footer a { color: var(--blue); font-weight: 700; }
   .source-status__database { display: none; }
   .source-status > summary { padding-inline: 9px; }
   .source-status__panel { position: fixed; top: 132px; right: 10px; left: 10px; width: auto; }
+  .source-status__close { min-width: 44px; min-height: 44px; }
   .source-status__grid { grid-template-columns: 1fr; }
   .hero,
   .metrics-section,
