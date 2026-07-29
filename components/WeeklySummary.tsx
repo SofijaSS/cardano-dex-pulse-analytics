@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Copy, Printer } from "lucide-react";
+import { Camera, Check, Printer } from "lucide-react";
 import { PreserveTerms } from "@/components/PreserveTerms";
 import {
   formatDateTime,
@@ -12,6 +12,7 @@ import {
 } from "@/lib/format";
 import type { DexMetric } from "@/lib/types";
 import { buildWeeklyReportModel } from "@/lib/weekly-report";
+import { copyWeeklyReportAsPng } from "@/lib/weekly-report-png";
 
 export function WeeklySummary({
   dexes,
@@ -24,7 +25,9 @@ export function WeeklySummary({
   adaPriceUsd: number | null;
   generatedAt: string;
 }) {
-  const [copied, setCopied] = useState(false);
+  const [pngStatus, setPngStatus] = useState<
+    "idle" | "working" | "copied" | "downloaded" | "error"
+  >("idle");
   const [selectedDexId, setSelectedDexId] = useState<string | null>(null);
   const { topThree, selectedDex, rank } =
     buildWeeklyReportModel(dexes, selectedDexId);
@@ -58,15 +61,63 @@ export function WeeklySummary({
         ? "positive"
         : "negative";
 
-  const copySummary = async () => {
+  const copyWeeklyReportPng = async () => {
+    if (!selectedDex) return;
+    setPngStatus("working");
     try {
-      await navigator.clipboard.writeText(summary);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1_800);
+      const result = await copyWeeklyReportAsPng({
+        filename: `cardano-dex-weekly-${selectedDex.id}-${new Date().toISOString().slice(0, 10)}.png`,
+        focus: `${selectedDex.name} focus`,
+        title: "Weekly performance brief",
+        subtitle: "Current top-three table entry with matching DEX performance metrics.",
+        metrics: [
+          { label: "24h volume", value: formatMoney(selectedDex.volume24hUsd, currency, adaPriceUsd) },
+          { label: "7d volume", value: formatMoney(selectedDex.volume7dUsd, currency, adaPriceUsd) },
+          { label: "30d volume", value: formatMoney(selectedDex.volume30dUsd, currency, adaPriceUsd) },
+          { label: "Previous 7d", value: formatMoney(selectedDex.previous7dUsd, currency, adaPriceUsd) },
+          {
+            label: "WoW",
+            value: formatPercent(selectedDex.weekChangePct),
+            tone:
+              selectedDex.weekChangePct == null
+                ? undefined
+                : selectedDex.weekChangePct >= 0
+                  ? "positive"
+                  : "negative",
+          },
+          { label: "7d rank", value: rank ? `#${rank}` : "N/A" },
+          { label: "TVL", value: formatMoney(selectedDex.tvlUsd, currency, adaPriceUsd) },
+          { label: "Volume / TVL", value: formatRatio(selectedDex.volumeToTvl) },
+          { label: "24h share", value: formatPercent(selectedDex.marketShare24hPct, false) },
+        ],
+        summary,
+        sourceLine: `Last data ${formatDateTime(selectedDex.lastDataAt)} · ${selectedDex.sourceLabel}`,
+        generatedLine: `Report generated ${formatDateTime(generatedAt)}.`,
+        topThree: topThree.map((dex, index) => ({
+          rank: index + 1,
+          name: dex.name,
+          value: formatMoney(dex.volume7dUsd, currency, adaPriceUsd),
+          color: dex.color,
+          selected: dex.id === selectedDex.id,
+        })),
+      });
+      setPngStatus(result);
     } catch {
-      setCopied(false);
+      setPngStatus("error");
     }
+    window.setTimeout(() => setPngStatus("idle"), 2_400);
   };
+
+  const pngStatusLabel =
+    pngStatus === "working"
+      ? "Preparing high-resolution PNG"
+      : pngStatus === "copied"
+        ? "PNG copied"
+        : pngStatus === "downloaded"
+          ? "PNG downloaded"
+          : pngStatus === "error"
+            ? "Copy failed"
+            : "Copy weekly performance brief as high-resolution PNG";
 
   return (
     <section className="wing-section print-report" id="weekly-report">
@@ -78,10 +129,23 @@ export function WeeklySummary({
           <p>Select any current top-three table entry to update the weekly report.</p>
         </div>
         <div className="weekly-actions no-print">
-          <button type="button" className="button button--ghost-light" onClick={copySummary}>
-            {copied ? <Check size={15} aria-hidden="true" /> : <Copy size={15} aria-hidden="true" />}
-            {copied ? "Copied" : "Copy summary"}
-          </button>
+          <div className="table-copy-control weekly-png-control">
+            <button
+              type="button"
+              className={`table-copy-button table-copy-button--${pngStatus}`}
+              aria-label="Copy weekly performance brief as high-resolution PNG"
+              title={pngStatusLabel}
+              disabled={pngStatus === "working" || !selectedDex}
+              onClick={copyWeeklyReportPng}
+            >
+              {pngStatus === "copied" || pngStatus === "downloaded"
+                ? <Check size={16} aria-hidden="true" />
+                : <Camera size={16} aria-hidden="true" />}
+            </button>
+            {pngStatus !== "idle" ? (
+              <span className="table-copy-status" role="status">{pngStatusLabel}</span>
+            ) : null}
+          </div>
           <button type="button" className="button button--light" onClick={() => window.print()}>
             <Printer size={15} aria-hidden="true" />
             Print / Save PDF
@@ -126,7 +190,7 @@ export function WeeklySummary({
               aria-pressed={dex.id === selectedDex?.id}
               onClick={() => {
                 setSelectedDexId(dex.id);
-                setCopied(false);
+                setPngStatus("idle");
               }}
             >
               <span>#{index + 1}</span>

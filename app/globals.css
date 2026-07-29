@@ -935,6 +935,9 @@ footer {
 .weekly-copy blockquote { margin: 22px 0; font-size: 18px; font-weight: 550; letter-spacing: -0.025em; line-height: 1.55; }
 .weekly-copy small { color: var(--muted); font-size: 9px; line-height: 1.5; }
 .weekly-copy__meta { display: grid; gap: 4px; }
+.weekly-png-control .table-copy-button { border-color: rgba(255, 255, 255, 0.28); background: rgba(255, 255, 255, 0.05); color: #fff; }
+.weekly-png-control .table-copy-button:hover { border-color: rgba(255, 255, 255, 0.5); color: #fff; }
+.weekly-png-control .table-copy-status { right: 0; left: auto; }
 
 .top-three { position: relative; z-index: 1; margin-top: 18px; }
 .top-three > div { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; margin-top: 8px; }
