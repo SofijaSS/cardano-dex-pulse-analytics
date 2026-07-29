@@ -2,7 +2,13 @@
 
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import { startTransition, useEffect, useState, useSyncExternalStore } from "react";
+import {
+  startTransition,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import {
   AlertTriangle,
   BarChart3,
@@ -22,6 +28,7 @@ import { ThemeControl } from "@/components/ThemeControl";
 import { WeeklySummary } from "@/components/WeeklySummary";
 import { createBrowserPreferenceStore } from "@/lib/browser-preference";
 import { safeDivide, safePercentChange } from "@/lib/calculations";
+import { scrollToDashboardHash } from "@/lib/dashboard-hash";
 import {
   convertUsd,
   downloadCsv,
@@ -153,6 +160,7 @@ export function Dashboard({ authEnabled = false }: { authEnabled?: boolean }) {
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
   const [selectedDexes, setSelectedDexes] = useState<Set<string>>(new Set());
+  const initialHashHandled = useRef(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -200,6 +208,18 @@ export function Dashboard({ authEnabled = false }: { authEnabled?: boolean }) {
       });
     return () => controller.abort();
   }, [refreshRequest]);
+
+  useEffect(() => {
+    if (!data || initialHashHandled.current) return;
+
+    const frame = window.requestAnimationFrame(() => {
+      if (initialHashHandled.current) return;
+      initialHashHandled.current = true;
+      scrollToDashboardHash(window.location.hash);
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [data]);
 
   useVisibleRefresh(() => {
     setRefreshRequest({ id: Date.now(), force: false });
