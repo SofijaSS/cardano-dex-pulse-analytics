@@ -299,6 +299,9 @@ export function Dashboard({ authEnabled = false }: { authEnabled?: boolean }) {
     : "";
   const sourceLabel =
     sourceMode === "defillama" ? "DefiLlama benchmark" : "Native-first reconciled";
+  const weeklyReportingMeta = data.weeklyReporting
+    ? `Weekly 7d snapshot ${formatDateTime(data.weeklyReporting.currentCapturedAt)} · previous snapshot ${formatDateTime(data.weeklyReporting.previousCapturedAt)} · Wednesday 08:00 Europe/Belgrade`
+    : null;
 
   const toggleDex = (id: string) => {
     setSelectedDexes((current) => {
@@ -471,21 +474,21 @@ export function Dashboard({ authEnabled = false }: { authEnabled?: boolean }) {
       <section className="metrics-section" id="overview">
         <div className="section-kicker">
           <span><PreserveTerms>{sourceLabel}</PreserveTerms></span>
-          <p><PreserveTerms>{sourceMode === "reconciled" ? "Observed coverage is shown with explicit DEX counts; unavailable periods are not extrapolated." : "Complete only within DefiLlama's own listed Cardano DEX coverage."}</PreserveTerms></p>
+          <p><PreserveTerms>{sourceMode === "reconciled" ? weeklyReportingMeta || "Observed coverage is shown with explicit DEX counts; unavailable periods are not extrapolated." : "Complete only within DefiLlama's own listed Cardano DEX coverage."}</PreserveTerms></p>
         </div>
         <div className="metrics-grid">
           <MetricCard featured label={sourceMode === "reconciled" ? "Observed volume · 24h" : "Total volume · 24h"} value={formatMoney(metric24, currency, adaPrice)} meta={sourceMode === "reconciled" ? `${aggregates.coverage24h}/${aggregates.trackedDexes} tracked DEXes report 24h data` : "DefiLlama Cardano DEX benchmark"} />
           <MetricCard label={sourceMode === "reconciled" ? "Observed volume · 7d" : "Total volume · 7d"} value={formatMoney(metric7, currency, adaPrice)} meta={sourceMode === "reconciled" ? `${aggregates.coverage7d}/${aggregates.trackedDexes} DEXes with comparable periods` : "DefiLlama Cardano DEX benchmark"} />
           <MetricCard label={sourceMode === "reconciled" ? "Observed volume · 30d" : "Total volume · 30d"} value={formatMoney(metric30, currency, adaPrice)} meta={sourceMode === "reconciled" ? `${aggregates.coverage30d}/${aggregates.trackedDexes} DEXes; no extrapolation` : "DefiLlama Cardano DEX benchmark"} />
           <MetricCard label="Tracked DEX TVL" value={formatMoney(metricTvl, currency, adaPrice)} meta={sourceMode === "reconciled" ? "Native where compatible, DefiLlama fallback" : "DefiLlama protocol TVL"} />
-          <MetricCard label="Week-over-week" value={weekChange == null ? "N/A" : `${weekChange > 0 ? "+" : ""}${weekChange.toFixed(1)}%`} meta={sourceMode === "reconciled" ? "Same-source comparable DEX cohort" : "DefiLlama total 7d vs previous 7d"} change={weekChange} />
+          <MetricCard label="Week-over-week" value={weekChange == null ? "N/A" : `${weekChange > 0 ? "+" : ""}${weekChange.toFixed(1)}%`} meta={sourceMode === "reconciled" ? "Wednesday-to-Wednesday snapshot comparison" : "DefiLlama total 7d vs previous 7d"} change={weekChange} />
           <MetricCard label="Month-over-month" value={monthChange == null ? "Data unavailable" : `${monthChange > 0 ? "+" : ""}${monthChange.toFixed(1)}%`} meta={sourceMode === "reconciled" ? "Aligned native previous-30d data is incomplete" : "DefiLlama total 30d vs previous 30d"} change={monthChange} />
           <MetricCard label="Active tracked DEXes" value={String(aggregates.activeDexes)} meta={`${aggregates.trackedDexes} total rows in the configurable registry`} />
         </div>
       </section>
 
-      <WeeklySummary dexes={weeklyDexes} currency={currency} adaPriceUsd={adaPrice} generatedAt={data.generatedAt} />
-      <DexTable dexes={tableDexes} currency={currency} adaPriceUsd={adaPrice} onExport={exportTable} />
+      <WeeklySummary dexes={weeklyDexes} currency={currency} adaPriceUsd={adaPrice} generatedAt={data.generatedAt} weeklyReporting={sourceMode === "reconciled" ? data.weeklyReporting : undefined} />
+      <DexTable dexes={tableDexes} currency={currency} adaPriceUsd={adaPrice} onExport={exportTable} weeklyReporting={sourceMode === "reconciled" ? data.weeklyReporting : undefined} />
 
       <section className="analytics-section" id="charts">
         <div className="section-heading analytics-heading">

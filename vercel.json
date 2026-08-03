@@ -6,6 +6,14 @@
     {
       "path": "/api/cron/refresh-dashboard",
       "schedule": "15 7 * * *"
+    },
+    {
+      "path": "/api/cron/capture-weekly-report?slot=summer",
+      "schedule": "0 6 * * 3"
+    },
+    {
+      "path": "/api/cron/capture-weekly-report?slot=winter",
+      "schedule": "0 7 * * 3"
     }
   ]
 }

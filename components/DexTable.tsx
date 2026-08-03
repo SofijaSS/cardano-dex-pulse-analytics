@@ -33,7 +33,7 @@ import {
   sortButtonAriaLabel,
   tableAriaSort,
 } from "@/lib/table-sort-accessibility";
-import type { DexMetric, QualityFlag } from "@/lib/types";
+import type { DexMetric, QualityFlag, WeeklyReportingStatus } from "@/lib/types";
 
 type SortKey =
   | "name"
@@ -245,11 +245,13 @@ export function DexTable({
   currency,
   adaPriceUsd,
   onExport,
+  weeklyReporting,
 }: {
   dexes: DexMetric[];
   currency: Currency;
   adaPriceUsd: number | null;
   onExport: (rows: DexMetric[], columns: DexTableColumnKey[]) => void;
+  weeklyReporting?: WeeklyReportingStatus;
 }) {
   const [query, setQuery] = useState("");
   const deferredQuery = useDeferredValue(query);
@@ -501,7 +503,7 @@ export function DexTable({
         <div>
           <span className="eyebrow">Exchange detail</span>
           <h2>DEX performance table</h2>
-          <p>Individual DEX versions ranked by 7-day volume. Protocol totals stay inside source details.</p>
+          <p>{weeklyReporting ? `7d volume, Previous 7d and WoW are frozen Wednesday-to-Wednesday snapshots (${weeklyReporting.currentWeekKey} vs ${weeklyReporting.previousWeekKey}) at 08:00 Europe/Belgrade.` : "Individual DEX versions ranked by 7-day volume. Protocol totals stay inside source details."}</p>
         </div>
         <div className="table-actions">
           <div className="table-search-actions">

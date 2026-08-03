@@ -10,7 +10,7 @@ import {
   formatRatio,
   type Currency,
 } from "@/lib/format";
-import type { DexMetric } from "@/lib/types";
+import type { DexMetric, WeeklyReportingStatus } from "@/lib/types";
 import { buildWeeklyReportModel } from "@/lib/weekly-report";
 import { copyWeeklyReportAsPng } from "@/lib/weekly-report-png";
 
@@ -19,11 +19,13 @@ export function WeeklySummary({
   currency,
   adaPriceUsd,
   generatedAt,
+  weeklyReporting,
 }: {
   dexes: DexMetric[];
   currency: Currency;
   adaPriceUsd: number | null;
   generatedAt: string;
+  weeklyReporting?: WeeklyReportingStatus;
 }) {
   const [pngStatus, setPngStatus] = useState<
     "idle" | "working" | "copied" | "downloaded" | "error"
@@ -126,7 +128,7 @@ export function WeeklySummary({
         <div>
           <span className="eyebrow eyebrow--light"><PreserveTerms>{selectedDex?.name || "DEX"}</PreserveTerms> focus</span>
           <h2>Weekly performance brief</h2>
-          <p>Select any current top-three table entry to update the weekly report.</p>
+          <p>{weeklyReporting ? `7d reporting is frozen at the ${weeklyReporting.currentWeekKey} Wednesday snapshot; Previous 7d uses ${weeklyReporting.previousWeekKey}.` : "Select any current top-three table entry to update the weekly report."}</p>
         </div>
         <div className="weekly-actions no-print">
           <div className="table-copy-control weekly-png-control">
@@ -175,6 +177,9 @@ export function WeeklySummary({
               <PreserveTerms>{selectedDex?.sourceLabel || "Data unavailable"}</PreserveTerms>
             </small>
             <small>Report generated {formatDateTime(generatedAt)}.</small>
+            {weeklyReporting ? (
+              <small>Weekly cutoff Wednesday 08:00 Europe/Belgrade · snapshot {formatDateTime(weeklyReporting.currentCapturedAt)}.</small>
+            ) : null}
           </div>
         </div>
       </div>

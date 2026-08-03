@@ -96,12 +96,25 @@ export interface DashboardData {
   schemaVersion: "1.0";
   mode: DataMode;
   generatedAt: string;
+  weeklyReporting?: WeeklyReportingStatus;
   price: PricePoint;
   aggregates: AggregateMetrics;
   dexes: DexMetric[];
   benchmarkSeries: VolumeSeriesPoint[];
   sources: SourceStatus[];
   warnings: string[];
+}
+
+export interface WeeklyReportingStatus {
+  timeZone: "Europe/Belgrade";
+  cutoff: "Wednesday 08:00";
+  currentWeekKey: string;
+  previousWeekKey: string;
+  currentScheduledFor: string;
+  previousScheduledFor: string;
+  currentCapturedAt: string | null;
+  previousCapturedAt: string | null;
+  currentStatus: "captured" | "seeded" | "late" | "unavailable";
 }
 
 export interface NativeDexSnapshot {

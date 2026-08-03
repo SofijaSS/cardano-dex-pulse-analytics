@@ -1,6 +1,7 @@
 import { loadDashboardSnapshot } from "@/lib/dashboard-snapshot";
 import { DATA_CACHE_SECONDS } from "@/lib/source-config";
 import { revalidateDashboardSources } from "@/lib/source-snapshot-cache";
+import { withWeeklyReporting } from "@/lib/weekly-snapshot-store";
 import {
   hasValidDashboardSession,
   isDashboardAuthEnabled,
@@ -19,8 +20,9 @@ export async function GET(request: Request) {
     const force = url.searchParams.get("force") === "1";
     if (force) revalidateDashboardSources();
     const cached = await loadDashboardSnapshot({ force });
+    const dashboard = await withWeeklyReporting(cached.value);
 
-    return Response.json(cached.value, {
+    return Response.json(dashboard, {
       headers: {
         "x-data-cache": cached.status,
         "cache-control": isDashboardAuthEnabled()

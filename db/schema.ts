@@ -1,4 +1,13 @@
-// Intentionally empty by default.
-// Add Drizzle tables here when the site actually needs a database.
-// See examples/d1/db/schema.ts for an opt-in example.
-export {};
+import { sqliteTable, text } from "drizzle-orm/sqlite-core";
+
+export const weeklyReportingSnapshots = sqliteTable(
+  "weekly_reporting_snapshots",
+  {
+    weekKey: text("week_key").primaryKey(),
+    scheduledFor: text("scheduled_for").notNull(),
+    capturedAt: text("captured_at").notNull(),
+    sourceGeneratedAt: text("source_generated_at").notNull(),
+    status: text("status").notNull(),
+    payloadJson: text("payload_json").notNull(),
+  },
+);
