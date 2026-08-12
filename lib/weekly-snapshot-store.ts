@@ -8,6 +8,7 @@ import {
   type WeeklyReportingSnapshot,
 } from "@/lib/weekly-reporting";
 import {
+  backfillDurableWeeklyReportingPreviousSnapshot,
   readDurableWeeklyReportingState,
   rotateDurableWeeklyReportingSnapshot,
 } from "@/lib/weekly-state-store";
@@ -120,7 +121,25 @@ export async function withWeeklyReporting(
     }
   }
 
-  const previous = snapshotForWeek(state, previousWeekKey);
+  let previous = snapshotForWeek(state, previousWeekKey);
+  if (
+    previous &&
+    getSeededWeeklySnapshot(previousWeekKey) &&
+    durable.kind &&
+    !snapshotFromWeeklyState(state, previousWeekKey)
+  ) {
+    try {
+      const backfilled =
+        await backfillDurableWeeklyReportingPreviousSnapshot(previous);
+      state = backfilled.state;
+      durable = backfilled;
+      previous = snapshotForWeek(state, previousWeekKey);
+    } catch (error) {
+      warnings.push(
+        `Seeded weekly snapshot ${previousWeekKey} could not be backfilled into durable storage: ${error instanceof Error ? error.message : "unknown error"}`,
+      );
+    }
+  }
   if (!previous) {
     warnings.push(
       `Previous weekly reporting snapshot ${previousWeekKey} is unavailable and was not reconstructed from a later rolling period.`,

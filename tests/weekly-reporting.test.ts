@@ -111,4 +111,45 @@ describe("weekly reporting snapshots", () => {
       6,
     );
   });
+
+  it("backfills the 5 August presentation values into 12 August comparisons", () => {
+    const dashboard = buildMockDashboardData();
+    dashboard.price.usd = 0.2;
+    const template = dashboard.dexes[0];
+    dashboard.dexes = [
+      {
+        ...template,
+        id: "wingriders-v2",
+        name: "WingRiders V2",
+        rowKind: "version",
+        tableRole: "primary",
+        parentId: "wingriders",
+        protocolVersion: "V2",
+      },
+    ];
+    const current = getSeededWeeklySnapshot("2026-08-12");
+    const previous = getSeededWeeklySnapshot("2026-08-05");
+
+    expect(previous?.dexes).toMatchObject({
+      "minswap-v2": { volume7dAda: 22_030_000 },
+      "dano-finance": { volume7dAda: 17_950_000 },
+      "wingriders-v2": { volume7dAda: 6_130_000 },
+      "sundaeswap-v3": { volume7dAda: 1_270_000 },
+      splash: { volume7dAda: 839_120 },
+      cswap: { volume7dAda: 802_610 },
+      "minswap-v1": { volume7dAda: 383_010 },
+      vyfinance: { volume7dAda: 251_840 },
+      "sundaeswap-v1": { volume7dAda: 94_570 },
+      "wingriders-v1": { volume7dAda: 69_340 },
+    });
+
+    const result = applyWeeklyReportingSnapshots(
+      dashboard,
+      current!,
+      previous!,
+    );
+    expect((result.dexes[0].previous7dUsd ?? 0) / 0.2).toBe(6_130_000);
+    expect(result.dexes[0].weekChangePct).toBeCloseTo(-11.5294, 4);
+    expect(result.weeklyReporting?.previousWeekKey).toBe("2026-08-05");
+  });
 });

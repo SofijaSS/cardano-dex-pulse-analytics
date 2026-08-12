@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { buildMockDashboardData } from "../lib/mock-data";
 import { buildWeeklyReportingSnapshot } from "../lib/weekly-reporting";
 import {
+  backfillWeeklyReportingPreviousState,
   rotateWeeklyReportingState,
   snapshotFromWeeklyState,
 } from "../lib/weekly-state";
@@ -82,5 +83,44 @@ describe("bounded weekly reporting state", () => {
     expect(() => rotateWeeklyReportingState(state, older)).toThrow(
       /older than current/,
     );
+  });
+
+  it("backfills only the immediately previous empty slot", () => {
+    const august5 = snapshot(
+      "2026-08-05",
+      "2026-08-05T06:00:10Z",
+      10_000,
+    );
+    const august12 = snapshot(
+      "2026-08-12",
+      "2026-08-12T06:00:10Z",
+      8_000,
+    );
+    const state = rotateWeeklyReportingState(null, august12);
+
+    const backfilled = backfillWeeklyReportingPreviousState(state, august5);
+    expect(backfilled.current).toBe(august12);
+    expect(backfilled.previous).toBe(august5);
+    expect(backfillWeeklyReportingPreviousState(backfilled, august5)).toBe(
+      backfilled,
+    );
+  });
+
+  it("rejects a backfill that is not the immediately previous week", () => {
+    const july29 = snapshot(
+      "2026-07-29",
+      "2026-07-29T06:00:10Z",
+      10_000,
+    );
+    const august12 = snapshot(
+      "2026-08-12",
+      "2026-08-12T06:00:10Z",
+      8_000,
+    );
+    const state = rotateWeeklyReportingState(null, august12);
+
+    expect(() =>
+      backfillWeeklyReportingPreviousState(state, july29),
+    ).toThrow(/does not match expected previous week/);
   });
 });

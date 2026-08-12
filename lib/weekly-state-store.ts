@@ -1,10 +1,12 @@
 import {
+  backfillD1WeeklyReportingPreviousSnapshot,
   readD1WeeklyReportingState,
   rotateD1WeeklyReportingSnapshot,
 } from "@/db/weekly-reporting";
 import type { WeeklyReportingSnapshot } from "@/lib/weekly-reporting";
 import type { WeeklyReportingState } from "@/lib/weekly-state";
 import {
+  backfillVercelWeeklyReportingPreviousSnapshot,
   readVercelWeeklyReportingState,
   rotateVercelWeeklyReportingSnapshot,
 } from "@/lib/vercel-weekly-blob";
@@ -33,6 +35,18 @@ export async function rotateDurableWeeklyReportingSnapshot(
   if (d1 !== undefined) return { kind: "d1", state: d1 };
 
   const blob = await rotateVercelWeeklyReportingSnapshot(snapshot);
+  if (blob !== undefined) return { kind: "vercel-blob", state: blob };
+
+  return { kind: null, state: null };
+}
+
+export async function backfillDurableWeeklyReportingPreviousSnapshot(
+  snapshot: WeeklyReportingSnapshot,
+): Promise<DurableWeeklyReportingState> {
+  const d1 = await backfillD1WeeklyReportingPreviousSnapshot(snapshot);
+  if (d1 !== undefined) return { kind: "d1", state: d1 };
+
+  const blob = await backfillVercelWeeklyReportingPreviousSnapshot(snapshot);
   if (blob !== undefined) return { kind: "vercel-blob", state: blob };
 
   return { kind: null, state: null };

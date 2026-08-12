@@ -1,5 +1,6 @@
 import type { WeeklyReportingSnapshot } from "@/lib/weekly-reporting";
 import {
+  backfillWeeklyReportingPreviousState,
   emptyWeeklyReportingState,
   rotateWeeklyReportingState,
   type WeeklyReportingState,
@@ -95,6 +96,32 @@ export async function rotateD1WeeklyReportingSnapshot(
   const nextState = rotateWeeklyReportingState(currentState ?? null, snapshot);
   if (nextState === currentState) return currentState;
 
+  await persistBoundedD1Snapshot(database, snapshot);
+  return (await readD1WeeklyReportingState()) ?? nextState;
+}
+
+export async function backfillD1WeeklyReportingPreviousSnapshot(
+  snapshot: WeeklyReportingSnapshot,
+): Promise<WeeklyReportingState | undefined> {
+  const database = await runtimeD1Binding();
+  if (!database) return undefined;
+  await ensureWeeklyReportingTable(database);
+
+  const currentState = await readD1WeeklyReportingState();
+  const nextState = backfillWeeklyReportingPreviousState(
+    currentState ?? null,
+    snapshot,
+  );
+  if (nextState === currentState) return currentState;
+
+  await persistBoundedD1Snapshot(database, snapshot);
+  return (await readD1WeeklyReportingState()) ?? nextState;
+}
+
+async function persistBoundedD1Snapshot(
+  database: D1DatabaseLike,
+  snapshot: WeeklyReportingSnapshot,
+) {
   const insert = database
     .prepare(`
       INSERT OR IGNORE INTO weekly_reporting_snapshots (
@@ -130,6 +157,4 @@ export async function rotateD1WeeklyReportingSnapshot(
     await insert.run();
     await prune.run();
   }
-
-  return (await readD1WeeklyReportingState()) ?? nextState;
 }

@@ -1,4 +1,7 @@
-import type { WeeklyReportingSnapshot } from "@/lib/weekly-reporting";
+import {
+  previousReportingWeekKey,
+  type WeeklyReportingSnapshot,
+} from "@/lib/weekly-reporting";
 
 export const WEEKLY_REPORTING_STATE_VERSION = 1 as const;
 
@@ -49,6 +52,34 @@ export function rotateWeeklyReportingState(
     current: snapshot,
     previous: current,
     updatedAt: snapshot.capturedAt,
+  };
+}
+
+export function backfillWeeklyReportingPreviousState(
+  state: WeeklyReportingState | null,
+  snapshot: WeeklyReportingSnapshot,
+): WeeklyReportingState {
+  if (!state?.current) {
+    throw new Error(
+      "A current weekly reporting snapshot is required before backfilling previous.",
+    );
+  }
+  const expectedWeekKey = previousReportingWeekKey(state.current.weekKey);
+  if (snapshot.weekKey !== expectedWeekKey) {
+    throw new Error(
+      `Weekly reporting backfill ${snapshot.weekKey} does not match expected previous week ${expectedWeekKey}.`,
+    );
+  }
+  if (state.previous?.weekKey === snapshot.weekKey) return state;
+  if (state.previous) {
+    throw new Error(
+      `Weekly reporting previous slot already contains ${state.previous.weekKey}.`,
+    );
+  }
+
+  return {
+    ...state,
+    previous: snapshot,
   };
 }
 

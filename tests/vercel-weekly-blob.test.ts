@@ -14,7 +14,10 @@ const blobMock = vi.hoisted(() => {
 
 vi.mock("@vercel/blob", () => blobMock);
 
-import { rotateVercelWeeklyReportingSnapshot } from "../lib/vercel-weekly-blob";
+import {
+  backfillVercelWeeklyReportingPreviousSnapshot,
+  rotateVercelWeeklyReportingSnapshot,
+} from "../lib/vercel-weekly-blob";
 
 function snapshot(weekKey: string, capturedAt: string) {
   return buildWeeklyReportingSnapshot(
@@ -78,6 +81,27 @@ describe("Vercel Blob weekly reporting adapter", () => {
       expect.objectContaining({
         allowOverwrite: true,
         ifMatch: "etag-august-5",
+      }),
+    );
+  });
+
+  it("backfills the previous slot without replacing current", async () => {
+    const august5 = snapshot("2026-08-05", "2026-08-05T06:00:10Z");
+    const august12 = snapshot("2026-08-12", "2026-08-12T06:00:10Z");
+    const existing = rotateWeeklyReportingState(null, august12);
+    blobMock.get.mockResolvedValue(storedBlob(existing, "etag-august-12"));
+    blobMock.put.mockResolvedValue({});
+
+    const state =
+      await backfillVercelWeeklyReportingPreviousSnapshot(august5);
+
+    expect(state).toMatchObject({ current: august12, previous: august5 });
+    expect(blobMock.put).toHaveBeenCalledWith(
+      "cardano-dex-pulse/weekly-reporting-state.json",
+      expect.any(String),
+      expect.objectContaining({
+        allowOverwrite: true,
+        ifMatch: "etag-august-12",
       }),
     );
   });

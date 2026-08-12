@@ -1,5 +1,6 @@
 import type { WeeklyReportingSnapshot } from "@/lib/weekly-reporting";
 import {
+  backfillWeeklyReportingPreviousState,
   isWeeklyReportingState,
   rotateWeeklyReportingState,
   type WeeklyReportingState,
@@ -51,13 +52,29 @@ export async function readVercelWeeklyReportingState(): Promise<
 export async function rotateVercelWeeklyReportingSnapshot(
   snapshot: WeeklyReportingSnapshot,
 ): Promise<WeeklyReportingState | undefined> {
+  return updateVercelWeeklyReportingState((state) =>
+    rotateWeeklyReportingState(state, snapshot),
+  );
+}
+
+export async function backfillVercelWeeklyReportingPreviousSnapshot(
+  snapshot: WeeklyReportingSnapshot,
+): Promise<WeeklyReportingState | undefined> {
+  return updateVercelWeeklyReportingState((state) =>
+    backfillWeeklyReportingPreviousState(state, snapshot),
+  );
+}
+
+async function updateVercelWeeklyReportingState(
+  update: (state: WeeklyReportingState | null) => WeeklyReportingState,
+): Promise<WeeklyReportingState | undefined> {
   const token = blobToken();
   if (!token) return undefined;
   const blob = await import("@vercel/blob");
 
   for (let attempt = 1; attempt <= MAX_WRITE_ATTEMPTS; attempt += 1) {
     const current = await readBlobState(token);
-    const nextState = rotateWeeklyReportingState(current.state, snapshot);
+    const nextState = update(current.state);
     if (nextState === current.state) return current.state;
 
     try {
