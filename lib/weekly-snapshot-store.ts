@@ -1,9 +1,3 @@
-import { unstable_cache } from "next/cache";
-import {
-  insertWeeklyReportingSnapshot,
-  readWeeklyReportingSnapshot,
-} from "@/db/weekly-reporting";
-import { loadDashboardSnapshot } from "@/lib/dashboard-snapshot";
 import type { DashboardData } from "@/lib/types";
 import {
   applyWeeklyReportingSnapshots,
@@ -13,34 +7,21 @@ import {
   previousReportingWeekKey,
   type WeeklyReportingSnapshot,
 } from "@/lib/weekly-reporting";
+import {
+  readDurableWeeklyReportingState,
+  rotateDurableWeeklyReportingSnapshot,
+} from "@/lib/weekly-state-store";
+import {
+  snapshotFromWeeklyState,
+  type WeeklyReportingState,
+} from "@/lib/weekly-state";
 
-export const WEEKLY_REPORTING_CACHE_TAG = "weekly-reporting-snapshots";
-
-const loadVercelWeeklySnapshot = unstable_cache(
-  async (weekKey: string) => {
-    if (weekKey !== latestReportingWeekKey()) {
-      throw new Error(`Weekly reporting snapshot ${weekKey} is unavailable.`);
-    }
-    const dashboard = await loadDashboardSnapshot();
-    return buildWeeklyReportingSnapshot(dashboard.value, weekKey);
-  },
-  ["cardano-dex-weekly-reporting-v1"],
-  {
-    revalidate: false,
-    tags: [WEEKLY_REPORTING_CACHE_TAG],
-  },
-);
-
-async function readStoredSnapshot(weekKey: string) {
-  const seeded = getSeededWeeklySnapshot(weekKey);
-  if (seeded) return seeded;
-  const d1Snapshot = await readWeeklyReportingSnapshot(weekKey);
-  if (d1Snapshot !== undefined) return d1Snapshot;
-  try {
-    return await loadVercelWeeklySnapshot(weekKey);
-  } catch {
-    return null;
-  }
+function snapshotForWeek(
+  state: WeeklyReportingState | null,
+  weekKey: string,
+) {
+  return getSeededWeeklySnapshot(weekKey) ??
+    snapshotFromWeeklyState(state, weekKey);
 }
 
 export async function captureWeeklyReportingSnapshot(
@@ -49,13 +30,35 @@ export async function captureWeeklyReportingSnapshot(
   capturedAt = new Date(),
 ) {
   const seeded = getSeededWeeklySnapshot(weekKey);
-  if (seeded) return seeded;
-  const existing = await readWeeklyReportingSnapshot(weekKey);
-  if (existing) return existing;
-  const snapshot = buildWeeklyReportingSnapshot(dashboard, weekKey, capturedAt);
-  const d1Snapshot = await insertWeeklyReportingSnapshot(snapshot);
-  if (d1Snapshot) return d1Snapshot;
-  return loadVercelWeeklySnapshot(weekKey);
+  const snapshot =
+    seeded ?? buildWeeklyReportingSnapshot(dashboard, weekKey, capturedAt);
+  const durable = await rotateDurableWeeklyReportingSnapshot(snapshot);
+  if (!durable.kind || !durable.state) {
+    throw new Error(
+      "Durable weekly reporting storage is not configured for this deployment.",
+    );
+  }
+
+  const persisted = snapshotFromWeeklyState(durable.state, weekKey);
+  if (!persisted) {
+    throw new Error(
+      `Durable weekly reporting storage did not retain snapshot ${weekKey}.`,
+    );
+  }
+  return persisted;
+}
+
+function applyWithWarnings(
+  dashboard: DashboardData,
+  current: WeeklyReportingSnapshot,
+  previous: WeeklyReportingSnapshot | null,
+  warnings: string[],
+) {
+  const result = applyWeeklyReportingSnapshots(dashboard, current, previous);
+  return {
+    ...result,
+    warnings: [...result.warnings, ...warnings],
+  };
 }
 
 export async function withWeeklyReporting(
@@ -63,24 +66,71 @@ export async function withWeeklyReporting(
   now = new Date(),
 ) {
   const currentWeekKey = latestReportingWeekKey(now);
-  const current =
-    (await readStoredSnapshot(currentWeekKey)) ??
-    (await captureWeeklyReportingSnapshot(dashboard, currentWeekKey, now));
-  if (!current) {
-    return {
-      ...dashboard,
-      warnings: [
-        ...dashboard.warnings,
-        `Weekly reporting snapshot ${currentWeekKey} is unavailable. Rolling provider periods remain visible.`,
-      ],
-    };
+  const previousWeekKey = previousReportingWeekKey(currentWeekKey);
+  let durable;
+
+  try {
+    durable = await readDurableWeeklyReportingState();
+  } catch (error) {
+    const current =
+      getSeededWeeklySnapshot(currentWeekKey) ??
+      buildWeeklyReportingSnapshot(dashboard, currentWeekKey, now);
+    const previous = getSeededWeeklySnapshot(previousWeekKey);
+    return applyWithWarnings(dashboard, current, previous, [
+      `Durable weekly reporting storage could not be read: ${error instanceof Error ? error.message : "unknown error"}`,
+    ]);
   }
-  const previous = await readStoredSnapshot(
-    previousReportingWeekKey(currentWeekKey),
-  );
-  return applyWeeklyReportingSnapshots(
-    dashboard,
-    current,
-    previous as WeeklyReportingSnapshot | null,
-  );
+
+  let state = durable.state;
+  let current = snapshotForWeek(state, currentWeekKey);
+  const warnings: string[] = [];
+
+  if (
+    current &&
+    getSeededWeeklySnapshot(currentWeekKey) &&
+    durable.kind &&
+    !snapshotFromWeeklyState(state, currentWeekKey)
+  ) {
+    try {
+      const migrated = await rotateDurableWeeklyReportingSnapshot(current);
+      state = migrated.state;
+      durable = migrated;
+    } catch (error) {
+      warnings.push(
+        `Seeded weekly snapshot ${currentWeekKey} could not be migrated to durable storage: ${error instanceof Error ? error.message : "unknown error"}`,
+      );
+    }
+  }
+
+  if (!current) {
+    try {
+      current = await captureWeeklyReportingSnapshot(
+        dashboard,
+        currentWeekKey,
+        now,
+      );
+      const refreshed = await readDurableWeeklyReportingState();
+      state = refreshed.state;
+      durable = refreshed;
+    } catch (error) {
+      current = buildWeeklyReportingSnapshot(dashboard, currentWeekKey, now);
+      warnings.push(
+        `Current weekly snapshot is not durable: ${error instanceof Error ? error.message : "unknown error"}`,
+      );
+    }
+  }
+
+  const previous = snapshotForWeek(state, previousWeekKey);
+  if (!previous) {
+    warnings.push(
+      `Previous weekly reporting snapshot ${previousWeekKey} is unavailable and was not reconstructed from a later rolling period.`,
+    );
+  }
+  if (!durable.kind) {
+    warnings.push(
+      "Durable weekly reporting storage is not configured; current data is a non-durable fallback.",
+    );
+  }
+
+  return applyWithWarnings(dashboard, current, previous, warnings);
 }

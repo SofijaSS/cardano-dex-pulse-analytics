@@ -1,4 +1,9 @@
 import type { WeeklyReportingSnapshot } from "@/lib/weekly-reporting";
+import {
+  emptyWeeklyReportingState,
+  rotateWeeklyReportingState,
+  type WeeklyReportingState,
+} from "@/lib/weekly-state";
 
 interface D1Result<T> {
   results?: T[];
@@ -12,6 +17,11 @@ interface D1Statement {
 
 interface D1DatabaseLike {
   prepare(query: string): D1Statement;
+  batch?<T = unknown>(statements: D1Statement[]): Promise<D1Result<T>[]>;
+}
+
+interface SnapshotRow {
+  payload_json: string;
 }
 
 let initializedDatabase: D1DatabaseLike | null = null;
@@ -19,7 +29,7 @@ let initializedDatabase: D1DatabaseLike | null = null;
 async function runtimeD1Binding(): Promise<D1DatabaseLike | null> {
   try {
     const moduleName = ["cloudflare", "workers"].join(":");
-    const runtime = await import(/* webpackIgnore: true */ moduleName) as {
+    const runtime = (await import(/* webpackIgnore: true */ moduleName)) as {
       env?: { DB?: D1DatabaseLike };
     };
     return runtime.env?.DB ?? null;
@@ -30,45 +40,62 @@ async function runtimeD1Binding(): Promise<D1DatabaseLike | null> {
 
 async function ensureWeeklyReportingTable(database: D1DatabaseLike) {
   if (initializedDatabase === database) return;
-  await database.prepare(`
-    CREATE TABLE IF NOT EXISTS weekly_reporting_snapshots (
-      week_key TEXT PRIMARY KEY NOT NULL,
-      scheduled_for TEXT NOT NULL,
-      captured_at TEXT NOT NULL,
-      source_generated_at TEXT NOT NULL,
-      status TEXT NOT NULL,
-      payload_json TEXT NOT NULL
-    )
-  `).run();
+  await database
+    .prepare(`
+      CREATE TABLE IF NOT EXISTS weekly_reporting_snapshots (
+        week_key TEXT PRIMARY KEY NOT NULL,
+        scheduled_for TEXT NOT NULL,
+        captured_at TEXT NOT NULL,
+        source_generated_at TEXT NOT NULL,
+        status TEXT NOT NULL,
+        payload_json TEXT NOT NULL
+      )
+    `)
+    .run();
   initializedDatabase = database;
 }
 
-export async function readWeeklyReportingSnapshot(
-  weekKey: string,
-): Promise<WeeklyReportingSnapshot | null | undefined> {
+function stateFromRows(rows: SnapshotRow[]): WeeklyReportingState | null {
+  const snapshots = rows.map(
+    (row) => JSON.parse(row.payload_json) as WeeklyReportingSnapshot,
+  );
+  if (snapshots.length === 0) return null;
+  return {
+    ...emptyWeeklyReportingState(snapshots[0].capturedAt),
+    current: snapshots[0] ?? null,
+    previous: snapshots[1] ?? null,
+  };
+}
+
+export async function readD1WeeklyReportingState(): Promise<
+  WeeklyReportingState | null | undefined
+> {
   const database = await runtimeD1Binding();
   if (!database) return undefined;
   await ensureWeeklyReportingTable(database);
-  const row = await database
+  const result = await database
     .prepare(`
       SELECT payload_json
       FROM weekly_reporting_snapshots
-      WHERE week_key = ?1
-      LIMIT 1
+      ORDER BY week_key DESC
+      LIMIT 2
     `)
-    .bind(weekKey)
-    .first<{ payload_json: string }>();
-  if (!row) return null;
-  return JSON.parse(row.payload_json) as WeeklyReportingSnapshot;
+    .run<SnapshotRow>();
+  return stateFromRows(result.results ?? []);
 }
 
-export async function insertWeeklyReportingSnapshot(
+export async function rotateD1WeeklyReportingSnapshot(
   snapshot: WeeklyReportingSnapshot,
-): Promise<WeeklyReportingSnapshot | undefined> {
+): Promise<WeeklyReportingState | undefined> {
   const database = await runtimeD1Binding();
   if (!database) return undefined;
   await ensureWeeklyReportingTable(database);
-  await database
+
+  const currentState = await readD1WeeklyReportingState();
+  const nextState = rotateWeeklyReportingState(currentState ?? null, snapshot);
+  if (nextState === currentState) return currentState;
+
+  const insert = database
     .prepare(`
       INSERT OR IGNORE INTO weekly_reporting_snapshots (
         week_key,
@@ -86,7 +113,23 @@ export async function insertWeeklyReportingSnapshot(
       snapshot.sourceGeneratedAt,
       snapshot.status,
       JSON.stringify(snapshot),
+    );
+  const prune = database.prepare(`
+    DELETE FROM weekly_reporting_snapshots
+    WHERE week_key NOT IN (
+      SELECT week_key
+      FROM weekly_reporting_snapshots
+      ORDER BY week_key DESC
+      LIMIT 2
     )
-    .run();
-  return (await readWeeklyReportingSnapshot(snapshot.weekKey)) ?? snapshot;
+  `);
+
+  if (database.batch) {
+    await database.batch([insert, prune]);
+  } else {
+    await insert.run();
+    await prune.run();
+  }
+
+  return (await readD1WeeklyReportingState()) ?? nextState;
 }

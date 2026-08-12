@@ -96,4 +96,19 @@ describe("weekly reporting snapshots", () => {
       currentStatus: "seeded",
     });
   });
+
+  it("preserves the exact 12 August production capture during migration", () => {
+    const snapshot = getSeededWeeklySnapshot("2026-08-12");
+
+    expect(snapshot).not.toBeNull();
+    expect(snapshot).toMatchObject({
+      capturedAt: "2026-08-12T06:08:15.138Z",
+      scheduledFor: "2026-08-12T06:00:00.000Z",
+      status: "captured",
+    });
+    expect(snapshot?.dexes["wingriders-v2"].volume7dAda).toBeCloseTo(
+      5_423_250.643136033,
+      6,
+    );
+  });
 });
