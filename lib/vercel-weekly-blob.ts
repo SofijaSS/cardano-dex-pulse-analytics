@@ -42,6 +42,39 @@ async function readBlobState(token: string): Promise<ReadBlobState> {
   return { state: payload, etag: result.blob.etag };
 }
 
+async function readBlobStateForUpdate(
+  token: string,
+): Promise<ReadBlobState> {
+  const blob = await import("@vercel/blob");
+
+  for (let attempt = 1; attempt <= MAX_WRITE_ATTEMPTS; attempt += 1) {
+    let before;
+    try {
+      before = await blob.head(WEEKLY_REPORTING_BLOB_PATH, { token });
+    } catch (error) {
+      if (error instanceof blob.BlobNotFoundError) {
+        const missing = await readBlobState(token);
+        if (!missing.state) return missing;
+        continue;
+      }
+      throw error;
+    }
+
+    const current = await readBlobState(token);
+    const after = await blob.head(WEEKLY_REPORTING_BLOB_PATH, { token });
+    if (
+      current.state &&
+      before.etag === after.etag
+    ) {
+      return { state: current.state, etag: after.etag };
+    }
+  }
+
+  throw new Error(
+    "Weekly reporting Blob changed repeatedly while it was being read.",
+  );
+}
+
 export async function readVercelWeeklyReportingState(): Promise<
   WeeklyReportingState | null | undefined
 > {
@@ -74,7 +107,7 @@ async function updateVercelWeeklyReportingState(
   const blob = await import("@vercel/blob");
 
   for (let attempt = 1; attempt <= MAX_WRITE_ATTEMPTS; attempt += 1) {
-    const current = await readBlobState(token);
+    const current = await readBlobStateForUpdate(token);
     const nextState = update(current.state);
     if (nextState === current.state) return current.state;
 

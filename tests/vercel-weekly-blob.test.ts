@@ -5,9 +5,12 @@ import { rotateWeeklyReportingState } from "../lib/weekly-state";
 
 const blobMock = vi.hoisted(() => {
   class BlobPreconditionFailedError extends Error {}
+  class BlobNotFoundError extends Error {}
   return {
+    BlobNotFoundError,
     BlobPreconditionFailedError,
     get: vi.fn(),
+    head: vi.fn(),
     put: vi.fn(),
   };
 });
@@ -39,6 +42,7 @@ describe("Vercel Blob weekly reporting adapter", () => {
   beforeEach(() => {
     process.env.BLOB_READ_WRITE_TOKEN = "test-token";
     blobMock.get.mockReset();
+    blobMock.head.mockReset();
     blobMock.put.mockReset();
   });
 
@@ -49,6 +53,7 @@ describe("Vercel Blob weekly reporting adapter", () => {
   it("creates one private bounded state object without allowing overwrite", async () => {
     const august12 = snapshot("2026-08-12", "2026-08-12T06:00:10Z");
     blobMock.get.mockResolvedValue(null);
+    blobMock.head.mockRejectedValue(new blobMock.BlobNotFoundError());
     blobMock.put.mockResolvedValue({});
 
     const state = await rotateVercelWeeklyReportingSnapshot(august12);
@@ -77,7 +82,8 @@ describe("Vercel Blob weekly reporting adapter", () => {
     const august5 = snapshot("2026-08-05", "2026-08-05T06:00:10Z");
     const august12 = snapshot("2026-08-12", "2026-08-12T06:00:10Z");
     const existing = rotateWeeklyReportingState(null, august5);
-    blobMock.get.mockResolvedValue(storedBlob(existing, "etag-august-5"));
+    blobMock.get.mockResolvedValue(storedBlob(existing, "stale-cdn-etag"));
+    blobMock.head.mockResolvedValue({ etag: "etag-august-5" });
     blobMock.put.mockResolvedValue({});
 
     const state = await rotateVercelWeeklyReportingSnapshot(august12);
@@ -97,7 +103,8 @@ describe("Vercel Blob weekly reporting adapter", () => {
     const august5 = snapshot("2026-08-05", "2026-08-05T06:00:10Z");
     const august12 = snapshot("2026-08-12", "2026-08-12T06:00:10Z");
     const existing = rotateWeeklyReportingState(null, august12);
-    blobMock.get.mockResolvedValue(storedBlob(existing, "etag-august-12"));
+    blobMock.get.mockResolvedValue(storedBlob(existing, "stale-cdn-etag"));
+    blobMock.head.mockResolvedValue({ etag: "etag-august-12" });
     blobMock.put.mockResolvedValue({});
 
     const state =
