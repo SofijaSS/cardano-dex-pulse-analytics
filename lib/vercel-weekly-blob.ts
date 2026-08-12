@@ -26,6 +26,7 @@ async function readBlobState(token: string): Promise<ReadBlobState> {
   const result = await get(WEEKLY_REPORTING_BLOB_PATH, {
     access: "private",
     token,
+    useCache: false,
   });
   if (!result) return { state: null, etag: null };
   if (result.statusCode !== 200 || !result.stream) {

@@ -54,6 +54,14 @@ describe("Vercel Blob weekly reporting adapter", () => {
     const state = await rotateVercelWeeklyReportingSnapshot(august12);
 
     expect(state).toMatchObject({ current: august12, previous: null });
+    expect(blobMock.get).toHaveBeenCalledWith(
+      "cardano-dex-pulse/weekly-reporting-state.json",
+      expect.objectContaining({
+        access: "private",
+        token: "test-token",
+        useCache: false,
+      }),
+    );
     expect(blobMock.put).toHaveBeenCalledWith(
       "cardano-dex-pulse/weekly-reporting-state.json",
       expect.any(String),
