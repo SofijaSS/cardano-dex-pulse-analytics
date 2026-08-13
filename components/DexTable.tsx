@@ -503,7 +503,7 @@ export function DexTable({
         <div>
           <span className="eyebrow">Exchange detail</span>
           <h2>DEX performance table</h2>
-          <p>{weeklyReporting ? `Live 7d follows source refreshes. Previous Wed 7d and Wed WoW use retained Wednesday snapshots (${weeklyReporting.currentWeekKey} vs ${weeklyReporting.previousWeekKey}) at 08:00 Europe/Belgrade.` : "Individual DEX versions ranked by 7-day volume. Protocol totals stay inside source details."}</p>
+          <p>{weeklyReporting ? `Live 7d follows source refreshes. Previous Wed 7d and Wed WoW use retained Wednesday snapshots (${weeklyReporting.currentWeekKey} vs ${weeklyReporting.previousWeekKey}) at 08:00 CET.` : "Individual DEX versions ranked by 7-day volume. Protocol totals stay inside source details."}</p>
         </div>
         <div className="table-actions">
           <div className="table-search-actions">
