@@ -164,6 +164,22 @@ export function buildWeeklyReportingSnapshot(
 const MILLION = 1_000_000;
 const THOUSAND = 1_000;
 
+// Official Dano Finance dailyVolumeAdaValue / 1e6 for the seven complete UTC
+// days before the 12 August 2026 Wednesday cutoff (5–11 August inclusive).
+const DANO_AUGUST_12_DAILY_ADA = [
+  3_881_388.682237,
+  38_287_300.019032,
+  3_342_556.086106,
+  386_679.752819,
+  3_592_622.451939,
+  475_796.40347,
+  4_809_824.32217,
+] as const;
+const DANO_AUGUST_12_7D_ADA = DANO_AUGUST_12_DAILY_ADA.reduce(
+  (total, value) => total + value,
+  0,
+);
+
 function seedDexes(
   values: Record<string, number | null>,
   changes: Record<string, number | null> = {},
@@ -300,7 +316,7 @@ const SEEDED_WEEKLY_SNAPSHOTS: Record<string, WeeklyReportingSnapshot> = {
       vyfinance: 195_429.701518,
       "saturn-swap": 15_198.955944510384,
       muesliswap: 8_092,
-      "dano-finance": null,
+      "dano-finance": DANO_AUGUST_12_7D_ADA,
       teddyswap: null,
       "astarter-amm": null,
       "genius-yield": null,

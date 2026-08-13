@@ -83,6 +83,54 @@ export function backfillWeeklyReportingPreviousState(
   };
 }
 
+export function backfillWeeklyReportingCurrentMissingValues(
+  state: WeeklyReportingState | null,
+  snapshot: WeeklyReportingSnapshot,
+): WeeklyReportingState {
+  if (!state?.current) {
+    throw new Error(
+      "A current weekly reporting snapshot is required before backfilling missing values.",
+    );
+  }
+  if (snapshot.weekKey !== state.current.weekKey) {
+    throw new Error(
+      `Weekly reporting current-value backfill ${snapshot.weekKey} does not match current week ${state.current.weekKey}.`,
+    );
+  }
+
+  let changed = false;
+  const dexes = { ...state.current.dexes };
+
+  for (const [id, candidate] of Object.entries(snapshot.dexes)) {
+    const existing = dexes[id];
+    const volume7dAda =
+      existing?.volume7dAda ?? candidate.volume7dAda ?? null;
+    const volume7dUsd =
+      existing?.volume7dUsd ?? candidate.volume7dUsd ?? null;
+
+    if (
+      volume7dAda !== (existing?.volume7dAda ?? null) ||
+      volume7dUsd !== (existing?.volume7dUsd ?? null)
+    ) {
+      changed = true;
+      dexes[id] = {
+        weekChangePct: existing?.weekChangePct ?? null,
+        volume7dAda,
+        volume7dUsd,
+      };
+    }
+  }
+
+  if (!changed) return state;
+  return {
+    ...state,
+    current: {
+      ...state.current,
+      dexes,
+    },
+  };
+}
+
 export function isWeeklyReportingState(
   value: unknown,
 ): value is WeeklyReportingState {

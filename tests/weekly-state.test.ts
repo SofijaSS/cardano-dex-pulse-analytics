@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { buildMockDashboardData } from "../lib/mock-data";
 import { buildWeeklyReportingSnapshot } from "../lib/weekly-reporting";
 import {
+  backfillWeeklyReportingCurrentMissingValues,
   backfillWeeklyReportingPreviousState,
   rotateWeeklyReportingState,
   snapshotFromWeeklyState,
@@ -122,5 +123,61 @@ describe("bounded weekly reporting state", () => {
     expect(() =>
       backfillWeeklyReportingPreviousState(state, july29),
     ).toThrow(/does not match expected previous week/);
+  });
+
+  it("fills only missing values in the matching current snapshot", () => {
+    const stored = snapshot(
+      "2026-08-12",
+      "2026-08-12T06:00:10Z",
+      8_000,
+    );
+    stored.dexes["dano-finance"] = {
+      weekChangePct: null,
+      volume7dAda: null,
+      volume7dUsd: null,
+    };
+    const reviewed = snapshot(
+      "2026-08-12",
+      "2026-08-12T06:00:10Z",
+      9_000,
+    );
+    reviewed.dexes["dano-finance"] = {
+      weekChangePct: null,
+      volume7dAda: 54_776_167.717773,
+      volume7dUsd: null,
+    };
+    const state = rotateWeeklyReportingState(null, stored);
+
+    const backfilled = backfillWeeklyReportingCurrentMissingValues(
+      state,
+      reviewed,
+    );
+
+    expect(backfilled.current?.dexes["dano-finance"].volume7dAda).toBeCloseTo(
+      54_776_167.717773,
+      6,
+    );
+    expect(backfilled.current?.dexes.minswap.volume7dUsd).toBe(8_000);
+    expect(backfillWeeklyReportingCurrentMissingValues(backfilled, reviewed)).toBe(
+      backfilled,
+    );
+  });
+
+  it("rejects a current-value backfill for a different week", () => {
+    const august5 = snapshot(
+      "2026-08-05",
+      "2026-08-05T06:00:10Z",
+      10_000,
+    );
+    const august12 = snapshot(
+      "2026-08-12",
+      "2026-08-12T06:00:10Z",
+      8_000,
+    );
+    const state = rotateWeeklyReportingState(null, august12);
+
+    expect(() =>
+      backfillWeeklyReportingCurrentMissingValues(state, august5),
+    ).toThrow(/does not match current week/);
   });
 });

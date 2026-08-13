@@ -1,5 +1,6 @@
 import type { WeeklyReportingSnapshot } from "@/lib/weekly-reporting";
 import {
+  backfillWeeklyReportingCurrentMissingValues,
   backfillWeeklyReportingPreviousState,
   isWeeklyReportingState,
   rotateWeeklyReportingState,
@@ -96,6 +97,14 @@ export async function backfillVercelWeeklyReportingPreviousSnapshot(
 ): Promise<WeeklyReportingState | undefined> {
   return updateVercelWeeklyReportingState((state) =>
     backfillWeeklyReportingPreviousState(state, snapshot),
+  );
+}
+
+export async function backfillVercelWeeklyReportingCurrentMissingValues(
+  snapshot: WeeklyReportingSnapshot,
+): Promise<WeeklyReportingState | undefined> {
+  return updateVercelWeeklyReportingState((state) =>
+    backfillWeeklyReportingCurrentMissingValues(state, snapshot),
   );
 }
 

@@ -1,5 +1,6 @@
 import type { WeeklyReportingSnapshot } from "@/lib/weekly-reporting";
 import {
+  backfillWeeklyReportingCurrentMissingValues,
   backfillWeeklyReportingPreviousState,
   emptyWeeklyReportingState,
   rotateWeeklyReportingState,
@@ -116,6 +117,49 @@ export async function backfillD1WeeklyReportingPreviousSnapshot(
 
   await persistBoundedD1Snapshot(database, snapshot);
   return (await readD1WeeklyReportingState()) ?? nextState;
+}
+
+export async function backfillD1WeeklyReportingCurrentMissingValues(
+  snapshot: WeeklyReportingSnapshot,
+): Promise<WeeklyReportingState | undefined> {
+  const database = await runtimeD1Binding();
+  if (!database) return undefined;
+  await ensureWeeklyReportingTable(database);
+
+  const currentState = await readD1WeeklyReportingState();
+  const nextState = backfillWeeklyReportingCurrentMissingValues(
+    currentState ?? null,
+    snapshot,
+  );
+  if (nextState === currentState) return currentState;
+
+  await replaceD1Snapshot(database, nextState.current!);
+  return (await readD1WeeklyReportingState()) ?? nextState;
+}
+
+async function replaceD1Snapshot(
+  database: D1DatabaseLike,
+  snapshot: WeeklyReportingSnapshot,
+) {
+  await database
+    .prepare(`
+      UPDATE weekly_reporting_snapshots
+      SET scheduled_for = ?2,
+          captured_at = ?3,
+          source_generated_at = ?4,
+          status = ?5,
+          payload_json = ?6
+      WHERE week_key = ?1
+    `)
+    .bind(
+      snapshot.weekKey,
+      snapshot.scheduledFor,
+      snapshot.capturedAt,
+      snapshot.sourceGeneratedAt,
+      snapshot.status,
+      JSON.stringify(snapshot),
+    )
+    .run();
 }
 
 async function persistBoundedD1Snapshot(

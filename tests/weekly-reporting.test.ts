@@ -97,7 +97,7 @@ describe("weekly reporting snapshots", () => {
     });
   });
 
-  it("preserves the exact 12 August production capture during migration", () => {
+  it("preserves the 12 August capture and audited Dano null correction", () => {
     const snapshot = getSeededWeeklySnapshot("2026-08-12");
 
     expect(snapshot).not.toBeNull();
@@ -108,6 +108,10 @@ describe("weekly reporting snapshots", () => {
     });
     expect(snapshot?.dexes["wingriders-v2"].volume7dAda).toBeCloseTo(
       5_423_250.643136033,
+      6,
+    );
+    expect(snapshot?.dexes["dano-finance"].volume7dAda).toBeCloseTo(
+      54_776_167.717773,
       6,
     );
   });
@@ -151,5 +155,38 @@ describe("weekly reporting snapshots", () => {
     expect((result.dexes[0].previous7dUsd ?? 0) / 0.2).toBe(6_130_000);
     expect(result.dexes[0].weekChangePct).toBeCloseTo(-11.5294, 4);
     expect(result.weeklyReporting?.previousWeekKey).toBe("2026-08-05");
+  });
+
+  it("shows the corrected Dano 7d value and Wednesday-over-Wednesday change", () => {
+    const dashboard = buildMockDashboardData();
+    dashboard.price.usd = 0.2;
+    const template = dashboard.dexes[0];
+    dashboard.dexes = [
+      {
+        ...template,
+        id: "dano-finance",
+        name: "Dano Finance",
+        rowKind: "protocol",
+        tableRole: "primary",
+        parentId: null,
+        protocolVersion: null,
+      },
+    ];
+    const current = getSeededWeeklySnapshot("2026-08-12");
+    const previous = getSeededWeeklySnapshot("2026-08-05");
+
+    const result = applyWeeklyReportingSnapshots(
+      dashboard,
+      current!,
+      previous!,
+    );
+    const dano = result.dexes[0];
+
+    expect((dano.volume7dUsd ?? 0) / 0.2).toBeCloseTo(
+      54_776_167.717773,
+      6,
+    );
+    expect((dano.previous7dUsd ?? 0) / 0.2).toBe(17_950_000);
+    expect(dano.weekChangePct).toBeCloseTo(205.1597, 4);
   });
 });

@@ -18,6 +18,7 @@ const blobMock = vi.hoisted(() => {
 vi.mock("@vercel/blob", () => blobMock);
 
 import {
+  backfillVercelWeeklyReportingCurrentMissingValues,
   backfillVercelWeeklyReportingPreviousSnapshot,
   rotateVercelWeeklyReportingSnapshot,
 } from "../lib/vercel-weekly-blob";
@@ -111,6 +112,44 @@ describe("Vercel Blob weekly reporting adapter", () => {
       await backfillVercelWeeklyReportingPreviousSnapshot(august5);
 
     expect(state).toMatchObject({ current: august12, previous: august5 });
+    expect(blobMock.put).toHaveBeenCalledWith(
+      "cardano-dex-pulse/weekly-reporting-state.json",
+      expect.any(String),
+      expect.objectContaining({
+        allowOverwrite: true,
+        ifMatch: "etag-august-12",
+      }),
+    );
+  });
+
+  it("fills a missing current metric without replacing captured values", async () => {
+    const august12 = snapshot("2026-08-12", "2026-08-12T06:00:10Z");
+    august12.dexes["dano-finance"] = {
+      weekChangePct: null,
+      volume7dAda: null,
+      volume7dUsd: null,
+    };
+    const reviewed = snapshot("2026-08-12", "2026-08-12T06:00:10Z");
+    reviewed.dexes.minswap.volume7dUsd = 999_999;
+    reviewed.dexes["dano-finance"] = {
+      weekChangePct: null,
+      volume7dAda: 54_776_167.717773,
+      volume7dUsd: null,
+    };
+    const existing = rotateWeeklyReportingState(null, august12);
+    const capturedMinswap = existing.current?.dexes.minswap.volume7dUsd;
+    blobMock.get.mockResolvedValue(storedBlob(existing, "stale-cdn-etag"));
+    blobMock.head.mockResolvedValue({ etag: "etag-august-12" });
+    blobMock.put.mockResolvedValue({});
+
+    const state =
+      await backfillVercelWeeklyReportingCurrentMissingValues(reviewed);
+
+    expect(state?.current?.dexes["dano-finance"].volume7dAda).toBeCloseTo(
+      54_776_167.717773,
+      6,
+    );
+    expect(state?.current?.dexes.minswap.volume7dUsd).toBe(capturedMinswap);
     expect(blobMock.put).toHaveBeenCalledWith(
       "cardano-dex-pulse/weekly-reporting-state.json",
       expect.any(String),

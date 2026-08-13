@@ -8,11 +8,13 @@ import {
   type WeeklyReportingSnapshot,
 } from "@/lib/weekly-reporting";
 import {
+  backfillDurableWeeklyReportingCurrentMissingValues,
   backfillDurableWeeklyReportingPreviousSnapshot,
   readDurableWeeklyReportingState,
   rotateDurableWeeklyReportingSnapshot,
 } from "@/lib/weekly-state-store";
 import {
+  backfillWeeklyReportingCurrentMissingValues,
   snapshotFromWeeklyState,
   type WeeklyReportingState,
 } from "@/lib/weekly-state";
@@ -83,12 +85,39 @@ export async function withWeeklyReporting(
   }
 
   let state = durable.state;
-  let current = snapshotForWeek(state, currentWeekKey);
   const warnings: string[] = [];
+  const seededCurrent = getSeededWeeklySnapshot(currentWeekKey);
+
+  if (
+    seededCurrent &&
+    durable.kind &&
+    snapshotFromWeeklyState(state, currentWeekKey)
+  ) {
+    try {
+      const candidate = backfillWeeklyReportingCurrentMissingValues(
+        state,
+        seededCurrent,
+      );
+      if (candidate !== state) {
+        const backfilled =
+          await backfillDurableWeeklyReportingCurrentMissingValues(
+            seededCurrent,
+          );
+        state = backfilled.state;
+        durable = backfilled;
+      }
+    } catch (error) {
+      warnings.push(
+        `Missing values in seeded weekly snapshot ${currentWeekKey} could not be backfilled into durable storage: ${error instanceof Error ? error.message : "unknown error"}`,
+      );
+    }
+  }
+
+  let current = snapshotForWeek(state, currentWeekKey);
 
   if (
     current &&
-    getSeededWeeklySnapshot(currentWeekKey) &&
+    seededCurrent &&
     durable.kind &&
     !snapshotFromWeeklyState(state, currentWeekKey)
   ) {
