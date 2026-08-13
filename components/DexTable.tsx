@@ -85,11 +85,11 @@ type ColumnDefinition = {
 };
 
 export const DEX_TABLE_COLUMNS: ColumnDefinition[] = [
-  { key: "volume7dUsd", label: "DEX volume · 7d", group: "Volume", sortKey: "volume7dUsd", width: 102 },
+  { key: "volume7dUsd", label: "DEX volume · live 7d", group: "Volume", sortKey: "volume7dUsd", width: 112 },
   { key: "volume24hUsd", label: "24h volume", group: "Volume", sortKey: "volume24hUsd", width: 98 },
   { key: "volume30dUsd", label: "30d volume", group: "Volume", sortKey: "volume30dUsd", width: 98 },
-  { key: "previous7dUsd", label: "Previous 7d", group: "Volume", sortKey: "previous7dUsd", width: 102 },
-  { key: "weekChangePct", label: "WoW change", group: "Volume", sortKey: "weekChangePct", width: 76 },
+  { key: "previous7dUsd", label: "Previous Wed 7d", group: "Volume", sortKey: "previous7dUsd", width: 108 },
+  { key: "weekChangePct", label: "Wed WoW", group: "Volume", sortKey: "weekChangePct", width: 76 },
   { key: "tvlUsd", label: "TVL", group: "Value", sortKey: "tvlUsd", width: 96 },
   { key: "volumeToTvl", label: "Volume / TVL", group: "Value", sortKey: "volumeToTvl", width: 84 },
   { key: "trades24h", label: "Trades · 24h", group: "Activity", sortKey: "trades24h", width: 84 },
@@ -503,7 +503,7 @@ export function DexTable({
         <div>
           <span className="eyebrow">Exchange detail</span>
           <h2>DEX performance table</h2>
-          <p>{weeklyReporting ? `7d volume, Previous 7d and WoW are frozen Wednesday-to-Wednesday snapshots (${weeklyReporting.currentWeekKey} vs ${weeklyReporting.previousWeekKey}) at 08:00 Europe/Belgrade.` : "Individual DEX versions ranked by 7-day volume. Protocol totals stay inside source details."}</p>
+          <p>{weeklyReporting ? `Live 7d follows source refreshes. Previous Wed 7d and Wed WoW use retained Wednesday snapshots (${weeklyReporting.currentWeekKey} vs ${weeklyReporting.previousWeekKey}) at 08:00 Europe/Belgrade.` : "Individual DEX versions ranked by 7-day volume. Protocol totals stay inside source details."}</p>
         </div>
         <div className="table-actions">
           <div className="table-search-actions">
@@ -635,11 +635,11 @@ export function DexTable({
           <thead>
             <tr>
               <SortableHeader label="7D rank / DEX" sortLabel="DEX name" field="name" {...headerProps} />
-              {showColumn("volume7dUsd") ? <SortableHeader label="DEX volume · 7d" field="volume7dUsd" {...headerProps} /> : null}
+              {showColumn("volume7dUsd") ? <SortableHeader label="DEX volume · live 7d" field="volume7dUsd" {...headerProps} /> : null}
               {showColumn("volume24hUsd") ? <SortableHeader label="24h volume" field="volume24hUsd" {...headerProps} /> : null}
               {showColumn("volume30dUsd") ? <SortableHeader label="30d volume" field="volume30dUsd" {...headerProps} /> : null}
-              {showColumn("previous7dUsd") ? <SortableHeader label="Previous 7d" field="previous7dUsd" {...headerProps} /> : null}
-              {showColumn("weekChangePct") ? <SortableHeader label="WoW" field="weekChangePct" {...headerProps} /> : null}
+              {showColumn("previous7dUsd") ? <SortableHeader label="Previous Wed 7d" field="previous7dUsd" {...headerProps} /> : null}
+              {showColumn("weekChangePct") ? <SortableHeader label="Wed WoW" field="weekChangePct" {...headerProps} /> : null}
               {showColumn("tvlUsd") ? <SortableHeader label="TVL" field="tvlUsd" {...headerProps} /> : null}
               {showColumn("volumeToTvl") ? <SortableHeader label="Vol / TVL" field="volumeToTvl" {...headerProps} /> : null}
               {showColumn("trades24h") ? <SortableHeader label="Trades · 24h" field="trades24h" {...headerProps} /> : null}

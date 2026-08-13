@@ -51,7 +51,7 @@ describe("weekly reporting snapshots", () => {
     });
   });
 
-  it("preserves the 29 July WingRiders V2 slide value until the next cutoff", () => {
+  it("keeps live WingRiders V2 7d while preserving the 29 July slide value", () => {
     const dashboard = buildMockDashboardData();
     dashboard.price.usd = 0.2;
     const template = dashboard.dexes[0];
@@ -71,6 +71,7 @@ describe("weekly reporting snapshots", () => {
         tableRole: "primary",
         parentId: "wingriders",
         protocolVersion: "V2",
+        volume7dUsd: 1_400_000,
       },
     ];
     const current = getSeededWeeklySnapshot("2026-07-29");
@@ -87,7 +88,10 @@ describe("weekly reporting snapshots", () => {
       (dex) => dex.id === "wingriders-v2",
     );
 
-    expect((wingRidersV2?.volume7dUsd ?? 0) / 0.2).toBe(6_460_000);
+    expect((wingRidersV2?.volume7dUsd ?? 0) / 0.2).toBe(7_000_000);
+    expect((wingRidersV2?.reportingVolume7dUsd ?? 0) / 0.2).toBe(
+      6_460_000,
+    );
     expect((wingRidersV2?.previous7dUsd ?? 0) / 0.2).toBe(15_430_000);
     expect(wingRidersV2?.weekChangePct).toBe(-58.2);
     expect(result.weeklyReporting).toMatchObject({
@@ -129,6 +133,7 @@ describe("weekly reporting snapshots", () => {
         tableRole: "primary",
         parentId: "wingriders",
         protocolVersion: "V2",
+        volume7dUsd: 1_200_000,
       },
     ];
     const current = getSeededWeeklySnapshot("2026-08-12");
@@ -152,12 +157,17 @@ describe("weekly reporting snapshots", () => {
       current!,
       previous!,
     );
+    expect((result.dexes[0].volume7dUsd ?? 0) / 0.2).toBe(6_000_000);
+    expect((result.dexes[0].reportingVolume7dUsd ?? 0) / 0.2).toBeCloseTo(
+      5_423_250.643136033,
+      6,
+    );
     expect((result.dexes[0].previous7dUsd ?? 0) / 0.2).toBe(6_130_000);
     expect(result.dexes[0].weekChangePct).toBeCloseTo(-11.5294, 4);
     expect(result.weeklyReporting?.previousWeekKey).toBe("2026-08-05");
   });
 
-  it("shows the corrected Dano 7d value and Wednesday-over-Wednesday change", () => {
+  it("keeps live Dano 7d while using the corrected Wednesday snapshots", () => {
     const dashboard = buildMockDashboardData();
     dashboard.price.usd = 0.2;
     const template = dashboard.dexes[0];
@@ -170,6 +180,7 @@ describe("weekly reporting snapshots", () => {
         tableRole: "primary",
         parentId: null,
         protocolVersion: null,
+        volume7dUsd: 12_000_000,
       },
     ];
     const current = getSeededWeeklySnapshot("2026-08-12");
@@ -182,11 +193,54 @@ describe("weekly reporting snapshots", () => {
     );
     const dano = result.dexes[0];
 
-    expect((dano.volume7dUsd ?? 0) / 0.2).toBeCloseTo(
+    expect((dano.volume7dUsd ?? 0) / 0.2).toBe(60_000_000);
+    expect((dano.reportingVolume7dUsd ?? 0) / 0.2).toBeCloseTo(
       54_776_167.717773,
       6,
     );
     expect((dano.previous7dUsd ?? 0) / 0.2).toBe(17_950_000);
     expect(dano.weekChangePct).toBeCloseTo(205.1597, 4);
+  });
+
+  it("refreshes live 7d without changing the retained Wednesday comparison", () => {
+    const dashboard = buildMockDashboardData();
+    dashboard.price.usd = 0.2;
+    dashboard.dexes = [
+      {
+        ...dashboard.dexes[0],
+        id: "wingriders-v2",
+        name: "WingRiders V2",
+        rowKind: "version",
+        tableRole: "primary",
+        parentId: "wingriders",
+        protocolVersion: "V2",
+        volume7dUsd: 1_000_000,
+      },
+    ];
+    const current = getSeededWeeklySnapshot("2026-08-12");
+    const previous = getSeededWeeklySnapshot("2026-08-05");
+    const first = applyWeeklyReportingSnapshots(
+      dashboard,
+      current!,
+      previous!,
+    );
+
+    dashboard.dexes[0].volume7dUsd = 1_100_000;
+    const refreshed = applyWeeklyReportingSnapshots(
+      dashboard,
+      current!,
+      previous!,
+    );
+
+    expect(refreshed.dexes[0].volume7dUsd).toBe(1_100_000);
+    expect(refreshed.dexes[0].reportingVolume7dUsd).toBe(
+      first.dexes[0].reportingVolume7dUsd,
+    );
+    expect(refreshed.dexes[0].previous7dUsd).toBe(
+      first.dexes[0].previous7dUsd,
+    );
+    expect(refreshed.dexes[0].weekChangePct).toBe(
+      first.dexes[0].weekChangePct,
+    );
   });
 });

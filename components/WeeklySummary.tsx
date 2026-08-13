@@ -31,8 +31,18 @@ export function WeeklySummary({
     "idle" | "working" | "copied" | "downloaded" | "error"
   >("idle");
   const [selectedDexId, setSelectedDexId] = useState<string | null>(null);
+  const reportDexes = weeklyReporting
+    ? dexes.map((dex) => ({
+        ...dex,
+        volume7dUsd: dex.reportingVolume7dUsd ?? null,
+      }))
+    : dexes;
   const { topThree, selectedDex, rank } =
-    buildWeeklyReportModel(dexes, selectedDexId);
+    buildWeeklyReportModel(reportDexes, selectedDexId);
+  const currentPeriodLabel = weeklyReporting ? "Wednesday 7d" : "7d volume";
+  const previousPeriodLabel = weeklyReporting
+    ? "Previous Wed 7d"
+    : "Previous 7d";
 
   let summary =
     "Weekly summary: Data unavailable from the configured verified sources.";
@@ -71,12 +81,14 @@ export function WeeklySummary({
         filename: `cardano-dex-weekly-${selectedDex.id}-${new Date().toISOString().slice(0, 10)}.png`,
         focus: `${selectedDex.name} focus`,
         title: "Weekly performance brief",
-        subtitle: "Current top-three table entry with matching DEX performance metrics.",
+        subtitle: weeklyReporting
+          ? "Wednesday-to-Wednesday snapshot metrics for the selected DEX."
+          : "Current top-three table entry with matching DEX performance metrics.",
         metrics: [
           { label: "24h volume", value: formatMoney(selectedDex.volume24hUsd, currency, adaPriceUsd) },
-          { label: "7d volume", value: formatMoney(selectedDex.volume7dUsd, currency, adaPriceUsd) },
+          { label: currentPeriodLabel, value: formatMoney(selectedDex.volume7dUsd, currency, adaPriceUsd) },
           { label: "30d volume", value: formatMoney(selectedDex.volume30dUsd, currency, adaPriceUsd) },
-          { label: "Previous 7d", value: formatMoney(selectedDex.previous7dUsd, currency, adaPriceUsd) },
+          { label: previousPeriodLabel, value: formatMoney(selectedDex.previous7dUsd, currency, adaPriceUsd) },
           {
             label: "WoW",
             value: formatPercent(selectedDex.weekChangePct),
@@ -93,7 +105,9 @@ export function WeeklySummary({
           { label: "24h share", value: formatPercent(selectedDex.marketShare24hPct, false) },
         ],
         summary,
-        sourceLine: `Last data ${formatDateTime(selectedDex.lastDataAt)} · ${selectedDex.sourceLabel}`,
+        sourceLine: weeklyReporting
+          ? `Wednesday snapshot ${formatDateTime(weeklyReporting.currentCapturedAt)} · ${selectedDex.sourceLabel}`
+          : `Last data ${formatDateTime(selectedDex.lastDataAt)} · ${selectedDex.sourceLabel}`,
         generatedLine: `Report generated ${formatDateTime(generatedAt)}.`,
         topThree: topThree.map((dex, index) => ({
           rank: index + 1,
@@ -128,7 +142,7 @@ export function WeeklySummary({
         <div>
           <span className="eyebrow eyebrow--light"><PreserveTerms>{selectedDex?.name || "DEX"}</PreserveTerms> focus</span>
           <h2>Weekly performance brief</h2>
-          <p>{weeklyReporting ? `7d reporting is frozen at the ${weeklyReporting.currentWeekKey} Wednesday snapshot; Previous 7d uses ${weeklyReporting.previousWeekKey}.` : "Select any current top-three table entry to update the weekly report."}</p>
+          <p>{weeklyReporting ? `This brief uses the ${weeklyReporting.currentWeekKey} Wednesday snapshot; Previous 7d uses ${weeklyReporting.previousWeekKey}. The main table keeps live rolling 7d.` : "Select any current top-three table entry to update the weekly report."}</p>
         </div>
         <div className="weekly-actions no-print">
           <div className="table-copy-control weekly-png-control">
@@ -158,9 +172,9 @@ export function WeeklySummary({
       <div className="wing-grid">
         <div className="wing-metrics">
           <article><span>24h volume</span><strong><PreserveTerms>{formatMoney(selectedDex?.volume24hUsd, currency, adaPriceUsd)}</PreserveTerms></strong></article>
-          <article><span>7d volume</span><strong><PreserveTerms>{formatMoney(selectedDex?.volume7dUsd, currency, adaPriceUsd)}</PreserveTerms></strong></article>
+          <article><span>{currentPeriodLabel}</span><strong><PreserveTerms>{formatMoney(selectedDex?.volume7dUsd, currency, adaPriceUsd)}</PreserveTerms></strong></article>
           <article><span>30d volume</span><strong><PreserveTerms>{formatMoney(selectedDex?.volume30dUsd, currency, adaPriceUsd)}</PreserveTerms></strong></article>
-          <article><span>Previous 7d</span><strong><PreserveTerms>{formatMoney(selectedDex?.previous7dUsd, currency, adaPriceUsd)}</PreserveTerms></strong></article>
+          <article><span>{previousPeriodLabel}</span><strong><PreserveTerms>{formatMoney(selectedDex?.previous7dUsd, currency, adaPriceUsd)}</PreserveTerms></strong></article>
           <article><span>WoW</span><strong className={changeClass}>{formatPercent(selectedDex?.weekChangePct)}</strong></article>
           <article><span>7d rank</span><strong>{rank ? `#${rank}` : "N/A"}</strong></article>
           <article><span>TVL</span><strong><PreserveTerms>{formatMoney(selectedDex?.tvlUsd, currency, adaPriceUsd)}</PreserveTerms></strong></article>
@@ -173,7 +187,9 @@ export function WeeklySummary({
           <blockquote><PreserveTerms>{summary}</PreserveTerms></blockquote>
           <div className="weekly-copy__meta">
             <small>
-              Last data {formatDateTime(selectedDex?.lastDataAt)} ·{" "}
+              {weeklyReporting
+                ? `Wednesday snapshot ${formatDateTime(weeklyReporting.currentCapturedAt)}`
+                : `Last data ${formatDateTime(selectedDex?.lastDataAt)}`} ·{" "}
               <PreserveTerms>{selectedDex?.sourceLabel || "Data unavailable"}</PreserveTerms>
             </small>
             <small>Report generated {formatDateTime(generatedAt)}.</small>

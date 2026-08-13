@@ -318,10 +318,10 @@ export function Dashboard({ authEnabled = false }: { authEnabled?: boolean }) {
       { header: string; value: (dex: DexMetric) => unknown }
     > = {
       volume24hUsd: { header: `24h volume (${currency})`, value: (dex) => convertUsd(dex.volume24hUsd, currency, adaPrice) },
-      volume7dUsd: { header: `7d volume (${currency})`, value: (dex) => convertUsd(dex.volume7dUsd, currency, adaPrice) },
+      volume7dUsd: { header: `Live 7d volume (${currency})`, value: (dex) => convertUsd(dex.volume7dUsd, currency, adaPrice) },
       volume30dUsd: { header: `30d volume (${currency})`, value: (dex) => convertUsd(dex.volume30dUsd, currency, adaPrice) },
-      previous7dUsd: { header: `Previous 7d (${currency})`, value: (dex) => convertUsd(dex.previous7dUsd, currency, adaPrice) },
-      weekChangePct: { header: "WoW %", value: (dex) => dex.weekChangePct },
+      previous7dUsd: { header: `Previous Wed 7d (${currency})`, value: (dex) => convertUsd(dex.previous7dUsd, currency, adaPrice) },
+      weekChangePct: { header: "Wednesday WoW %", value: (dex) => dex.weekChangePct },
       trades24h: { header: "Trades (24h)", value: (dex) => dex.trades24h },
       users24h: { header: "Users (24h)", value: (dex) => dex.users24h },
       dau24h: { header: "DAU (24h)", value: (dex) => dex.dau24h },
@@ -478,7 +478,7 @@ export function Dashboard({ authEnabled = false }: { authEnabled?: boolean }) {
         </div>
         <div className="metrics-grid">
           <MetricCard featured label={sourceMode === "reconciled" ? "Observed volume · 24h" : "Total volume · 24h"} value={formatMoney(metric24, currency, adaPrice)} meta={sourceMode === "reconciled" ? `${aggregates.coverage24h}/${aggregates.trackedDexes} tracked DEXes report 24h data` : "DefiLlama Cardano DEX benchmark"} />
-          <MetricCard label={sourceMode === "reconciled" ? "Observed volume · 7d" : "Total volume · 7d"} value={formatMoney(metric7, currency, adaPrice)} meta={sourceMode === "reconciled" ? `${aggregates.coverage7d}/${aggregates.trackedDexes} DEXes with comparable periods` : "DefiLlama Cardano DEX benchmark"} />
+          <MetricCard label={sourceMode === "reconciled" ? "Observed volume · live 7d" : "Total volume · 7d"} value={formatMoney(metric7, currency, adaPrice)} meta={sourceMode === "reconciled" ? `${aggregates.coverage7d}/${aggregates.trackedDexes} DEXes with live rolling 7d data` : "DefiLlama Cardano DEX benchmark"} />
           <MetricCard label={sourceMode === "reconciled" ? "Observed volume · 30d" : "Total volume · 30d"} value={formatMoney(metric30, currency, adaPrice)} meta={sourceMode === "reconciled" ? `${aggregates.coverage30d}/${aggregates.trackedDexes} DEXes; no extrapolation` : "DefiLlama Cardano DEX benchmark"} />
           <MetricCard label="Tracked DEX TVL" value={formatMoney(metricTvl, currency, adaPrice)} meta={sourceMode === "reconciled" ? "Native where compatible, DefiLlama fallback" : "DefiLlama protocol TVL"} />
           <MetricCard label="Week-over-week" value={weekChange == null ? "N/A" : `${weekChange > 0 ? "+" : ""}${weekChange.toFixed(1)}%`} meta={sourceMode === "reconciled" ? "Wednesday-to-Wednesday snapshot comparison" : "DefiLlama total 7d vs previous 7d"} change={weekChange} />
@@ -505,7 +505,7 @@ export function Dashboard({ authEnabled = false }: { authEnabled?: boolean }) {
           <DateRangeSelector value={preset} onChange={(next) => startTransition(() => setPreset(next))} start={customStart} end={customEnd} onStartChange={setCustomStart} onEndChange={setCustomEnd} min={minDate} max={maxDate} />
           <DexSelector dexes={displayedDexes} selected={selectedDexes} onToggle={toggleDex} />
         </div>
-        <DashboardCharts series={chartSeries} dexes={displayedDexes} selected={selectedDexes} currency={currency} adaPriceUsd={adaPrice} />
+        <DashboardCharts series={chartSeries} dexes={displayedDexes} selected={selectedDexes} currency={currency} adaPriceUsd={adaPrice} useWeeklySnapshots={sourceMode === "reconciled"} />
       </section>
 
       <footer>

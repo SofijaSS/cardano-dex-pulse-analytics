@@ -38,6 +38,7 @@ export interface DexMetric {
   color: string;
   volume24hUsd: number | null;
   volume7dUsd: number | null;
+  reportingVolume7dUsd?: number | null;
   volume30dUsd: number | null;
   previous7dUsd: number | null;
   weekChangePct: number | null;

@@ -357,14 +357,17 @@ function withWeeklyDexValues(
   if (!currentSnapshot) {
     return {
       ...dex,
-      volume7dUsd: null,
+      reportingVolume7dUsd: null,
       previous7dUsd: null,
       weekChangePct: null,
-      periodNote: `${dex.periodNote} Weekly reporting: this DEX was not present in the archived ${current.weekKey} reporting snapshot, so its rolling value is not substituted.`,
+      periodNote: `${dex.periodNote} Weekly reporting: live 7d follows the source refresh, but this DEX was not present in the archived ${current.weekKey} reporting snapshot, so Wednesday comparison values are unavailable.`,
     };
   }
   const previousSnapshot = previous?.dexes[dex.id];
-  const volume7dUsd = reportingValue(currentSnapshot, currentAdaPriceUsd);
+  const reportingVolume7dUsd = reportingValue(
+    currentSnapshot,
+    currentAdaPriceUsd,
+  );
   const previous7dUsd = reportingValue(previousSnapshot, currentAdaPriceUsd);
   const weekChangePct =
     currentSnapshot.weekChangePct !== undefined
@@ -375,12 +378,12 @@ function withWeeklyDexValues(
         );
   return {
     ...dex,
-    volume7dUsd,
+    reportingVolume7dUsd,
     previous7dUsd,
     weekChangePct,
     periodNote: [
       dex.periodNote,
-      `Weekly reporting: 7d volume was frozen at the ${current.weekKey} Wednesday snapshot; Previous 7d comes from ${previous?.weekKey ?? "an unavailable prior snapshot"}. The reporting cutoff is Wednesday 08:00 Europe/Belgrade.`,
+      `Weekly reporting: live 7d follows the source refresh. The presentation snapshot was frozen on ${current.weekKey}; Previous 7d comes from ${previous?.weekKey ?? "an unavailable prior snapshot"}, and WoW compares those two Wednesday values. The reporting cutoff is Wednesday 08:00 Europe/Belgrade.`,
     ].join(" "),
   };
 }
@@ -395,10 +398,11 @@ export function applyWeeklyReportingSnapshots(
   );
   const protocolRows = dexes.filter((dex) => dex.rowKind === "protocol");
   const comparable = protocolRows.filter(
-    (dex) => dex.volume7dUsd != null && dex.previous7dUsd != null,
+    (dex) =>
+      dex.reportingVolume7dUsd != null && dex.previous7dUsd != null,
   );
   const currentComparable = sumAvailable(
-    comparable.map((dex) => dex.volume7dUsd),
+    comparable.map((dex) => dex.reportingVolume7dUsd),
   );
   const previousComparable = sumAvailable(
     comparable.map((dex) => dex.previous7dUsd),

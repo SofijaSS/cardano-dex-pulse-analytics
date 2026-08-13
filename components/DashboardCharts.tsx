@@ -57,12 +57,14 @@ export function DashboardCharts({
   selected,
   currency,
   adaPriceUsd,
+  useWeeklySnapshots = false,
 }: {
   series: VolumeSeriesPoint[];
   dexes: DexMetric[];
   selected: Set<string>;
   currency: Currency;
   adaPriceUsd: number | null;
+  useWeeklySnapshots?: boolean;
 }) {
   const selectedDexes = dexes.filter((dex) => selected.has(dex.id));
   const convertedSeries = series.map((point) => ({
@@ -99,11 +101,20 @@ export function DashboardCharts({
     color: dex.color,
   }));
   const weeklyData = dexes
-    .filter((dex) => dex.volume7dUsd != null && dex.previous7dUsd != null)
-    .slice(0, 8)
     .map((dex) => ({
+      dex,
+      current7dUsd: useWeeklySnapshots
+        ? dex.reportingVolume7dUsd ?? null
+        : dex.volume7dUsd,
+    }))
+    .filter(
+      ({ dex, current7dUsd }) =>
+        current7dUsd != null && dex.previous7dUsd != null,
+    )
+    .slice(0, 8)
+    .map(({ dex, current7dUsd }) => ({
       name: dex.name,
-      current: convertUsd(dex.volume7dUsd, currency, adaPriceUsd) || 0,
+      current: convertUsd(current7dUsd, currency, adaPriceUsd) || 0,
       previous: convertUsd(dex.previous7dUsd, currency, adaPriceUsd) || 0,
     }));
   const efficiencyData = dexes
@@ -228,8 +239,10 @@ export function DashboardCharts({
 
       <ChartCard
         eyebrow="Comparable cohort"
-        title="Week-over-week volume"
-        note="Only DEXes with both current and previous 7-day values from native or runtime-validated sources are included."
+        title={useWeeklySnapshots ? "Wednesday-to-Wednesday volume" : "Week-over-week volume"}
+        note={useWeeklySnapshots
+          ? "Current and previous bars use the two retained Wednesday 08:00 Europe/Belgrade snapshots."
+          : "Only DEXes with both current and previous 7-day values from native or runtime-validated sources are included."}
       >
         {!weeklyData.length ? (
           <EmptyChart message="Comparable weekly data unavailable." />
@@ -251,15 +264,15 @@ export function DashboardCharts({
                   />
                   <YAxis tickFormatter={(value) => unitFormatter(value)} tick={{ fill: axisColor, fontSize: 11 }} axisLine={false} tickLine={false} width={74} />
                   <Tooltip cursor={false} formatter={tooltipFormatter} />
-                  <Bar dataKey="current" name="Current 7d" fill="var(--blue)" radius={[5, 5, 0, 0]} />
-                  <Bar dataKey="previous" name="Previous 7d" fill="var(--chart-secondary)" radius={[5, 5, 0, 0]} />
+                  <Bar dataKey="current" name={useWeeklySnapshots ? "Wednesday 7d" : "Current 7d"} fill="var(--blue)" radius={[5, 5, 0, 0]} />
+                  <Bar dataKey="previous" name={useWeeklySnapshots ? "Previous Wed 7d" : "Previous 7d"} fill="var(--chart-secondary)" radius={[5, 5, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
             <ChartLegend
               items={[
-                { name: "Current 7d", color: "var(--blue)" },
-                { name: "Previous 7d", color: "var(--chart-secondary)" },
+                { name: useWeeklySnapshots ? "Wednesday 7d" : "Current 7d", color: "var(--blue)" },
+                { name: useWeeklySnapshots ? "Previous Wed 7d" : "Previous 7d", color: "var(--chart-secondary)" },
               ]}
             />
           </div>
