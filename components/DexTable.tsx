@@ -652,7 +652,7 @@ export function DexTable({
               {showColumn("poolCount") ? <SortableHeader label="Pools" field="poolCount" {...headerProps} /> : null}
               {showColumn("marketShare24hPct") ? <SortableHeader label="Share" field="marketShare24hPct" {...headerProps} /> : null}
               {showColumn("variance24hPct") ? <SortableHeader label="vs DefiLlama" field="variance24hPct" {...headerProps} /> : null}
-              {showColumn("lastData") ? <th>Last data</th> : null}
+              {showColumn("lastData") ? <th className="last-data-cell">Last data</th> : null}
             </tr>
           </thead>
           <tbody>
@@ -730,7 +730,7 @@ export function DexTable({
                         {formatTablePercent(dex.variance24hPct)}
                       </span>
                     </td> : null}
-                    {showColumn("lastData") ? <td>
+                    {showColumn("lastData") ? <td className="last-data-cell">
                       <time dateTime={dex.lastDataAt || undefined}>{formatTableDateTime(dex.lastDataAt)}</time>
                       <small><PreserveTerms>{dex.sourceLabel}</PreserveTerms></small>
                     </td> : null}

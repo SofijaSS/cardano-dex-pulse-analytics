@@ -1178,6 +1178,9 @@ tbody tr:hover td { background-color: var(--table-hover); }
 td { font-family: var(--font-plex-mono), monospace; font-size: 11px; }
 td small { display: block; max-width: 150px; margin-top: 4px; overflow: hidden; color: var(--muted); font-size: 8px; text-overflow: ellipsis; }
 td time { font-size: 9px; }
+.last-data-cell { direction: ltr; text-align: left; }
+.last-data-cell time,
+.last-data-cell small { direction: ltr; text-align: left; }
 
 .table-sort { display: inline-flex; align-items: center; gap: 4px; padding: 0; border: 0; background: transparent; color: var(--muted); cursor: pointer; font-size: 9px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
 .table-sort.is-active { color: var(--table-info); }
