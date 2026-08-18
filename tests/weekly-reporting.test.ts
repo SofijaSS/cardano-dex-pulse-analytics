@@ -11,7 +11,7 @@ import {
 } from "../lib/weekly-reporting";
 
 describe("Wednesday weekly reporting cutoff", () => {
-  it("keeps the prior Wednesday before 08:00 and advances at 08:00 Belgrade time", () => {
+  it("keeps the prior Wednesday before 08:00 and advances at 08:00 local time", () => {
     expect(latestReportingWeekKey(new Date("2026-08-05T05:59:59Z"))).toBe(
       "2026-07-29",
     );

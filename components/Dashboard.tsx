@@ -300,7 +300,7 @@ export function Dashboard({ authEnabled = false }: { authEnabled?: boolean }) {
   const sourceLabel =
     sourceMode === "defillama" ? "DefiLlama benchmark" : "Native-first reconciled";
   const weeklyReportingMeta = data.weeklyReporting
-    ? `Weekly 7d snapshot ${formatDateTime(data.weeklyReporting.currentCapturedAt)} · previous snapshot ${formatDateTime(data.weeklyReporting.previousCapturedAt)} · Wednesday 08:00 Europe/Belgrade`
+    ? `Weekly 7d snapshot ${formatDateTime(data.weeklyReporting.currentCapturedAt)} · previous snapshot ${formatDateTime(data.weeklyReporting.previousCapturedAt)} · Wednesday 08:00 CET`
     : null;
 
   const toggleDex = (id: string) => {

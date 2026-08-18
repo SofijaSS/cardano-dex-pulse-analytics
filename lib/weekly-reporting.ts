@@ -383,7 +383,7 @@ function withWeeklyDexValues(
     weekChangePct,
     periodNote: [
       dex.periodNote,
-      `Weekly reporting: live 7d follows the source refresh. The presentation snapshot was frozen on ${current.weekKey}; Previous 7d comes from ${previous?.weekKey ?? "an unavailable prior snapshot"}, and WoW compares those two Wednesday values. The reporting cutoff is Wednesday 08:00 Europe/Belgrade.`,
+      `Weekly reporting: live 7d follows the source refresh. The presentation snapshot was frozen on ${current.weekKey}; Previous 7d comes from ${previous?.weekKey ?? "an unavailable prior snapshot"}, and WoW compares those two Wednesday values. The reporting cutoff is Wednesday 08:00 CET.`,
     ].join(" "),
   };
 }
@@ -436,7 +436,7 @@ export function applyWeeklyReportingSnapshots(
     },
     warnings: [
       ...data.warnings,
-      `Weekly reporting is frozen to Wednesday 08:00 Europe/Belgrade snapshots. Current ${current.weekKey}; previous ${previous?.weekKey ?? "unavailable"}.`,
+      `Weekly reporting is frozen to Wednesday 08:00 CET snapshots. Current ${current.weekKey}; previous ${previous?.weekKey ?? "unavailable"}.`,
     ],
   };
 }

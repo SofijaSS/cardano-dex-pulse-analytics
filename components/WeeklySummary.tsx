@@ -194,7 +194,7 @@ export function WeeklySummary({
             </small>
             <small>Report generated {formatDateTime(generatedAt)}.</small>
             {weeklyReporting ? (
-              <small>Weekly cutoff Wednesday 08:00 Europe/Belgrade · snapshot {formatDateTime(weeklyReporting.currentCapturedAt)}.</small>
+              <small>Weekly cutoff Wednesday 08:00 CET · snapshot {formatDateTime(weeklyReporting.currentCapturedAt)}.</small>
             ) : null}
           </div>
         </div>

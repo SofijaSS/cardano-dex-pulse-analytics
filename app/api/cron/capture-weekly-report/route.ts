@@ -26,7 +26,7 @@ export async function GET(request: Request) {
   if (!isWeeklyCaptureHour(now)) {
     return Response.json({
       status: "skipped",
-      reason: "It is not Wednesday 08:00 in Europe/Belgrade.",
+      reason: "It is not Wednesday 08:00 CET.",
       checkedAt: now.toISOString(),
     });
   }

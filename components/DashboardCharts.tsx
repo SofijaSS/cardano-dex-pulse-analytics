@@ -241,7 +241,7 @@ export function DashboardCharts({
         eyebrow="Comparable cohort"
         title={useWeeklySnapshots ? "Wednesday-to-Wednesday volume" : "Week-over-week volume"}
         note={useWeeklySnapshots
-          ? "Current and previous bars use the two retained Wednesday 08:00 Europe/Belgrade snapshots."
+          ? "Current and previous bars use the two retained Wednesday 08:00 CET snapshots."
           : "Only DEXes with both current and previous 7-day values from native or runtime-validated sources are included."}
       >
         {!weeklyData.length ? (
